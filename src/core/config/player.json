@@ -44,6 +44,10 @@
       "passThroughArmor": true
     }
   },
+  "execution": {
+    "windowSec": 3.0,
+    "durationSec": 1.2
+  },
   "overheat": {
     "fillSec": 4.0,
     "cooldownSec": 2.0
