@@ -226,6 +226,8 @@ export interface MatchTimeline {
   notifyPlayerOutOfLives(): void;
   /** 外部伤害：塔心扣血 */
   applyCoreDamage(amount: number): void;
+  /** 阶段 I 血量打空 → 跳到 transition */
+  jumpToTransition(): void;
 }
 
 /** 遥测记录：每局一份 JSON */

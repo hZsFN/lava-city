@@ -389,9 +389,12 @@ async function boot(): Promise<void> {
     }
   });
 
-  // Boss 死亡（塔/调试伤害）→ 时间轴进入 victory 演出
+  // Boss 血量归零：阶段 I → 按血量进转阶段（不等时间轴）；阶段 II → victory
   game.bus.on('BossHpChanged', (p) => {
-    if (p.hp <= 0 && (lastPhase === 'boss1' || lastPhase === 'boss2')) {
+    if (p.hp > 0) return;
+    if (lastPhase === 'boss1') {
+      game.timeline.jumpToTransition();
+    } else if (lastPhase === 'boss2') {
       game.timeline.notifyBossDefeated();
     }
   });
@@ -402,7 +405,7 @@ async function boot(): Promise<void> {
     const bossNow = bossRef;
     if (!bossNow || bossNow.isDead()) return;
     let amount = p.amount;
-    if (lastPhase === 'boss1') amount = Math.min(amount, bossNow.state.hp - 1);
+    
     if (amount > 0) bossNow.takeDamage(amount, p.attr);
   });
 
@@ -521,6 +524,13 @@ async function boot(): Promise<void> {
       boss.setApproachTarget(target);
 
       game.tick(dt);
+
+      // 圆盘与圆环之间是熔岩（没有平台），走出去就掉下去
+      const pp = game.snapshot().player.pos;
+      if (Math.hypot(pp[0], pp[2]) > 24.0 && !game.isOver()) {
+        game.player.kill('熔岩');
+      }
+
       boss.update(dt * 1000);
       const outcomes = combat.update(dt, { weapon: pendingWeapon ?? NO_WEAPON, toggleForm: pendingToggle });
       for (const outcome of outcomes) view.onAttack(outcome);
@@ -574,6 +584,21 @@ async function boot(): Promise<void> {
   };
   let buildKind: TowerKind = 'ballista';
 
+  // 俯视建塔靠真鼠标点塔位，所以进出俯视必须一起处理"指针"：
+  //   · 退出 Pointer Lock —— 浏览器才会画出光标
+  //   · 关掉 Input 的"点击画布自动锁定" —— 否则点塔位的那一下又把指针锁回去，
+  //     光标消失、clientX/Y 冻在屏幕中心，塔位全点歪
+  //   · 画布换十字光标 —— 一眼看出现在是在选点
+  const setTacticalMode = (on: boolean): void => {
+    view.setTactical(on);
+    input.setLockAllowed(!on);
+    app.canvas.style.cursor = on ? 'crosshair' : '';
+    if (on && document.pointerLockElement) document.exitPointerLock();
+    overlay.setMessage(
+      on ? '俯视：点击青色塔位建塔 · 数字键 1–5 切换塔型 · B 返回' : '回到第一人称',
+    );
+  };
+
   // 俯视切换按钮（键盘之外再给一个入口，避免焦点/输入法吃掉按键）
   const tacBtn = document.createElement('button');
   tacBtn.textContent = '俯视建塔 (B)';
@@ -583,12 +608,7 @@ async function boot(): Promise<void> {
     border: '1px solid #ff8a4c', background: 'rgba(20,10,6,0.82)',
     color: '#ffb27a', font: '600 14px/1 system-ui, sans-serif',
   });
-  tacBtn.addEventListener('click', () => {
-    const on = !view.isTactical();
-    view.setTactical(on);
-    if (on && document.pointerLockElement) document.exitPointerLock();
-    overlay.setMessage(on ? '俯视：点击青色塔位建塔 · 1–5 换塔型' : '回到第一人称');
-  });
+  tacBtn.addEventListener('click', () => setTacticalMode(!view.isTactical()));
   document.body.appendChild(tacBtn);
 
   // 当前塔型常驻标签（俯视时也看得见自己在建哪种）
@@ -639,14 +659,7 @@ async function boot(): Promise<void> {
     // Tab：切换俯视战术视角（选点建塔）
     if (event.code === 'KeyB') {
       event.preventDefault();
-      const on = !view.isTactical();
-      view.setTactical(on);
-      if (on) {
-        if (document.pointerLockElement) document.exitPointerLock();
-        overlay.setMessage('俯视：点击青色塔位建塔 · 数字键 1–5 切换塔型 · B 返回');
-      } else {
-        overlay.setMessage('回到第一人称');
-      }
+      setTacticalMode(!view.isTactical());
       return;
     }
 

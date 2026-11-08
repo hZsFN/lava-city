@@ -268,6 +268,19 @@ export function createMatchTimeline(): MatchTimeline {
   }
 
   /** Boss 死亡 → 进入 victory；演出结束后由 escape 自动结算 */
+  /** 阶段 I 血量打空 → 立刻进转阶段演出（按血量触发，不等时间轴到 140 秒） */
+  function jumpToTransition(): void {
+    if (ended || !flowCfg || mode !== 'script') return;
+    const cur = currentPhase();
+    if (cur !== 'boss1') return;
+    const idx = phases.findIndex((p) => p.phase === 'transition');
+    if (idx < 0) return;
+    t = phases[idx]!.startSec;
+    phaseIdx = idx;
+    emitPhase('transition', t);
+    updateLava();
+  }
+
   function notifyBossDefeated(): void {
     if (ended || !flowCfg || mode !== 'script') return;
     const p = currentPhase();
@@ -305,6 +318,7 @@ export function createMatchTimeline(): MatchTimeline {
     result,
     lavaY: lavaHeight,
     notifyBossDefeated,
+    jumpToTransition,
     notifyCoreDestroyed,
     notifyPlayerOutOfLives,
     applyCoreDamage,

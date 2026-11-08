@@ -42,6 +42,11 @@ export interface InputHandle extends InputSource {
   dispose(): void;
   /** 当前是否已锁定指针 */
   isLocked(): boolean;
+  /**
+   * 是否允许"点一下画布就把指针锁回去"。俯视建塔必须关掉：那时用的是真实
+   * 鼠标坐标，一点塔位就被锁回中心，光标立刻消失、clientX/Y 也冻在屏幕中间。
+   */
+  setLockAllowed(on: boolean): void;
   /** 本帧是否有"切换形态"的边沿触发（供调试用） */
   consumeFormSwitch(): boolean;
   /** 本帧是否有"击破"的边沿触发 */
@@ -70,6 +75,8 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   /** 刚拿到 pointer lock 时要丢弃的事件数 */
   let lockGrace = 0;
   let lastMoveTs = 0;
+  /** 是否允许点击画布自动锁定；俯视建塔期间关掉 */
+  let lockAllowed = true;
 
   // 边沿触发标记：按下时置 true，被消费后置 false
   let edgeDash = false;
@@ -133,7 +140,7 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   };
 
   const onClick = (): void => {
-    if (!locked) void canvas.requestPointerLock();
+    if (lockAllowed && !locked) void canvas.requestPointerLock();
   };
 
   // 失焦时清空按键，避免"卡键"
@@ -198,6 +205,11 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
     },
 
     isLocked: () => locked,
+
+    setLockAllowed(on: boolean): void {
+      lockAllowed = on;
+      if (!on && document.pointerLockElement === canvas) document.exitPointerLock();
+    },
 
     consumeFormSwitch(): boolean {
       const v = edgeFormSwitch;
