@@ -58,5 +58,9 @@
   "forms": {
     "physical": { "label": "熔岩重锤", "color": "#e9e3d2" },
     "arcane": { "label": "地脉法杖", "color": "#4aa8ff" }
+  },
+  "formSwitch": {
+    "durationSec": 0.5,
+    "initial": "physical"
   }
 }
