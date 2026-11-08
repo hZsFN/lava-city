@@ -1,0 +1,19 @@
+{
+  "name": "p2a-verify",
+  "private": true,
+  "type": "module",
+  "description": "P2-A 独立验证环境：typecheck + vitest，引用 ../../src。不与 M0 root 构建链冲突。",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --root . --config vitest.config.ts",
+    "test:cov": "vitest run --root . --config vitest.config.ts --coverage"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "@vitest/coverage-v8": "^2.1.0"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
+  }
+}

@@ -23,20 +23,26 @@ export interface PlayerWorld {
   lavaY: number;
 }
 
-/** 对应 config/player.json 中被本控制器使用的字段（键名与 M0 骨架一致） */
+/** 对应 config/player.json 中被本控制器使用的字段 */
 export interface PlayerConfig {
-  gravity: number;
-  snapToGround: number;
-  maxHp: number;
-  moveSpeed: number;
-  dashSpeed: number;
-  dashInvulnerableSec: number;
-  dashCooldownSec: number;
-  jumpHeight: number;
-  radius: number;
-  height: number;
-  regenDelaySec: number;
-  regenPerSec: number;
+  physics: {
+    gravity: number;
+    snapToGround: number;
+  };
+  movement: {
+    moveSpeed: number;
+    sprintSpeed: number;
+    dashIFramesSec: number;
+    dashCooldownSec: number;
+    jumpHeight: number;
+    radius: number;
+    height: number;
+  };
+  hp: {
+    maxHp: number;
+    regenDelaySec: number;
+    regenPerSec: number;
+  };
 }
 
 /** 每逻辑帧输入。yaw 为绕 Y 弧度，0 面向 -Z（与 three 相机一致） */
@@ -99,12 +105,13 @@ export class PlayerController {
     this.bus = opts.bus;
     this.cfg = opts.config;
     this.world = opts.world;
-    this.hp = this.cfg.maxHp;
+    this.hp = this.cfg.hp.maxHp;
     // 由重力与跳跃高度反解初速度：h = v² / (2g)
-    this.jumpVelocity = Math.sqrt(2 * -this.cfg.gravity * this.cfg.jumpHeight);
+    this.jumpVelocity = Math.sqrt(2 * -this.cfg.physics.gravity * this.cfg.movement.jumpHeight);
 
     [this.x, this.y, this.z] = opts.spawn;
     this.bus.emit('PlayerSpawned', { pos: this.pos });
+    this.syncSnapshot();
   }
 
   get pos(): Vec3 {
@@ -157,6 +164,7 @@ export class PlayerController {
     this.regen(dt);
 
     this.bus.emit('PlayerMoved', { pos: this.pos, yaw: this.yaw });
+    this.syncSnapshot();
     this.prevJump = input.jump;
     this.prevDash = input.dash;
   }
@@ -170,10 +178,11 @@ export class PlayerController {
     this.bus.emit('PlayerDamaged', {
       amount: applied,
       hp: this.hp,
-      maxHp: this.cfg.maxHp,
+      maxHp: this.cfg.hp.maxHp,
       source,
     });
     if (this.hp <= 0) this.die(source);
+    this.syncSnapshot();
     return applied;
   }
 
@@ -182,12 +191,13 @@ export class PlayerController {
     if (this.dead) return;
     this.hp = 0;
     this.die(cause);
+    this.syncSnapshot();
   }
 
   respawn(pos: Vec3): void {
     [this.x, this.y, this.z] = pos;
     this.vy = 0;
-    this.hp = this.cfg.maxHp;
+    this.hp = this.cfg.hp.maxHp;
     this.dead = false;
     this.grounded = false;
     this.dashTimer = 0;
@@ -196,6 +206,7 @@ export class PlayerController {
     this.prevJump = false;
     this.prevDash = false;
     this.bus.emit('PlayerRespawned', { pos });
+    this.syncSnapshot();
   }
 
   private die(cause: string): void {
@@ -206,6 +217,7 @@ export class PlayerController {
     this.grounded = false;
     this.deaths += 1;
     this.bus.emit('PlayerDied', { cause, deaths: this.deaths });
+    this.syncSnapshot();
   }
 
   private tickTimers(dt: number): void {
@@ -230,8 +242,8 @@ export class PlayerController {
     });
 
     this.dashDir = worldDir;
-    this.dashTimer = this.cfg.dashInvulnerableSec;
-    this.dashCooldown = Math.max(this.cfg.dashCooldownSec, this.dashTimer);
+    this.dashTimer = this.cfg.movement.dashIFramesSec;
+    this.dashCooldown = Math.max(this.cfg.movement.dashCooldownSec, this.dashTimer);
     this.bus.emit('PlayerDashed', { dir: [worldDir.x, 0, worldDir.z] });
   }
 
@@ -245,13 +257,13 @@ export class PlayerController {
     let vx: number;
     let vz: number;
     if (this.isDashing) {
-      vx = this.dashDir.x * this.cfg.dashSpeed;
-      vz = this.dashDir.z * this.cfg.dashSpeed;
+      vx = this.dashDir.x * this.cfg.movement.sprintSpeed;
+      vz = this.dashDir.z * this.cfg.movement.sprintSpeed;
     } else {
       const { forward, right } = basisFromYaw(input.yaw);
       const dir = normalize({ x: input.moveX, z: input.moveZ });
-      vx = (forward.x * dir.z + right.x * dir.x) * this.cfg.moveSpeed;
-      vz = (forward.z * dir.z + right.z * dir.x) * this.cfg.moveSpeed;
+      vx = (forward.x * dir.z + right.x * dir.x) * this.cfg.movement.moveSpeed;
+      vz = (forward.z * dir.z + right.z * dir.x) * this.cfg.movement.moveSpeed;
     }
 
     this.moveAxis('x', vx * dt);
@@ -264,7 +276,7 @@ export class PlayerController {
     if (axis === 'x') this.x += delta;
     else this.z += delta;
 
-    const r = this.cfg.radius;
+    const r = this.cfg.movement.radius;
     for (const b of this.world.colliders) {
       if (!this.overlapsBody(b)) continue;
       if (axis === 'x') {
@@ -278,7 +290,7 @@ export class PlayerController {
   private integrateVertical(dt: number): void {
     const wasGrounded = this.grounded;
     const oldY = this.y;
-    this.vy += this.cfg.gravity * dt;
+    this.vy += this.cfg.physics.gravity * dt;
     let newY = oldY + this.vy * dt;
     this.grounded = false;
 
@@ -296,7 +308,7 @@ export class PlayerController {
       } else if (wasGrounded) {
         // 下台阶吸附（高度差 ≤ snapToGround）
         let snapY = -Infinity;
-        const snap = this.cfg.snapToGround;
+        const snap = this.cfg.physics.snapToGround;
         for (const b of this.world.colliders) {
           if (!this.overlapsHorizontally(b)) continue;
           if (b.maxY <= oldY + EPS && b.maxY >= newY - snap && b.maxY > snapY) snapY = b.maxY;
@@ -312,13 +324,13 @@ export class PlayerController {
       let ceilY = Infinity;
       for (const b of this.world.colliders) {
         if (!this.overlapsHorizontally(b)) continue;
-        const top = oldY + this.cfg.height;
-        if (b.minY >= top - EPS && b.minY <= newY + this.cfg.height + EPS && b.minY < ceilY) {
+        const top = oldY + this.cfg.movement.height;
+        if (b.minY >= top - EPS && b.minY <= newY + this.cfg.movement.height + EPS && b.minY < ceilY) {
           ceilY = b.minY;
         }
       }
       if (ceilY < Infinity) {
-        newY = ceilY - this.cfg.height;
+        newY = ceilY - this.cfg.movement.height;
         this.vy = 0;
       }
     }
@@ -327,23 +339,37 @@ export class PlayerController {
   }
 
   private regen(dt: number): void {
-    if (this.hp >= this.cfg.maxHp) {
+    if (this.hp >= this.cfg.hp.maxHp) {
       this.regenTimer = 0;
       return;
     }
     this.regenTimer += dt;
-    if (this.regenTimer < this.cfg.regenDelaySec) return;
-    this.hp = Math.min(this.cfg.maxHp, this.hp + this.cfg.regenPerSec * dt);
+    if (this.regenTimer < this.cfg.hp.regenDelaySec) return;
+    this.hp = Math.min(this.cfg.hp.maxHp, this.hp + this.cfg.hp.regenPerSec * dt);
   }
 
   private overlapsHorizontally(b: Aabb): boolean {
-    const r = this.cfg.radius;
+    const r = this.cfg.movement.radius;
     return this.x + r > b.minX + EPS && this.x - r < b.maxX - EPS
       && this.z + r > b.minZ + EPS && this.z - r < b.maxZ - EPS;
   }
 
   private overlapsBody(b: Aabb): boolean {
     if (!this.overlapsHorizontally(b)) return false;
-    return this.y < b.maxY - EPS && this.y + this.cfg.height > b.minY + EPS;
+    return this.y < b.maxY - EPS && this.y + this.cfg.movement.height > b.minY + EPS;
+  }
+
+  private syncSnapshot(): void {
+    const snap = this.bus.snapshot();
+    this.bus.__setSnapshot({
+      ...snap,
+      player: {
+        ...snap.player,
+        pos: this.pos,
+        yaw: this.yaw,
+        hp: this.hp,
+        maxHp: this.cfg.hp.maxHp,
+      },
+    });
   }
 }
