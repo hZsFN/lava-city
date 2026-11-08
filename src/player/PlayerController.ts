@@ -63,6 +63,8 @@ export interface PlayerInput {
 
 const IDLE_INPUT: PlayerInput = { moveX: 0, moveZ: 0, yaw: 0, jump: false, dash: false };
 const EPS = 1e-4;
+/** 站在平台顶面上时允许的下陷量（米）；超过它才算卡进侧壁 */
+const GROUND_SNAP_TOLERANCE = 0.35;
 
 interface Vec2 {
   x: number;
@@ -290,20 +292,20 @@ export class PlayerController {
     this.moveAxis('z', vz * dt);
   }
 
-  /** 单轴移动 + 逐盒推出，避免穿墙 */
+  /** 单轴移动；撞到侧壁就退回本步之前的位置 */
   private moveAxis(axis: 'x' | 'z', delta: number): void {
     if (delta === 0) return;
+    const before = axis === 'x' ? this.x : this.z;
     if (axis === 'x') this.x += delta;
     else this.z += delta;
 
-    const r = this.cfg.movement.radius;
     for (const b of this.world.colliders) {
       if (!this.overlapsBody(b)) continue;
-      if (axis === 'x') {
-        this.x = delta > 0 ? b.minX - r : b.maxX + r;
-      } else {
-        this.z = delta > 0 ? b.minZ - r : b.maxZ + r;
-      }
+      // 退回，而不是吸附到盒子边界：这块 collider 是整块地面平台，
+      // 边界吸附等于把玩家瞬移到平台最外沿。
+      if (axis === 'x') this.x = before;
+      else this.z = before;
+      break;
     }
   }
 
@@ -366,7 +368,13 @@ export class PlayerController {
 
   private overlapsBody(b: Aabb): boolean {
     if (!this.overlapsHorizontally(b)) return false;
-    return this.y < b.maxY - EPS && this.y + this.cfg.movement.height > b.minY + EPS;
+    // 站在平台顶面上不算"卡进体内"。
+    // 原来用 EPS(1e-4) 做容差，重力会让 y 略微小于 b.maxY，于是每一帧都
+    // 被判定成撞墙 —— 而撞墙处理是"吸附到盒子边界"，直接把玩家瞬移到
+    // 平台边缘（23.55 米外）。容差放宽到 0.35 米：脚底低于顶面 35 厘米以上
+    // 才算真的卡进侧壁里。
+    return this.y < b.maxY - GROUND_SNAP_TOLERANCE
+      && this.y + this.cfg.movement.height > b.minY + EPS;
   }
 
   private syncSnapshot(): void {
