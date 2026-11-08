@@ -6,7 +6,7 @@ import { skillTell } from '../game/feelRules';
  *
  * 原 HTML 预览界面原样保留（机位按钮 / 阶段切换 / 弱点开关都能用），
  * 外面叠一块实时 Boss 状态面板：血量、阶段、当前技能、弱点、减益。
- * iframe 懒加载：第一次按 M 才拉 0.77 MB 的页面；打开时按 Boss 当前阶段带 ?phase=。
+ * iframe 懒加载：第一次按 M 才拉 0.77 MB 的页面；之后阶段/弱点变化直接驱动预览页，不重载。
  */
 
 const SRC = `${import.meta.env.BASE_URL}models/surtr/SurtrRig.html`;
@@ -39,7 +39,8 @@ export class ModelViewer {
   private readonly root = document.createElement('div');
   private readonly stat = document.createElement('div');
   private iframe: HTMLIFrameElement | null = null;
-  private loadedPhase: 1 | 2 | null = null;
+  private frameReady = false;
+  private synced: { phase: 1 | 2; weak: boolean } | null = null;
   private open = false;
   private timer = 0;
 
@@ -79,22 +80,44 @@ export class ModelViewer {
   }
 
   private ensureFrame(): void {
+    if (this.iframe) return;
     const phase = this.opts.bus.snapshot().boss.phase;
-    if (this.iframe && this.loadedPhase === phase) return;
-    this.loadedPhase = phase;
-    if (!this.iframe) {
-      const f = document.createElement('iframe');
-      f.title = '熔岩巨人 · 霸王版';
-      // 焦点在 iframe 里时 M / Esc 也要能关（同源，可直接挂监听）
-      f.addEventListener('load', () => {
-        f.contentWindow?.addEventListener('keydown', (e) => {
-          if (e.code === 'KeyM' || e.code === 'Escape') this.toggle(false);
-        });
+    const f = document.createElement('iframe');
+    f.title = '熔岩巨人 · 霸王版';
+    // 焦点在 iframe 里时 M / Esc 也要能关（同源，可直接挂监听）
+    f.addEventListener('load', () => {
+      this.frameReady = true;
+      this.synced = { phase, weak: false };
+      f.contentWindow?.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyM' || e.code === 'Escape') this.toggle(false);
       });
-      this.root.prepend(f);
-      this.iframe = f;
+    });
+    f.src = `${SRC}?phase=${phase}&view=hero`;
+    this.root.prepend(f);
+    this.iframe = f;
+  }
+
+  /**
+   * 把 Boss 实时状态推进预览页（同源 DOM 直驱，不重载页面）：
+   * 阶段变了 → 点预览页自带的阶段按钮（有过渡动画）；弱点开/合 → 勾/取消弱点判定球。
+   * 只在游戏侧状态「变化」时推一次，玩家在预览页里手动切换不会被每帧覆盖。
+   */
+  private syncFrame(phase: 1 | 2, weak: boolean): void {
+    const doc = this.frameReady ? this.iframe?.contentDocument : null;
+    if (!doc || !this.synced) return;
+    if (this.synced.phase !== phase) {
+      const shownII = (doc.getElementById('phaseState')?.textContent ?? '').includes('II');
+      if (shownII !== (phase === 2)) doc.getElementById('phaseBtn')?.click();
+      this.synced.phase = phase;
     }
-    this.iframe.src = `${SRC}?phase=${phase}&view=hero`;
+    if (this.synced.weak !== weak) {
+      const chk = doc.getElementById('weakChk') as HTMLInputElement | null;
+      if (chk && chk.checked !== weak) {
+        chk.checked = weak;
+        chk.dispatchEvent(new Event('change'));
+      }
+      this.synced.weak = weak;
+    }
   }
 
   private render(): void {
@@ -103,6 +126,7 @@ export class ModelViewer {
     const skill = b.skill ? (skillTell(b.skill)?.name ?? b.skill) : '巡游';
     const weak = b.weakness ? PART_LABEL[b.weakness] : '无';
     const alive = b.maxHp > 0;
+    this.syncFrame(b.phase, b.weakness !== null);
     this.stat.innerHTML = `
       <h3>苏尔特 · Boss 状态</h3>
       <div class="mv-row"><span>阶段</span><b>${b.phase === 2 ? 'II · 熔火形态' : 'I · 岩甲形态'}</b></div>

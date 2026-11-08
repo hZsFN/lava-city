@@ -41,6 +41,10 @@ const CSS = `
   font-size:13px;white-space:nowrap;animation:gf-toast 2.4s ease forwards}
 .gf-toast.good{border-color:#ffd36b;color:#ffe9a8;font-weight:700;font-size:15px}
 @keyframes gf-toast{0%{opacity:0;transform:translateY(-6px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+#app canvas.gf-shake{animation:gf-shake var(--shake-ms,260ms) cubic-bezier(.36,.07,.19,.97)}
+@keyframes gf-shake{10%,90%{transform:translate(calc(var(--shake) * -.4),0)}20%,80%{transform:translate(calc(var(--shake) * .7),calc(var(--shake) * .3))}
+  30%,50%,70%{transform:translate(calc(var(--shake) * -1),calc(var(--shake) * -.4))}40%,60%{transform:translate(var(--shake),calc(var(--shake) * .4))}}
+@media (prefers-reduced-motion:reduce){#app canvas.gf-shake{animation:none}}
 .gf-pause{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;pointer-events:auto;
   background:radial-gradient(circle at 50% 45%,rgba(40,12,4,.72),rgba(5,3,6,.9));backdrop-filter:blur(3px)}
 .gf-pause.on{display:flex;animation:gf-fade .18s ease-out}
@@ -175,7 +179,13 @@ export class GameFeel {
         this.hurt.style.opacity = '0';
       }, 60);
       this.setLow(p.hp, p.maxHp);
+      this.shake(6, 260);
     });
+    on('BossSkillStart', (p) => {
+      // 落地/冲撞的震屏：不管有没有打中玩家都给，告诉玩家"这一下很重"
+      if (p.stage === 'active' && (p.skill === 'leapSlam' || p.skill === 'lavaCharge')) this.shake(9, 380);
+    });
+    on('BossPhaseChanged', () => this.shake(12, 600));
     on('PlayerDied', () => this.low.classList.remove('on'));
     on('PlayerRespawned', () => this.low.classList.remove('on'));
     on('BossSkillStart', (p) => {
@@ -225,6 +235,16 @@ export class GameFeel {
     n.style.marginTop = `${-30 - Math.random() * 20}px`;
     n.style.setProperty('--dx', `${(Math.random() - 0.3) * 40}px`);
     this.restart(n, 'go');
+  }
+
+  /** 画布整体抖动（CSS transform，不碰相机，不影响逻辑与瞄准射线） */
+  private shake(px: number, ms: number): void {
+    const canvas = document.querySelector<HTMLCanvasElement>('#app canvas');
+    if (!canvas) return;
+    canvas.style.setProperty('--shake', `${px}px`);
+    canvas.style.setProperty('--shake-ms', `${ms}ms`);
+    canvas.addEventListener('animationend', () => canvas.classList.remove('gf-shake'), { once: true });
+    this.restart(canvas, 'gf-shake');
   }
 
   /** 重新触发 CSS 动画：移除类 → 强制回流 → 加回 */
