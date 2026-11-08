@@ -1,0 +1,346 @@
+{
+  "generatedAt": "2026-11-08T08:41:33.430Z",
+  "model": "C:\\Users\\pxnabof\\Desktop\\熔岩巨人-霸王版\\SurtrRig.ts",
+  "source": "SurtrRig.ts",
+  "counts": {
+    "meshCount": 106,
+    "triangles": 30322,
+    "trianglesPhase1": 29542,
+    "vertexCount": 90300,
+    "glowCount": 57,
+    "phase2Count": 12,
+    "phase1Count": 0,
+    "solidCount": 49,
+    "phase2ExcludedMeshes": 12,
+    "vertexSampled": 88526
+  },
+  "bbox": {
+    "min": [
+      -6.9246,
+      0,
+      -3.6322
+    ],
+    "max": [
+      6.9246,
+      14.7623,
+      3.516
+    ],
+    "size": [
+      13.8493,
+      14.7623,
+      7.1483
+    ]
+  },
+  "height": 14.7623,
+  "width": 13.8493,
+  "meta": {
+    "height": 14.762,
+    "width": 13.849,
+    "heightDiff": 0.0003,
+    "weakPointCount": 4
+  },
+  "joints": {
+    "root": [
+      0,
+      0,
+      0
+    ],
+    "rig": [
+      0,
+      0.1504,
+      0
+    ],
+    "hips": [
+      0,
+      6.5504,
+      0
+    ],
+    "torso": [
+      0,
+      7.5504,
+      0
+    ],
+    "chest": [
+      0,
+      9.9504,
+      0.2
+    ],
+    "head": [
+      0,
+      12.3004,
+      1.25
+    ],
+    "shoulderL": [
+      -3.7,
+      11.1504,
+      0
+    ],
+    "elbowL": [
+      -4.75,
+      8.0504,
+      0.75
+    ],
+    "shoulderR": [
+      3.7,
+      11.1504,
+      0
+    ],
+    "elbowR": [
+      4.75,
+      8.0504,
+      0.75
+    ],
+    "legL": [
+      -1.65,
+      6.3504,
+      0
+    ],
+    "kneeL": [
+      -2.35,
+      3.6004,
+      0.6
+    ],
+    "footL": [
+      -2.75,
+      1.1504,
+      0.3
+    ],
+    "legR": [
+      1.65,
+      6.3504,
+      0
+    ],
+    "kneeR": [
+      2.35,
+      3.6004,
+      0.6
+    ],
+    "footR": [
+      2.75,
+      1.1504,
+      0.3
+    ]
+  },
+  "weakPoints": [
+    {
+      "key": "core",
+      "label": "熔岩心",
+      "pos": [
+        0,
+        10.15,
+        2.45
+      ],
+      "r": 1.2,
+      "glowVertsInSphere": 222,
+      "visibleDirs": 11,
+      "rayDirs": 24,
+      "visibleRatio": 0.4583,
+      "dirDetail": [
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "key": "back",
+      "label": "火山口",
+      "pos": [
+        0,
+        11.2,
+        -2.55
+      ],
+      "r": 1.1,
+      "glowVertsInSphere": 309,
+      "visibleDirs": 13,
+      "rayDirs": 24,
+      "visibleRatio": 0.5417,
+      "dirDetail": [
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "key": "kneeL",
+      "label": "左膝熔核",
+      "pos": [
+        -2.35,
+        3.6,
+        2.15
+      ],
+      "r": 0.62,
+      "glowVertsInSphere": 240,
+      "visibleDirs": 10,
+      "rayDirs": 24,
+      "visibleRatio": 0.4167,
+      "dirDetail": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "key": "kneeR",
+      "label": "右膝熔核",
+      "pos": [
+        2.35,
+        3.6,
+        2.15
+      ],
+      "r": 0.62,
+      "glowVertsInSphere": 240,
+      "visibleDirs": 9,
+      "rayDirs": 24,
+      "visibleRatio": 0.375,
+      "dirDetail": [
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "全高 14.2~15.2 m",
+      "pass": true,
+      "detail": "实际 max.y=14.76 m（包围盒高 14.76，min.y=0.00）"
+    },
+    {
+      "name": "x 跨度 ≥ 8.5 m",
+      "pass": true,
+      "detail": "实际 x 跨度 13.85 m（min.x=-6.92, max.x=6.92）"
+    },
+    {
+      "name": "三角面 ≤ 60000",
+      "pass": true,
+      "detail": "实际 30322 面（阶段 I 29542 面，顶点 90300）"
+    },
+    {
+      "name": "脚底 y ≈ 0",
+      "pass": true,
+      "detail": "实际 min.y = 0.00 m（容差 ±0.15）"
+    },
+    {
+      "name": "4 个弱点球",
+      "pass": true,
+      "detail": "实际 4 个：core, back, kneeL, kneeR"
+    },
+    {
+      "name": "弱点 key 齐全（core/back/kneeL/kneeR）",
+      "pass": true,
+      "detail": "实际：core, back, kneeL, kneeR"
+    },
+    {
+      "name": "弱点 core（熔岩心）可见方向 ≥ 8/24",
+      "pass": true,
+      "detail": "实际 11/24，球内发光顶点 222 个，r=1.20"
+    },
+    {
+      "name": "弱点 back（火山口）可见方向 ≥ 8/24",
+      "pass": true,
+      "detail": "实际 13/24，球内发光顶点 309 个，r=1.10"
+    },
+    {
+      "name": "弱点 kneeL（左膝熔核）可见方向 ≥ 8/24",
+      "pass": true,
+      "detail": "实际 10/24，球内发光顶点 240 个，r=0.62"
+    },
+    {
+      "name": "弱点 kneeR（右膝熔核）可见方向 ≥ 8/24",
+      "pass": true,
+      "detail": "实际 9/24，球内发光顶点 240 个，r=0.62"
+    },
+    {
+      "name": "meta.height 与实际包围盒高度差 < 0.15 m",
+      "pass": true,
+      "detail": "meta.height=14.76，实际=14.76，差 0.000 m"
+    }
+  ],
+  "pass": true,
+  "failCount": 0,
+  "elapsedMs": 225
+}

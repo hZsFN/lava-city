@@ -188,9 +188,10 @@ export class PlayerController {
     this.integrateHorizontal(dt, input);
     this.integrateVertical(dt);
 
+    // 熔岩不再致死：掉到熔岩面就托回平台，避免任何一次走位失误直接结束这一局
     if (this.y < this.world.lavaY) {
-      this.die('lava');
-      return;
+      this.y = 0;
+      this.vy = 0;
     }
 
     this.bus.emit('PlayerMoved', { pos: this.pos, yaw: this.yaw });
