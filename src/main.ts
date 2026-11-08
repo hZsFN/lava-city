@@ -18,6 +18,8 @@ import type { FormSwitchConfig } from './player/FormSwitch';
 import type { MagicWeaponConfig, PhysicalWeaponConfig, WeaponHit, WeaponInput } from './player/weaponTypes';
 import { createStoryDirector } from './story/StoryDirector';
 import { StoryPresenter } from './ui/StoryPresenter';
+import { GameFeel } from './ui/GameFeel';
+import { canPause, shouldAutoPause } from './game/feelRules';
 import type { StoryConfig } from './story/types';
 import flowCfgJson from './core/config/flow.json';
 import playerCfgJson from './core/config/player.json';
@@ -372,6 +374,7 @@ async function boot(): Promise<void> {
   });
 
   const hud = new M5Hud({ bus: game.bus });
+  hud.setClockSource(() => game.timeline.tSec());
   const weakScreen = new THREE.Vector3();
   const resolveWeaknessDirection = (): { x: number; y: number; behind: boolean } | null => {
     const snap = game.snapshot();
@@ -573,9 +576,55 @@ async function boot(): Promise<void> {
     }
   }
 
-  // ── 7. 固定步长驱动 ──────────────────────────────────────────────────────
+  // ── 6.5 手感层 + 暂停 ────────────────────────────────────────────────────
+  // 暂停只冻结逻辑与剧情时钟，渲染照常（熔岩/粒子继续流动，画面不会"死"掉）。
   let fps = 60;
   let acc = 0;
+  let autoPausedAt = 0;
+  const requestLock = (): void => {
+    if (view.isTactical()) return;
+    // Esc 退出指针锁后浏览器有短暂冷却，期间 requestPointerLock 会拒绝；失败就等玩家点画面
+    try {
+      void Promise.resolve(app.canvas.requestPointerLock()).catch(() => undefined);
+    } catch {
+      /* 冷却期内拒绝，忽略 */
+    }
+  };
+  const pausable = (): boolean => canPause(game.timeline.phase(), game.isOver(), show.isFailing());
+  const pause = (): void => {
+    if (feel.isPaused || !pausable()) return;
+    feel.setPaused(true);
+    if (document.pointerLockElement) document.exitPointerLock();
+  };
+  const resume = (): void => {
+    if (!feel.isPaused) return;
+    feel.setPaused(false);
+    acc = 0;
+    requestLock();
+  };
+  const feel = new GameFeel({ bus: game.bus, onResume: resume });
+
+  let hadLock = false;
+  const onLockChange = (): void => {
+    const locked = document.pointerLockElement === app.canvas;
+    if (!locked && shouldAutoPause({
+      hadLock,
+      tactical: view.isTactical(),
+      phase: game.timeline.phase(),
+      over: game.isOver(),
+      failing: show.isFailing(),
+    })) {
+      autoPausedAt = performance.now();
+      pause();
+    }
+    hadLock = locked;
+  };
+  document.addEventListener('pointerlockchange', onLockChange);
+  // 切到别的窗口也停表：Boss 不该趁玩家不在时把人打死
+  const onBlur = (): void => { if (!debug && !demo) pause(); };
+  window.addEventListener('blur', onBlur);
+
+  // ── 7. 固定步长驱动 ──────────────────────────────────────────────────────
 
   // 每帧只取一次武器输入；一帧补多步时，边沿事件只喂给第一步
   let pendingWeapon: WeaponInput | null = null;
@@ -620,6 +669,14 @@ async function boot(): Promise<void> {
   }
 
   app.onTick = (dt) => {
+    if (feel.isPaused) {
+      // 暂停期间照样把边沿输入消费掉，否则恢复瞬间会补发一串攻击/切形态
+      input.weaponInput();
+      input.consumeFormSwitch();
+      pendingWeapon = null;
+      pendingToggle = false;
+      return;
+    }
     const w = input.weaponInput();
     // 按下边沿只该喂给第一步逻辑，但前提是这一帧真的有逻辑步。渲染帧快于 60 Hz 时
     // （高刷屏、或卡顿后补帧不足一格）有些帧一个逻辑步都不跑，无条件覆盖会把边沿吞掉，
@@ -833,6 +890,16 @@ async function boot(): Promise<void> {
   window.addEventListener('keydown', (event) => {
     if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
 
+    // P / Esc：暂停切换。Esc 在指针锁定时会先被浏览器拿去解锁并触发自动暂停，
+    // 部分浏览器随后仍会派发 keydown —— 刚自动暂停的 300ms 内不再翻转，免得一按即恢复。
+    if (event.code === 'KeyP' || event.code === 'Escape') {
+      event.preventDefault();
+      if (!feel.isPaused) pause();
+      else if (performance.now() - autoPausedAt > 300) resume();
+      return;
+    }
+    if (feel.isPaused) return;
+
     // E：教程书翻阅（不暂停游戏）
     if (event.code === 'KeyE') {
       if (show.interact()) {
@@ -970,6 +1037,9 @@ async function boot(): Promise<void> {
 
   window.addEventListener('pagehide', () => {
     input.dispose();
+    document.removeEventListener('pointerlockchange', onLockChange);
+    window.removeEventListener('blur', onBlur);
+    feel.dispose();
     show.dispose();
     audio?.dispose();
     // 剧情层也要清理：StoryPresenter 会写 canvas 的 filter/transition、

@@ -178,6 +178,7 @@ export class M5Hud {
   private phaseStartSec = 0;
   private phaseStartWall = performance.now();
   private clockRunning = true;
+  private clockSource: (() => number) | null = null;
   private currentForm: Attr = 'physical';
 
   private weakness: WeaknessState | null = null;
@@ -573,6 +574,11 @@ export class M5Hud {
     this.screenDir = dir;
   }
 
+  /** 倒计时改读逻辑时钟（暂停时停表、?speed 时同步加速）；不设则退回墙钟外推。 */
+  setClockSource(fn: (() => number) | null): void {
+    this.clockSource = fn;
+  }
+
   dispose(): void {
     for (const off of this.unsubs) off();
     this.unsubs.length = 0;
@@ -776,9 +782,11 @@ export class M5Hud {
       return;
     }
 
-    const elapsed = this.clockRunning
-      ? this.phaseStartSec + (now - this.phaseStartWall) / 1000
-      : this.phaseStartSec;
+    const elapsed = !this.clockRunning
+      ? this.phaseStartSec
+      : this.clockSource
+        ? Math.max(this.phaseStartSec, this.clockSource())
+        : this.phaseStartSec + (now - this.phaseStartWall) / 1000;
     this.setClock(elapsed, false);
     this.setText('phase', this.phaseEl, PHASE_LABEL[this.phase]);
   }
