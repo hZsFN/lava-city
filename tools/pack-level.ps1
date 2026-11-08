@@ -1,7 +1,15 @@
-﻿param()
+﻿param(
+  [switch]$VerifyOnly
+)
 
 # Pack out/ into a platform-compliant ZIP and run the official checker on it.
-# Usage: npm run pack   (or: powershell -NoProfile -File tools/pack-level.ps1)
+# Usage:
+#   npm run pack                      生成 release/lava-city.zip 并自检
+#   npm run pack -- -VerifyOnly       只对现有 zip 跑 check.mjs（不改字节，gate 用）
+#
+# 为什么要有 -VerifyOnly：
+#   release/lava-city.zip 已入库。每次 gate 都重新打包会让 zip 字节变化，
+#   导致「跑完 gate 就变 dirty」的死循环。-VerifyOnly 只校验不重写。
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -10,6 +18,20 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $gameDir = Join-Path $root 'out'
 $releaseDir = Join-Path $root 'release'
 $zipPath = Join-Path $releaseDir 'lava-city.zip'
+
+if ($VerifyOnly) {
+  if (-not (Test-Path $zipPath)) {
+    Write-Host '[pack] release/lava-city.zip missing. Run `npm run pack` first.' -ForegroundColor Red
+    exit 1
+  }
+  & node (Join-Path $root 'kit\tools\check.mjs') $zipPath
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host '[pack] check.mjs failed on the committed zip.' -ForegroundColor Red
+    exit 1
+  }
+  Write-Host '[pack] verify-only OK (zip 未被改写)' -ForegroundColor Green
+  exit 0
+}
 
 if (-not (Test-Path (Join-Path $gameDir 'index.html'))) {
   Write-Host '[pack] out/index.html missing. Run `npm run build` first.' -ForegroundColor Red

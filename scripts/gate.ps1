@@ -64,8 +64,12 @@ if (-not $SkipBuild) {
 }
 
 # 4. 打包 + 官方 check.mjs（体积/扩展名/相对路径/禁用 API/道具声明）
+#    注意：这里用 -VerifyOnly，只对已入库的 release/lava-city.zip 跑 check.mjs，
+#    不重新打包。否则每次 gate 都会改写 zip 字节，导致「跑完 gate 就变 dirty」。
+#    需要生成新交付包时单独跑 `npm run pack`。
 if (-not $SkipPack -and -not $SkipBuild) {
-  if (-not (Invoke-Step 'pack' "& powershell -NoProfile -ExecutionPolicy Bypass -File '$(Join-Path $root 'tools\pack-level.ps1')'")) { exit 1 }
+  $packScript = Join-Path $root 'tools\pack-level.ps1'
+  if (-not (Invoke-Step 'pack' "& powershell -NoProfile -ExecutionPolicy Bypass -File '$packScript' -VerifyOnly")) { exit 1 }
 }
 
 Write-Host ""
