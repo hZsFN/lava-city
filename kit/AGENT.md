@@ -1,11 +1,11 @@
-> v3.3.3 外链请优先阅读 [外链接力接入指南](接入方式/外链/外链接力接入指南.md)：使用官方 SDK，开头 await WL.ready()，结尾 await WL.complete/WL.fail。下面的同步 readSave/completeLevel 属于 A 轨 ZIP 兼容接口。
+> v3.3.4 外链请优先阅读 [外链接力接入指南](接入方式/外链/外链接力接入指南.md)：使用官方 SDK，开头 await WL.ready()，结尾 await WL.complete/WL.fail。下面的同步 readSave/completeLevel 属于 A 轨 ZIP 兼容接口。
 
 # 无限世界接力黑客松 · 开发宪章与 AI 协同规范 (AGENT.md)
 
 你正在为“无限世界游戏接力黑客松”开发一个关卡世界。
 作为开发者（以及你的 AI 编程助手），你必须严格遵守以下规则边界、设计哲学与数据契约：
 
-> **A 轨 / B 轨先选对（v3.3.3）**
+> **A 轨 / B 轨先选对（v3.3.4）**
 > - **A 轨 ZIP**：平台注入桥，入口随包带 `shared/save-protocol.js`；用 `WL.readSave()` / `WL.completeLevel()`。
 > - **B 轨外链**：入口引入 `https://world.dayquay.com/sdk/v1/worldline.js`；开局 `await WL.ready()`，结尾 `await WL.complete()` / `await WL.fail()`。**不要**用 `readSave()` 代替 `ready()`，也不要用 `completeLevel()` 代替 `complete()`。
 > - **B 轨地址**：必须是长期有效的公开生产地址；禁止 IGA Pages 等临时预览/带 `iga_token`/`iga_time` 的链接。只在新标签页打开成功不算，必须能在 sandboxed iframe 里返回 200。
@@ -248,15 +248,15 @@ A 轨/旧兼容作品如直接 postMessage，发送 `{type:"IW_SAVE", save: curr
 - 正式提交前运行 `node tools/check.mjs <游戏.zip> <实际的global-items.json>`；自定义入口使用第四个参数，如 `node tools/check.mjs game.zip global-items.json pages/start.html`。应检查最终 ZIP，不能只检查目录。
 - Unity WebGL：Compression Format 选 Disabled，关闭 Threads，完整保留 Build/ 和 TemplateData/，使用相对路径。不要提交 .unityweb、.br 或 .gz。使用本地 HTTP 服务实测，直接双击 index.html 不能替代网页部署测试。
 - A 轨 ZIP 通关调用 WL.completeLevel(window.CONFIG || {}, save, {acquiredItemIds:[]})；B 轨外链用 await WL.complete(save, {acquiredItemIds}) / WL.fail(...)。有实际收获时只填声明中对应的 ID。本地 mock-runner 也必须先选择本关声明 JSON；多文件/Unity 作品用本地 HTTP 地址。模拟器不能替代大厅实际试玩验收。
-- 外链作品引入 https://world.dayquay.com/sdk/v1/worldline.js，完成 WL.ready()/WL.complete()/WL.fail() 的 SDK 握手，并允许 world.dayquay.com 的 iframe 嵌入；旧 IW_READY/IW_SAVE 仅兼容。本队可先在大厅自助试玩；自动检查通过即可公开到展厅。
-- 自动检查通过即可进入展厅；本队凭邀请码可先试玩自己的投稿。正式连续世界线由主办方按顺序明确发布。
+- 外链作品引入 https://world.dayquay.com/sdk/v1/worldline.js，完成 WL.ready()/WL.complete()/WL.fail() 的 SDK 握手，并允许 world.dayquay.com 的 iframe 嵌入；旧 IW_READY/IW_SAVE 仅兼容。本队可先在大厅自助试玩；通过检查后，仅本队验证 Token 后可试玩；正式世界线发布前向其他队伍保密。
+- 通过检查后，本队凭 Token 可试玩本队作品；未验证者不能玩，主办方可试玩全部。正式连续世界线由主办方明确发布后，已验证队伍可游玩整条已发布世界线；其他未发布作品继续保密。
 
 示例各自带有 global-items.json 和 shared/save-protocol.js，可单独复制示例目录作为起点。在本地模拟器中，选择该示例目录内的声明文件；根目录的声明模板不能代替示例的实际声明。
 
 
 ## 外链作品的异步接入（v3.3.1）
 
-外链自动探测只读取可公开访问的入口和首层脚本，未检出接口不代表作品一定缺接口；本队可先在大厅试玩。发布前必须在大厅 iframe 内验证读档、成功交接与失败交接。
+外链自动探测只读取可公开访问的入口和首层脚本，未检出接口不代表作品一定缺接口；未通过检查时请修正后重新提交或联系主办方协助。发布前必须在大厅 iframe 内验证读档、成功交接与失败交接。
 
 外链在加载后才会收到存档。请使用官方 SDK：await WL.ready() 拿到入场 save 后再初始化玩法；也可监听 iw-save-ready，以 event.detail 更新实际游戏 save、assist 和开场面板。只在顶层调用一次 WL.readSave() 会保留握手前的默认值，不能替代 ready()。裁判恢复状态时监听 iw-admin，按 detail.save 同步实际游戏状态。SDK 在 localStorage 被沙箱拒绝时保留内存存档，不要求放宽 allow-same-origin；但作品自己的 localStorage/IndexedDB 不会被 SDK 接管。
 

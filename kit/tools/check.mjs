@@ -294,7 +294,7 @@ async function checkExternal(url) {
 
   let res;
   try {
-    res = await fetch(url, { redirect: 'follow', headers: { 'user-agent': 'infinite-world-kit-check/3.3.3' } });
+    res = await fetch(url, { redirect: 'follow', headers: { 'user-agent': 'infinite-world-kit-check/3.3.4' } });
   } catch (error) {
     bad('外链可达', error.message + '；若被 WAF 拦截，请用浏览器 Network 复核');
     return;
@@ -333,7 +333,7 @@ async function checkExternal(url) {
     if (modules.length) {
       const first = new URL(modules[0], final).href;
       try {
-        const mod = await fetch(first, { headers: { 'user-agent': 'infinite-world-kit-check/3.3.3' } });
+        const mod = await fetch(first, { headers: { 'user-agent': 'infinite-world-kit-check/3.3.4' } });
         const acao = mod.headers.get('access-control-allow-origin');
         if (mod.ok && (acao === '*' || acao === 'null')) ok('模块脚本 CORS', first + ' → ' + acao);
         else bad('模块脚本 CORS', first + ' → ' + (acao || '无 ACAO') + '；沙箱 opaque origin 下会加载失败（需 * 或 null）');
@@ -344,7 +344,7 @@ async function checkExternal(url) {
   }
 
   let sdkRes;
-  try { sdkRes = await fetch(SDK_URL, { headers: { 'user-agent': 'infinite-world-kit-check/3.3.3' } }); }
+  try { sdkRes = await fetch(SDK_URL, { headers: { 'user-agent': 'infinite-world-kit-check/3.3.4' } }); }
   catch (error) { bad('官方 SDK 可达', SDK_URL + '：' + error.message); }
   if (sdkRes) {
     if (!sdkRes.ok) bad('官方 SDK 可达', SDK_URL + ' → ' + sdkRes.status);

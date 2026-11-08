@@ -1,6 +1,6 @@
 {
-  "version": "v3.3.3",
-  "supersedes": "v3.3.2",
+  "version": "v3.3.4",
+  "supersedes": "v3.3.3",
   "date": "2026-11-08",
   "schema": "v3",
   "limits": {
