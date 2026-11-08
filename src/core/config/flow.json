@@ -3,7 +3,7 @@
   "playerSpawn": [
     0,
     0,
-    21
+    17
   ],
   "phases": [
     {
@@ -212,7 +212,7 @@
     "mouthPos": [
       0,
       0,
-      27
+      18
     ],
     "mouthRadiusM": 3.0,
     "rippleSec": 0.6,
