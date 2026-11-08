@@ -1,10 +1,17 @@
+import * as THREE from 'three/webgpu';
 import { App } from './render/App';
 import { DebugOverlay } from './ui/DebugOverlay';
-import { createGame } from './game/GameLoop';
+import { createGame, LOGIC_DT } from './game/GameLoop';
 import { createGameView } from './game/GameView';
 import { IgnisBoss } from './boss/IgnisBoss';
 import { createInput } from './game/Input';
+import { CombatController } from './game/CombatController';
 import { createAudioManager } from './audio/AudioManager';
+import playerCfgJson from './core/config/player.json';
+import type { BodyPart, Attr } from './core/events';
+import type { WeaponHit } from './player/weaponTypes';
+import type { FormSwitchConfig } from './player/FormSwitch';
+import type { MagicWeaponConfig, PhysicalWeaponConfig } from './player/weaponTypes';
 import type { TowerKind } from './towers/types';
 
 interface WlSave {
@@ -110,10 +117,78 @@ async function boot(): Promise<void> {
   boss.root.position.set(0, 0, 11);
   (window as unknown as Record<string, unknown>).__boss = boss;
 
+  // ── 玩家战斗：鼠标 → 武器 → 相机射线 → Boss 结算（方案一）──────────────
+  const pc = playerCfgJson as unknown as {
+    formSwitch: FormSwitchConfig;
+    weaponPhysical: PhysicalWeaponConfig;
+    weaponMagic: Omit<MagicWeaponConfig, 'overheat'>;
+    overheat: MagicWeaponConfig['overheat'];
+  };
+
+  let exposed: { part: BodyPart; attr: Attr } | null = null;
+  game.bus.on('WeaknessExposed', (p) => { exposed = { part: p.part, attr: p.attr }; });
+  game.bus.on('WeaknessClosed', (p) => {
+    if (exposed?.part === p.part) exposed = null;
+  });
+
+  const raycaster = new THREE.Raycaster();
+  const aimDir = new THREE.Vector3();
+
+  function resolveBossHit(rangeM: number): WeaponHit | null {
+    const aim = input.aim();
+    const cp = Math.cos(aim.pitch);
+    aimDir
+      .set(-Math.sin(aim.yaw) * cp, Math.sin(aim.pitch), -Math.cos(aim.yaw) * cp)
+      .normalize();
+    raycaster.set(app.camera.position, aimDir);
+    raycaster.far = Number.isFinite(rangeM) ? rangeM : 60;
+    const hit = raycaster.intersectObject(boss.root, true)[0];
+    if (!hit) return null;
+    const p = hit.point;
+    return {
+      target: 'boss',
+      point: [p.x, p.y, p.z],
+      pos: [boss.root.position.x, boss.root.position.y, boss.root.position.z],
+      weakness: exposed ? { part: exposed.part, attr: exposed.attr } : null,
+      // 方案一：抗性/减抗由 Boss 自己算，这里只占位
+      resist: { resistArcane: 0, resistPhysical: 0 },
+      debuffs: { scorch: 0, sunder: 0 },
+    };
+  }
+
+  const combat = new CombatController({
+    bus: game.bus,
+    config: {
+      formSwitch: pc.formSwitch,
+      physical: pc.weaponPhysical,
+      magic: { ...pc.weaponMagic, overheat: pc.overheat },
+    },
+    resolveHit: (q) => resolveBossHit(q.rangeM),
+    applyBoss: (o) => {
+      if (o.target !== 'boss' || !o.point) return;
+      // Boss 的弱点常量是局部坐标，必须先把命中点转进 boss 局部空间
+      const local = boss.root.worldToLocal(new THREE.Vector3(o.point[0], o.point[1], o.point[2]));
+      boss.takeDamage(o.baseDamage, o.attr, [local.x, local.y, local.z]);
+    },
+  });
+
+  const NO_WEAPON = { lightPressed: false, lightHeld: false, heavyPressed: false, heavyHeld: false };
+
   app.onTick = (dt) => {
-    game.tick(dt);
+    const steps = game.tick(dt);
     boss.update(dt * 1000);
     audio.update();
+
+    if (steps > 0) {
+      const weapon = input.weaponInput();
+      const toggle = input.consumeFormSwitch();
+      for (let i = 0; i < steps; i += 1) {
+        combat.update(LOGIC_DT, {
+          weapon: i === 0 ? weapon : NO_WEAPON,
+          toggleForm: i === 0 ? toggle : false,
+        });
+      }
+    }
   };
   app.onSync = () => { view.sync(); };
 
