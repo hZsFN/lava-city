@@ -124,6 +124,14 @@ export class PostFX {
   private motionScale = 0.15;
 
   onQualityChanged: ((tier: QualityTier) => void) | null = null;
+  onManualQualityChanged: ((tier: QualityTier) => void) | null = null;
+
+  isProfiling(): boolean { return this.profile !== null; }
+
+  resetFrameTime(): void {
+    this.lastNow = 0;
+    this.frameMs = 16.7;
+  }
 
   constructor(renderer: THREE.WebGPURenderer, scene: THREE.Scene, camera: THREE.PerspectiveCamera, cfg: VisualConfig) {
     this.renderer = renderer;
@@ -442,7 +450,11 @@ export class PostFX {
       select.appendChild(option);
     }
     select.value = this.quality;
-    select.onchange = () => this.setQuality(select.value as QualityTier);
+    select.onchange = () => {
+      const tier = select.value as QualityTier;
+      this.onManualQualityChanged?.(tier);
+      this.setQuality(tier);
+    };
     this.qualitySelect = select;
 
     panel.append(title, this.statsEl, select);
@@ -498,7 +510,7 @@ export class PostFX {
   }
 
   private updatePanel(force = false): void {
-    if (!this.statsEl) return;
+    if (!this.statsEl || (!force && this.panel?.style.display === 'none')) return;
     const info = this.renderer.info.render;
     this.statsEl.textContent =
       `draw ${info.drawCalls}   tri ${(info.triangles / 1000).toFixed(1)}k\n` +

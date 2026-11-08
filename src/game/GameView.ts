@@ -122,6 +122,7 @@ export function createGameView(deps: {
   // ── 每帧同步 ─────────────────────────────────────────────────────────────
   const camDir = new THREE.Vector3();
   const eyeHeight = 1.7;
+  const alive = new Set<string>();
 
   function sync(): void {
     viewModel.update();
@@ -130,17 +131,17 @@ export function createGameView(deps: {
     const snap = game.snapshot();
     const prepPulse =
       snap.phase === 'prep' ? 0.55 + Math.sin(performance.now() * 0.006) * 0.4 : 0;
-    for (const slot of game.towers.slots()) {
+    for (const slot of snap.towerSlots) {
       const mesh = slotMeshes.get(slot.slotId);
       if (!mesh) continue;
       const mat = mesh.material as THREE.MeshStandardNodeMaterial;
-      mat.color = new THREE.Color(SLOT_COLOR[slot.state]);
-      mat.emissive = new THREE.Color(SLOT_COLOR[slot.state]);
+      mat.color.setHex(SLOT_COLOR[slot.state]);
+      mat.emissive.setHex(SLOT_COLOR[slot.state]);
       mat.emissiveIntensity = slot.state === 'open' ? prepPulse : 0;
     }
 
     // 2. 已建塔（快照是唯一数据源）
-    const alive = new Set<string>();
+    alive.clear();
     for (const t of snap.towers) {
       alive.add(t.id);
       const mesh = ensureTowerMesh(t.id, t.kind, t.pos);
@@ -148,7 +149,7 @@ export function createGameView(deps: {
       const mat = mesh.material as THREE.MeshStandardNodeMaterial;
       mat.emissiveIntensity = t.hp > 0 ? 0.35 : 0.05;
     }
-    for (const id of [...towerMeshes.keys()]) {
+    for (const id of towerMeshes.keys()) {
       if (!alive.has(id)) removeTowerMesh(id);
     }
 
@@ -159,12 +160,12 @@ export function createGameView(deps: {
       camera.lookAt(tacticalTarget.x, 0, tacticalTarget.z);
       // 塔位做成发光环，俯视时一眼看清哪个能建
       const pulse = 0.6 + Math.sin(performance.now() * 0.004) * 0.35;
-      for (const slot of game.towers.slots()) {
+      for (const slot of snap.towerSlots) {
         const mesh = slotMeshes.get(slot.slotId);
         if (!mesh) continue;
         const mat = mesh.material as THREE.MeshStandardNodeMaterial;
         const open = slot.state === 'open';
-        mat.emissive = new THREE.Color(open ? 0x66ffcc : 0x442222);
+        mat.emissive.setHex(open ? 0x66ffcc : 0x442222);
         mat.emissiveIntensity = open ? pulse : 0.1;
       }
     } else {
