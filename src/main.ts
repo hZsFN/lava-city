@@ -19,6 +19,7 @@ import type { MagicWeaponConfig, PhysicalWeaponConfig, WeaponHit, WeaponInput } 
 import { createStoryDirector } from './story/StoryDirector';
 import { StoryPresenter } from './ui/StoryPresenter';
 import { GameFeel } from './ui/GameFeel';
+import { ModelViewer } from './ui/ModelViewer';
 import { canPause, shouldAutoPause } from './game/feelRules';
 import type { StoryConfig } from './story/types';
 import flowCfgJson from './core/config/flow.json';
@@ -609,10 +610,23 @@ async function boot(): Promise<void> {
     feel.toast(msg);
   };
 
+  // M：熔岩巨人建模查看器；打开期间逻辑冻结（同暂停），关闭后交还指针锁
+  const modelViewer = new ModelViewer({
+    bus: game.bus,
+    onToggle: (open) => {
+      if (open) {
+        if (document.pointerLockElement) document.exitPointerLock();
+      } else {
+        acc = 0;
+        if (!feel.isPaused) requestLock();
+      }
+    },
+  });
+
   let hadLock = false;
   const onLockChange = (): void => {
     const locked = document.pointerLockElement === app.canvas;
-    if (!locked && shouldAutoPause({
+    if (!locked && !modelViewer.isOpen && shouldAutoPause({
       hadLock,
       tactical: view.isTactical(),
       phase: game.timeline.phase(),
@@ -626,7 +640,7 @@ async function boot(): Promise<void> {
   };
   document.addEventListener('pointerlockchange', onLockChange);
   // 切到别的窗口也停表：Boss 不该趁玩家不在时把人打死
-  const onBlur = (): void => { if (!debug && !demo) pause(); };
+  const onBlur = (): void => { if (!debug && !demo && !modelViewer.isOpen) pause(); };
   window.addEventListener('blur', onBlur);
 
   // ── 7. 固定步长驱动 ──────────────────────────────────────────────────────
@@ -674,7 +688,7 @@ async function boot(): Promise<void> {
   }
 
   app.onTick = (dt) => {
-    if (feel.isPaused) {
+    if (feel.isPaused || modelViewer.isOpen) {
       // 暂停期间照样把边沿输入消费掉，否则恢复瞬间会补发一串攻击/切形态
       input.weaponInput();
       input.consumeFormSwitch();
@@ -897,6 +911,15 @@ async function boot(): Promise<void> {
 
     // P / Esc：暂停切换。Esc 在指针锁定时会先被浏览器拿去解锁并触发自动暂停，
     // 部分浏览器随后仍会派发 keydown —— 刚自动暂停的 300ms 内不再翻转，免得一按即恢复。
+    if (event.code === 'KeyM') {
+      event.preventDefault();
+      if (!feel.isPaused) modelViewer.toggle();
+      return;
+    }
+    if (modelViewer.isOpen) {
+      if (event.code === 'Escape') modelViewer.toggle(false);
+      return;
+    }
     if (event.code === 'KeyP' || event.code === 'Escape') {
       event.preventDefault();
       if (!feel.isPaused) pause();
@@ -1045,6 +1068,7 @@ async function boot(): Promise<void> {
     document.removeEventListener('pointerlockchange', onLockChange);
     window.removeEventListener('blur', onBlur);
     feel.dispose();
+    modelViewer.dispose();
     show.dispose();
     audio?.dispose();
     // 剧情层也要清理：StoryPresenter 会写 canvas 的 filter/transition、
