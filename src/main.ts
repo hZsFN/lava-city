@@ -167,7 +167,7 @@ async function boot(): Promise<void> {
     camera: app.camera,
     bus: game.bus,
     game,
-    look: () => input.look(),
+    aim: () => input.aim(),
   });
 
   const boss = new IgnisBoss(game.bus);

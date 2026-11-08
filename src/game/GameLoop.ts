@@ -22,6 +22,10 @@ import { createTowerSystem } from '../towers/TowerSystem';
 import type { ArenaConfig, TowerKind, TowerSystem, TowersConfig } from '../towers/types';
 import { PlayerController } from '../player/PlayerController';
 import type { PlayerConfig, PlayerInput, PlayerWorld } from '../player/PlayerController';
+import { Execution } from '../player/Execution';
+import type { ExecutionConfig } from '../player/Execution';
+import { WeaknessMeter } from '../combat/WeaknessMeter';
+import type { WeaknessConfig } from '../combat/WeaknessMeter';
 
 import flowCfgJson from '../core/config/flow.json';
 import towersCfgJson from '../core/config/towers.json';
@@ -64,6 +68,8 @@ function buildPlayerWorld(): PlayerWorld {
 /** 输入源：由 main.ts 提供（键盘/鼠标），或由测试提供（脚本化） */
 export interface InputSource {
   sample(): PlayerInput;
+  /** 可选：本帧是否按了 F（击破边沿） */
+  consumeExecute?(): boolean;
 }
 
 /** Boss 的运行时只读视图（由 main.ts 从渲染实体投影出来，逻辑层不 import three） */
@@ -80,6 +86,8 @@ export interface Game {
   readonly timeline: MatchTimeline;
   readonly towers: TowerSystem;
   readonly player: PlayerController;
+  readonly weakness: WeaknessMeter;
+  readonly execution: Execution;
   /** 固定步长推进；返回实际推进的逻辑步数 */
   tick(dtSec: number): number;
   snapshot(): Snapshot;
@@ -134,14 +142,32 @@ export function createGame(deps: GameDeps): Game {
   bus.on('WeaknessClosed', () => { weaknessAttr = null; });
 
   // ── P2-A：玩家 ────────────────────────────────────────────────────────────
+  // 出生点：master 侧读 flowCfg.playerSpawn，但 config 合同里还没有这个键，
+  // 缺省退回塔心平台的同一坐标，等流配置补齐后再删掉这里的兜底。
+  const spawn: Vec3 =
+    (flowCfg as FlowConfig & { playerSpawn?: Vec3 }).playerSpawn ?? [0, 0, 17.2];
+
   const player = new PlayerController({
     bus,
     config: toPlayerConfig(playerCfgJson),
     world: buildPlayerWorld(),
-    spawn: flowCfg.playerSpawn,
+    spawn,
     hp: deps.playerHp
       ? { current: deps.playerHp.hp, max: deps.playerHp.maxHp }
       : undefined,
+  });
+
+  // ── 破绽 / 击破：玩家侧资源与状态机 ─────────────────────────────────────
+  const weaknessCfg = (playerCfgJson as { weakness?: WeaknessConfig }).weakness
+    ?? { max: 100, executableWindowSec: 3 };
+  const weakness = new WeaknessMeter({ bus, config: weaknessCfg });
+
+  const executionCfg = (playerCfgJson as { execution?: ExecutionConfig }).execution
+    ?? { windowSec: 3, durationSec: 1.2 };
+  const execution = new Execution({
+    bus,
+    config: executionCfg,
+    getBossMaxHp: () => Math.max(1, bus.snapshot().boss.maxHp),
   });
 
   // ── 开局熔核 ──────────────────────────────────────────────────────────────
@@ -167,7 +193,12 @@ export function createGame(deps: GameDeps): Game {
     // 2. 时间轴（可能切阶段 → 触发 MatchPhaseChanged / LavaLevelChanged）
     timeline.update(LOGIC_DT);
 
-    // 3. 塔：目标是 Boss 的真实位置与弱点（由 main 注入只读视图）
+    // 2.5 破绽累积 + 击破（F 为边沿输入）
+    weakness.update(LOGIC_DT);
+    execution.update(LOGIC_DT, deps.input.consumeExecute?.() ?? false);
+
+    // 3. 塔：目标是 Boss 的真实位置与弱点（由 main 注入只读视图）；
+    //    未注入时退回塔心原点占位，保证射程/冷却链路仍可跑
     const snap = bus.snapshot();
     const boss = deps.bossState
       ? deps.bossState()
@@ -198,6 +229,8 @@ export function createGame(deps: GameDeps): Game {
     timeline,
     towers,
     player,
+    weakness,
+    execution,
 
     tick(dtSec: number): number {
       if (over) return 0;

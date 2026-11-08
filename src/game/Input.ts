@@ -36,7 +36,7 @@ export interface InputHandle extends InputSource {
    * 相机必须用这个而不是 player.yaw —— 后者只在固定步长逻辑帧里更新，
    * 渲染帧率与 60Hz 不同步时相机会隔帧才更新一次，转视角就是一顿一顿的。
    */
-  look(): { yaw: number; pitch: number };
+  aim(): { yaw: number; pitch: number };
   /** 销毁：解绑所有监听 */
   dispose(): void;
   /** 当前是否已锁定指针 */
@@ -140,7 +140,7 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   document.addEventListener('pointerlockchange', onPointerLockChange);
 
   const handle: InputHandle = {
-    look(): { yaw: number; pitch: number } {
+    aim(): { yaw: number; pitch: number } {
       return { yaw, pitch };
     },
 

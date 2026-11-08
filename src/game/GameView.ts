@@ -14,6 +14,7 @@
 import * as THREE from 'three/webgpu';
 import type { Bus, SlotState, Vec3 } from '../core/events';
 import type { Game } from './GameLoop';
+import { createViewModel } from '../render/ViewModel';
 
 /** 属性色：与 config/visual.json 的约定一致（法术蓝 / 物理白金） */
 const ATTR_COLOR = {
@@ -42,9 +43,12 @@ export function createGameView(deps: {
   bus: Bus;
   game: Game;
   /** 只读视角源：相机直接读它，不经固定步长的逻辑帧 */
-  look: () => { yaw: number; pitch: number };
+  aim: () => { yaw: number; pitch: number };
 }): GameView {
-  const { scene, camera, bus, game, look } = deps;
+  const { scene, camera, bus, game, aim } = deps;
+
+  // 第一人称武器外观：长剑 / 法伤枪，跟随相机
+  const viewModel = createViewModel({ camera, scene, bus });
 
   // ── 塔位标记 ──────────────────────────────────────────────────────────────
   const slotMeshes = new Map<string, THREE.Mesh>();
@@ -111,6 +115,8 @@ export function createGameView(deps: {
   const eyeHeight = 1.7;
 
   function sync(): void {
+    viewModel.update();
+
     // 1. 塔位状态色 + 准备期高亮脉冲（0:40–0:50「塔位亮起」）
     const snap = game.snapshot();
     const prepPulse =
@@ -139,7 +145,7 @@ export function createGameView(deps: {
 
     // 3. 第一人称相机（含俯仰）
     const pos = game.playerPos();
-    const view = look();
+    const view = aim();
     // 位置做一阶平滑：逻辑帧 60Hz、渲染帧率浮动，直接贴会让画面抖
     camera.position.set(pos[0], pos[1] + eyeHeight, pos[2]);
     const cp = Math.cos(view.pitch);
@@ -158,6 +164,7 @@ export function createGameView(deps: {
   return {
     sync,
     dispose(): void {
+      viewModel.dispose();
       for (const unsub of unsubs) unsub();
       for (const id of [...towerMeshes.keys()]) removeTowerMesh(id);
       for (const mesh of slotMeshes.values()) {
