@@ -23,7 +23,7 @@ export interface PlayerWorld {
   lavaY: number;
 }
 
-/** 对应 config/player.json 中被本控制器使用的字段 */
+/** 对应 config/player.json 中被本控制器使用的字段（与存档一致的分组结构） */
 export interface PlayerConfig {
   physics: {
     gravity: number;
@@ -39,9 +39,10 @@ export interface PlayerConfig {
     height: number;
   };
   hp: {
+    /** 兜底上限；实际值优先取存档注入的 maxHp（血量接力规则） */
     maxHp: number;
-    regenDelaySec: number;
-    regenPerSec: number;
+    /** 受击后的统一无敌时间，与冲刺无敌取并集 */
+    hitInvulnerableSec: number;
   };
 }
 
@@ -88,6 +89,7 @@ export class PlayerController {
   private z = 0;
   private yaw = 0;
   private vy = 0;
+  private readonly maxHp: number;
   private hp: number;
   private grounded = false;
   private dead = false;
@@ -96,16 +98,25 @@ export class PlayerController {
   private dashTimer = 0;
   private dashCooldown = 0;
   private dashDir: Vec2 = { x: 0, z: 0 };
-  private regenTimer = 0;
+  private hurtTimer = 0;
 
   private prevJump = false;
   private prevDash = false;
 
-  constructor(opts: { bus: Bus; config: PlayerConfig; world: PlayerWorld; spawn: Vec3 }) {
+  constructor(opts: {
+    bus: Bus;
+    config: PlayerConfig;
+    world: PlayerWorld;
+    spawn: Vec3;
+    /** 入口血量：按血量接力规则从存档读入；缺省才退回 config.maxHp */
+    hp?: { current: number; max: number };
+  }) {
     this.bus = opts.bus;
     this.cfg = opts.config;
     this.world = opts.world;
-    this.hp = this.cfg.hp.maxHp;
+    this.maxHp = Math.max(1, Math.floor(opts.hp?.max ?? this.cfg.hp.maxHp));
+    const entryHp = opts.hp?.current ?? this.maxHp;
+    this.hp = Math.min(Math.max(0, entryHp), this.maxHp);
     // 由重力与跳跃高度反解初速度：h = v² / (2g)
     this.jumpVelocity = Math.sqrt(2 * -this.cfg.physics.gravity * this.cfg.movement.jumpHeight);
 
@@ -134,9 +145,9 @@ export class PlayerController {
     return this.dashTimer > 0;
   }
 
-  /** 冲刺全程无敌（0.25 s） */
+  /** 冲刺无敌 + 受击无敌，二者取并集 */
   get isInvulnerable(): boolean {
-    return this.dashTimer > 0;
+    return this.dashTimer > 0 || this.hurtTimer > 0;
   }
 
   get deathCount(): number {
@@ -145,6 +156,11 @@ export class PlayerController {
 
   /** 推进一个逻辑帧。dt 为已乘时间缩放的秒数 */
   update(dt: number, input: PlayerInput = IDLE_INPUT): void {
+    // 入口血量为 0：按血量接力规则直接判死，由外层 failLevel
+    if (!this.dead && this.hp <= 0) {
+      this.die('entry_hp_zero');
+      return;
+    }
     if (this.dead) return;
     // 注：对象被冻结（战术视图）时由调用方传 dt=0
     if (dt <= 0) return;
@@ -161,8 +177,6 @@ export class PlayerController {
       return;
     }
 
-    this.regen(dt);
-
     this.bus.emit('PlayerMoved', { pos: this.pos, yaw: this.yaw });
     this.syncSnapshot();
     this.prevJump = input.jump;
@@ -174,11 +188,11 @@ export class PlayerController {
     if (this.dead || this.isInvulnerable || amount <= 0) return 0;
     const applied = Math.min(amount, this.hp);
     this.hp -= applied;
-    this.regenTimer = 0;
+    this.hurtTimer = this.cfg.hp.hitInvulnerableSec;
     this.bus.emit('PlayerDamaged', {
       amount: applied,
       hp: this.hp,
-      maxHp: this.cfg.hp.maxHp,
+      maxHp: this.maxHp,
       source,
     });
     if (this.hp <= 0) this.die(source);
@@ -186,26 +200,16 @@ export class PlayerController {
     return applied;
   }
 
+  /** Boss 直接命中：固定扣 1 点（血量接力规则 §3.2） */
+  takeHit(source: string): number {
+    return this.takeDamage(1, source);
+  }
+
   /** 就地死亡（熔岩 / 脚本），hp 归零 */
   kill(cause: string): void {
     if (this.dead) return;
     this.hp = 0;
     this.die(cause);
-    this.syncSnapshot();
-  }
-
-  respawn(pos: Vec3): void {
-    [this.x, this.y, this.z] = pos;
-    this.vy = 0;
-    this.hp = this.cfg.hp.maxHp;
-    this.dead = false;
-    this.grounded = false;
-    this.dashTimer = 0;
-    this.dashCooldown = 0;
-    this.regenTimer = 0;
-    this.prevJump = false;
-    this.prevDash = false;
-    this.bus.emit('PlayerRespawned', { pos });
     this.syncSnapshot();
   }
 
@@ -223,9 +227,11 @@ export class PlayerController {
   private tickTimers(dt: number): void {
     if (this.dashTimer > 0) this.dashTimer = Math.max(0, this.dashTimer - dt);
     if (this.dashCooldown > 0) this.dashCooldown = Math.max(0, this.dashCooldown - dt);
+    if (this.hurtTimer > 0) this.hurtTimer = Math.max(0, this.hurtTimer - dt);
     // 消除 0.25 - 15/60 这类浮点残差，避免多无敌一帧
     if (this.dashTimer < EPS) this.dashTimer = 0;
     if (this.dashCooldown < EPS) this.dashCooldown = 0;
+    if (this.hurtTimer < EPS) this.hurtTimer = 0;
   }
 
   private handleDash(input: PlayerInput): void {
@@ -338,16 +344,6 @@ export class PlayerController {
     this.y = newY;
   }
 
-  private regen(dt: number): void {
-    if (this.hp >= this.cfg.hp.maxHp) {
-      this.regenTimer = 0;
-      return;
-    }
-    this.regenTimer += dt;
-    if (this.regenTimer < this.cfg.hp.regenDelaySec) return;
-    this.hp = Math.min(this.cfg.hp.maxHp, this.hp + this.cfg.hp.regenPerSec * dt);
-  }
-
   private overlapsHorizontally(b: Aabb): boolean {
     const r = this.cfg.movement.radius;
     return this.x + r > b.minX + EPS && this.x - r < b.maxX - EPS
@@ -368,7 +364,7 @@ export class PlayerController {
         pos: this.pos,
         yaw: this.yaw,
         hp: this.hp,
-        maxHp: this.cfg.hp.maxHp,
+        maxHp: this.maxHp,
       },
     });
   }

@@ -17,10 +17,7 @@
   },
   "hp": {
     "maxHp": 100,
-    "regenDelaySec": 4.0,
-    "regenPerSec": 12.0,
-    "respawnSec": 3,
-    "maxDeaths": 2
+    "hitInvulnerableSec": 1.2
   },
   "weaponPhysical": {
     "melee": {

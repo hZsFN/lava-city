@@ -86,6 +86,11 @@ export interface GameDeps {
   input: InputSource;
   /** 可选：覆盖种子（便于复现） */
   seed?: number;
+  /**
+   * 入口血量（血量接力规则）：由 main.ts 从 WL 存档读入后注入。
+   * 不传时才退回 config/player.json 的兜底值。
+   */
+  playerHp?: { hp: number; maxHp: number };
 }
 
 export function createGame(deps: GameDeps): Game {
@@ -114,6 +119,9 @@ export function createGame(deps: GameDeps): Game {
     config: toPlayerConfig(playerCfgJson),
     world: buildPlayerWorld(),
     spawn: [0, 0, 12],
+    hp: deps.playerHp
+      ? { current: deps.playerHp.hp, max: deps.playerHp.maxHp }
+      : undefined,
   });
 
   // ── 开局熔核 ──────────────────────────────────────────────────────────────
