@@ -24,6 +24,11 @@ const KEY = {
 
 /** 鼠标灵敏度：弧度 / 像素 */
 const MOUSE_SENSITIVITY = 0.0022;
+/** 单个 mousemove 事件允许的最大位移（CSS 像素）。超过它一定是浏览器的
+ *  累积尖峰（pointer lock 刚获得、主线程卡顿后补发），直接用会把视角甩飞。 */
+const MAX_MOVE_STEP = 90;
+/** 两个事件间隔超过这个毫秒数，说明中间卡过帧，这一发的位移不可信 */
+const MOVE_GAP_MS = 100;
 
 export interface InputHandle extends InputSource {
   /** 销毁：解绑所有监听 */
@@ -41,6 +46,9 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   let yaw = 0;
   let pitch = 0;
   let locked = false;
+  /** 刚拿到 pointer lock 时要丢弃的事件数 */
+  let lockGrace = 0;
+  let lastMoveTs = 0;
 
   // 边沿触发标记：按下时置 true，被消费后置 false
   let edgeDash = false;
@@ -68,15 +76,35 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
 
   const onMouseMove = (e: MouseEvent): void => {
     if (!locked) return;
-    yaw -= e.movementX * MOUSE_SENSITIVITY;
-    pitch -= e.movementY * MOUSE_SENSITIVITY;
+    // ① 刚锁定：浏览器会补发一段"从上次位置到这里"的累积位移，必须丢掉
+    if (lockGrace > 0) {
+      lockGrace -= 1;
+      lastMoveTs = e.timeStamp;
+      return;
+    }
+    // ② 卡过帧：这一发带着整段延迟期间的总位移，同样丢掉
+    const prevTs = lastMoveTs;
+    const nowTs = e.timeStamp;
+    lastMoveTs = nowTs;
+    if (prevTs > 0 && nowTs - prevTs > MOVE_GAP_MS) return;
+
+    // ③ 单步钳制：剩下的正常事件里也不允许出现跳变
+    const dx = Math.max(-MAX_MOVE_STEP, Math.min(MAX_MOVE_STEP, e.movementX));
+    const dy = Math.max(-MAX_MOVE_STEP, Math.min(MAX_MOVE_STEP, e.movementY));
+    yaw -= dx * MOUSE_SENSITIVITY;
+    pitch -= dy * MOUSE_SENSITIVITY;
     // 俯仰限制 ±85°
     const limit = (85 * Math.PI) / 180;
     pitch = Math.max(-limit, Math.min(limit, pitch));
   };
 
   const onPointerLockChange = (): void => {
-    locked = document.pointerLockElement === canvas;
+    const nowLocked = document.pointerLockElement === canvas;
+    if (nowLocked && !locked) {
+      lockGrace = 2;
+      lastMoveTs = 0;
+    }
+    locked = nowLocked;
   };
 
   const onClick = (): void => {
