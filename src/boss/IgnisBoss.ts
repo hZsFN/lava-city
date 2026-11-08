@@ -117,6 +117,7 @@ export class IgnisBoss {
   private markers = new Map<BodyPart, THREE.Mesh>();
   private coreLight: THREE.PointLight;
 
+  private readonly approachTarget: [number, number, number] = [0, 0, 18];
   private targetPos: Vec3 = [0, 0, 18];
   private attackDir = new THREE.Vector3(0, 0, 1);
   /** 最近一次施法瞬间锁定的玩家位置（石柱/吐息判定用） */
@@ -416,24 +417,33 @@ export class IgnisBoss {
   }
 
   /**
-   * 常态逼近：Boss 朝塔心慢慢走。
-   * 塔防的核心张力来自"它一直在靠近、你必须用塔拦住它"，
-   * 所以移动目标永远是原点（塔心），不是玩家。
+   * 常态逼近：朝"最近的可打目标"走 —— 有塔就砍塔，没塔就去砍玩家。
+   * 之前是死磕塔心，结果走到塔身外缘就卡住不动了（塔本身是实心的）。
    */
   private updateApproach(dtMs: number): void {
-    if (this.skill !== null) return;          // 施法中站定
+    if (this.skill !== null) return;
     if (this.showMode !== 'active') return;
 
-    const dx = 0 - this.root.position.x;
-    const dz = 0 - this.root.position.z;
+    // 目标优先级：最近的塔（由外部注入）> 玩家 > 塔心
+    const tx = this.approachTarget[0];
+    const tz = this.approachTarget[2];
+    const dx = tx - this.root.position.x;
+    const dz = tz - this.root.position.z;
     const dist = Math.hypot(dx, dz);
-    const STOP = 6.5;                          // 到塔身外缘就贴着打
+    const STOP = 3.2;                          // 贴到目标近身前就停下开打
     if (dist <= STOP) return;
 
     const step = Math.min((APPROACH_SPEED * dtMs) / 1000, dist - STOP);
     this.root.position.x += (dx / dist) * step;
     this.root.position.z += (dz / dist) * step;
     this.root.rotation.y = Math.atan2(dx, dz);
+  }
+
+  /** 外部（main/FlowDirector）每帧喂一次"该打谁"的世界坐标 */
+  setApproachTarget(pos: [number, number, number]): void {
+    this.approachTarget[0] = pos[0];
+    this.approachTarget[1] = pos[1];
+    this.approachTarget[2] = pos[2];
   }
 
   private updateIdleAnim(): void {

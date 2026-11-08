@@ -504,6 +504,22 @@ async function boot(): Promise<void> {
   function stepLogic(dt: number): void {
     gated.locked = show.locksPlayer();
     if (!show.isFailing() && !game.isOver()) {
+      // Boss 该打谁：最近的已建塔 > 玩家 > 塔心（塔是实心的，死磕塔心会卡住）
+      let target: [number, number, number] = [0, 0, 0];
+      let best = Infinity;
+      for (const sl of game.towers.slots()) {
+        if (sl.state !== 'occupied') continue;
+        const p = sl.pos;
+        if (!p) continue;
+        const d = Math.hypot(p[0] - boss.root.position.x, p[2] - boss.root.position.z);
+        if (d < best) { best = d; target = [p[0], p[1] ?? 0, p[2]]; }
+      }
+      if (best === Infinity) {
+        const pp = game.snapshot().player.pos;
+        target = [pp[0], pp[1], pp[2]];
+      }
+      boss.setApproachTarget(target);
+
       game.tick(dt);
       boss.update(dt * 1000);
       const outcomes = combat.update(dt, { weapon: pendingWeapon ?? NO_WEAPON, toggleForm: pendingToggle });
