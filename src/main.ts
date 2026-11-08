@@ -7,6 +7,8 @@ import { createGameView } from './game/GameView';
 import { IgnisBoss } from './boss/IgnisBoss';
 import { createInput } from './game/Input';
 import { FlowDirector } from './game/FlowDirector';
+import { AudioPlayer } from './audio/AudioPlayer';
+import type { AudioStats } from './audio/AudioPlayer';
 import type { TowerKind } from './towers/types';
 import type { BodyPart, MatchPhase } from './core/events';
 import type { FlowConfig } from './flow/types';
@@ -47,6 +49,10 @@ declare global {
       killBoss: () => void;
       /** 演出快照：阶段 / 教程书 / 失败状态 */
       flow: () => Record<string, unknown>;
+      /** 平台交接状态（验收证据用） */
+      handoff: () => { done: boolean; result: 'win' | 'fail' | null };
+      /** 音频状态（加载进度 / 声部峰值 / 静音，验收用） */
+      audio: () => AudioStats;
     };
     __boss?: IgnisBoss;
   }
@@ -124,7 +130,10 @@ async function boot(): Promise<void> {
   // 血量接力规则：入口血量从存档读，注入逻辑层；读不到才退回 config 兜底值
   let save = readSave();
   const hp = hpOverride !== null
-    ? { hp: Math.max(0, Math.floor(hpOverride)), maxHp: save?.player.max_hp ?? Math.max(1, Math.floor(hpOverride)) }
+    ? {
+        hp: Math.max(0, Math.floor(hpOverride)),
+        maxHp: Math.max(save?.player.max_hp ?? 1, Math.floor(hpOverride)),
+      }
     : save
       ? { hp: save.player.hp, maxHp: save.player.max_hp }
       : undefined;
@@ -158,6 +167,7 @@ async function boot(): Promise<void> {
     camera: app.camera,
     bus: game.bus,
     game,
+    look: () => input.look(),
   });
 
   const boss = new IgnisBoss(game.bus);
@@ -167,12 +177,25 @@ async function boot(): Promise<void> {
   bossRef = boss;
   window.__boss = boss;
 
+  // ── 3.5 音频（M5-02）─────────────────────────────────────────────────────
+  // 构造阶段零音频资源：首次 pointerdown / keydown 才建 AudioContext 并分批解码。
+  // M 键静音由 AudioPlayer 自己接管；弱点/Boss 音效的左右定位读 bossPosition。
+  const audio = new AudioPlayer({
+    bus: game.bus,
+    bossPosition: () => {
+      const b = bossRef;
+      return b ? [b.root.position.x, b.root.position.y, b.root.position.z] : null;
+    },
+  });
+
   // ── 4. 演出 / HUD ────────────────────────────────────────────────────────
   let handoffDone = false;
+  let handoffResult: 'win' | 'fail' | null = null;
 
   function failToPlatform(reason: string): void {
     if (handoffDone) return;
     handoffDone = true;
+    handoffResult = 'fail';
     save = save ?? readSave();
     if (save) save.player.hp = 0;
     try {
@@ -185,6 +208,7 @@ async function boot(): Promise<void> {
   function completeToPlatform(): void {
     if (handoffDone) return;
     handoffDone = true;
+    handoffResult = 'win';
     const bridge = window.__WL__;
     save = save ?? readSave();
     if (save) save.player.hp = Math.max(1, Math.round(game.snapshot().player.hp));
@@ -209,6 +233,7 @@ async function boot(): Promise<void> {
     lava: { setLavaY: (y) => app.setLavaY(y), lavaBaseY: app.lavaBaseY },
     debug,
     onFail: (reason) => failToPlatform(reason),
+    audio,
   });
 
   const hud = new Hud();
@@ -407,7 +432,8 @@ async function boot(): Promise<void> {
       save = next;
       overlay.setHp(next.player.hp);
       overlay.setMessage(`WL.respawn() · 死亡 ${next.player.deaths ?? 0} 次`);
-    } else if (event.code === 'KeyM') {
+    } else if (event.code === 'KeyN') {
+      // 原来是 KeyM，让位给音频静音（票面要求 M 兼作静音键）
       motes += 10;
       game.setMotes(motes);
       overlay.setMessage(`熔核补给 +10（当前 ${motes}）`);
@@ -440,6 +466,8 @@ async function boot(): Promise<void> {
     damagePlayer: (n) => game.player.takeDamage(n, 'debug'),
     killBoss: () => bossRef?.takeDamage(1_000_000, 'arcane'),
     flow: () => show.flowSnapshot(),
+    handoff: () => ({ done: handoffDone, result: handoffResult }),
+    audio: () => audio.stats(),
   };
 
   // ── 10. ?t= 快进（逐段截图/验收用）───────────────────────────────────────
@@ -458,6 +486,7 @@ async function boot(): Promise<void> {
   window.addEventListener('pagehide', () => {
     input.dispose();
     show.dispose();
+    audio.dispose();
     view.dispose();
     app.dispose();
   }, { once: true });

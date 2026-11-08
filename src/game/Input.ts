@@ -31,6 +31,12 @@ const MAX_MOVE_STEP = 90;
 const MOVE_GAP_MS = 100;
 
 export interface InputHandle extends InputSource {
+  /**
+   * 只读当前视角（yaw/pitch），不消费任何边沿触发。
+   * 相机必须用这个而不是 player.yaw —— 后者只在固定步长逻辑帧里更新，
+   * 渲染帧率与 60Hz 不同步时相机会隔帧才更新一次，转视角就是一顿一顿的。
+   */
+  look(): { yaw: number; pitch: number };
   /** 销毁：解绑所有监听 */
   dispose(): void;
   /** 当前是否已锁定指针 */
@@ -125,6 +131,10 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   document.addEventListener('pointerlockchange', onPointerLockChange);
 
   return {
+    look(): { yaw: number; pitch: number } {
+      return { yaw, pitch };
+    },
+
     sample(): PlayerInput {
       const forward = (has(KEY.forward) ? 1 : 0) - (has(KEY.back) ? 1 : 0);
       const right = (has(KEY.right) ? 1 : 0) - (has(KEY.left) ? 1 : 0);

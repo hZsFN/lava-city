@@ -41,8 +41,10 @@ export function createGameView(deps: {
   camera: THREE.PerspectiveCamera;
   bus: Bus;
   game: Game;
+  /** 只读视角源：相机直接读它，不经固定步长的逻辑帧 */
+  look: () => { yaw: number; pitch: number };
 }): GameView {
-  const { scene, camera, bus, game } = deps;
+  const { scene, camera, bus, game, look } = deps;
 
   // ── 塔位标记 ──────────────────────────────────────────────────────────────
   const slotMeshes = new Map<string, THREE.Mesh>();
@@ -137,12 +139,15 @@ export function createGameView(deps: {
 
     // 3. 第一人称相机（含俯仰）
     const pos = game.playerPos();
-    const yaw = game.playerYaw();
-    const pitch = game.playerPitch();
+    const view = look();
     // 位置做一阶平滑：逻辑帧 60Hz、渲染帧率浮动，直接贴会让画面抖
     camera.position.set(pos[0], pos[1] + eyeHeight, pos[2]);
-    const cp = Math.cos(pitch);
-    camDir.set(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
+    const cp = Math.cos(view.pitch);
+    camDir.set(
+      -Math.sin(view.yaw) * cp,
+      Math.sin(view.pitch),
+      -Math.cos(view.yaw) * cp,
+    );
     camera.lookAt(
       camera.position.x + camDir.x,
       camera.position.y + camDir.y,
