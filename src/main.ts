@@ -212,6 +212,8 @@ async function boot(): Promise<void> {
 
   const raycaster = new THREE.Raycaster();
   const aimDir = new THREE.Vector3();
+  const bossBox = new THREE.Box3();
+  const bossBoxHit = new THREE.Vector3();
 
   function resolveBossHit(rangeM: number): WeaponHit | null {
     const aim = input.aim();
@@ -219,11 +221,24 @@ async function boot(): Promise<void> {
     aimDir
       .set(-Math.sin(aim.yaw) * cp, Math.sin(aim.pitch), -Math.cos(aim.yaw) * cp)
       .normalize();
+    const far = Number.isFinite(rangeM) ? rangeM : 60;
     raycaster.set(app.camera.position, aimDir);
-    raycaster.far = Number.isFinite(rangeM) ? rangeM : 60;
+    raycaster.far = far;
     const hit = raycaster.intersectObject(boss.root, true)[0];
-    if (!hit) return null;
-    const p = hit.point;
+    let p: THREE.Vector3;
+    if (hit) {
+      p = hit.point;
+    } else {
+      // 包围盒兜底：Boss 是巨型目标，站在正面平视时射线正好从双腿之间的空隙穿过去
+      // （2026-11-08 实测：眼高 1.7 m 平射，140 个网格 0 命中），单点射线永远打不到。
+      // 精确命中优先（弱点判定要用真实命中点），落空且朝向 Boss 包围盒时才用它兜底。
+      if (!boss.root.visible) return null;
+      bossBox.setFromObject(boss.root);
+      const enter = raycaster.ray.intersectBox(bossBox, bossBoxHit);
+      if (!enter) return null;
+      if (enter.distanceTo(app.camera.position) > far) return null;
+      p = enter;
+    }
     return {
       target: 'boss',
       point: [p.x, p.y, p.z],
@@ -315,19 +330,6 @@ async function boot(): Promise<void> {
   overlay.setMessage('熔心孤塔 · 点击画面锁定鼠标，WASD 移动');
 
   // ── 5. 事件接线 ──────────────────────────────────────────────────────────
-  // TEMP-BOSS-PROBE 排查「Boss 不打人」，验完删
-  window.setInterval(() => {
-    const b = bossRef;
-    if (!b) return;
-    const st = b.state;
-    const pp = game.playerPos();
-    const dist = Math.hypot(pp[0] - b.root.position.x, pp[2] - b.root.position.z);
-    const snap = game.snapshot();
-    console.info(`[probe] phase=${snap.phase} bossVis=${b.root.visible} y=${b.root.position.y.toFixed(1)} skill=${st.skill ?? '-'} hp=${snap.player.hp}/${snap.player.maxHp} dist=${dist.toFixed(1)}`);
-  }, 1000);
-  game.bus.on('BossSkillStart', (p) => {
-    console.info(`[probe] skillStart ${p.skill} ${p.stage}`);
-  });
   let lastPhase: MatchPhase = game.snapshot().phase;
   game.bus.on('MatchPhaseChanged', (p) => {
     lastPhase = p.phase;
@@ -363,18 +365,40 @@ async function boot(): Promise<void> {
     if (amount > 0) bossNow.takeDamage(amount, p.attr);
   });
 
-  // Boss 技能命中：近距离直接扣 1 点（血量接力规则）
+  // Boss 技能命中：按技能各自的判定范围扣 1 点（血量接力规则）
+  const SKILL_RANGE: Partial<Record<string, number>> = {
+    rockSweep: 12,   // 岩拳横扫：3~12 m 扇形
+    leapSlam: 8,     // 跃击：落在玩家位置，落地半径 8 m
+    lavaCharge: 10,  // 冲撞：起手时贴身判定
+  };
   game.bus.on('BossSkillStart', (p) => {
     if (p.stage !== 'active') return;
-    // 只有近身三招算命中；汲取/石柱/吐息交给后续战斗票
-    if (p.skill !== 'rockSweep' && p.skill !== 'leapSlam' && p.skill !== 'lavaCharge') return;
     if (!show.bossCanHurtPlayer()) return;
     const b = bossRef;
     if (!b) return;
     const pp = game.playerPos();
     const dx = pp[0] - b.root.position.x;
     const dz = pp[2] - b.root.position.z;
-    if (Math.hypot(dx, dz) <= 10) game.player.takeHit(p.skill);
+    const dist = Math.hypot(dx, dz);
+
+    // 岩柱：施法时在玩家位置周围升起，判定中心是施法落点
+    if (p.skill === 'stonePillars') {
+      const c = b.lastCastPos();
+      if (Math.hypot(pp[0] - c[0], pp[2] - c[2]) <= 4) game.player.takeHit('stonePillars');
+      return;
+    }
+    // 吐息：正前方 18 m、半角 35° 的锥形
+    if (p.skill === 'magmaBreath') {
+      const yaw = b.root.rotation.y;
+      const len = Math.max(1e-6, dist);
+      const dot = (dx * Math.sin(yaw) + dz * Math.cos(yaw)) / len;
+      if (dist <= 18 && dot >= Math.cos((35 * Math.PI) / 180)) game.player.takeHit('magmaBreath');
+      return;
+    }
+
+    const range = SKILL_RANGE[p.skill];
+    if (range === undefined) return;
+    if (dist <= range) game.player.takeHit(p.skill);
   });
 
   // 玩家血归零：黑屏 0.6 s →「塔心熄灭了」→ 3 s 后 failLevel（不白屏、不重开）
@@ -474,6 +498,50 @@ async function boot(): Promise<void> {
 
   // ── 8. 调试快捷键 ────────────────────────────────────────────────────────
   let motes = game.snapshot().motes;
+  // 俯视建塔：手上当前选中的塔型（默认弩炮）
+  const TOWER_LABEL: Record<TowerKind, string> = {
+    ballista: '弩炮',
+    rune: '符文',
+    frost: '霜冻',
+    quake: '震地',
+    totem: '图腾',
+  };
+  let buildKind: TowerKind = 'ballista';
+
+  // 俯视切换按钮（键盘之外再给一个入口，避免焦点/输入法吃掉按键）
+  const tacBtn = document.createElement('button');
+  tacBtn.textContent = '俯视建塔 (B)';
+  Object.assign(tacBtn.style, {
+    position: 'fixed', right: '18px', top: '16px', zIndex: '30',
+    padding: '10px 16px', borderRadius: '8px', cursor: 'pointer',
+    border: '1px solid #ff8a4c', background: 'rgba(20,10,6,0.82)',
+    color: '#ffb27a', font: '600 14px/1 system-ui, sans-serif',
+  });
+  tacBtn.addEventListener('click', () => {
+    const on = !view.isTactical();
+    view.setTactical(on);
+    if (on && document.pointerLockElement) document.exitPointerLock();
+    overlay.setMessage(on ? '俯视：点击青色塔位建塔 · 1–5 换塔型' : '回到第一人称');
+  });
+  document.body.appendChild(tacBtn);
+
+  // 俯视时鼠标点击塔位 → 建塔
+  app.canvas.addEventListener('mousedown', (event) => {
+    if (!view.isTactical() || event.button !== 0) return;
+    const slotId = view.pickTowerSlot(event.clientX, event.clientY);
+    if (!slotId) return;
+    const slot = game.towers.slots().find((s2) => s2.slotId === slotId);
+    if (!slot || slot.state !== 'open') {
+      overlay.setMessage(`${slotId} 不可建（${slot?.state ?? '未知'}）`);
+      return;
+    }
+    const ok = game.placeTower(slotId, buildKind);
+    overlay.setMessage(
+      ok ? `在 ${slotId} 建了 ${TOWER_LABEL[buildKind]}（熔核 ${game.towers.motes()}）`
+         : `建塔失败：熔核不足`,
+    );
+  });
+
   window.addEventListener('keydown', (event) => {
     if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
 
@@ -487,6 +555,20 @@ async function boot(): Promise<void> {
     }
 
     // 1-5：在最近的一个 open 塔位上建对应塔
+    // Tab：切换俯视战术视角（选点建塔）
+    if (event.code === 'KeyB') {
+      event.preventDefault();
+      const on = !view.isTactical();
+      view.setTactical(on);
+      if (on) {
+        if (document.pointerLockElement) document.exitPointerLock();
+        overlay.setMessage('俯视：点击青色塔位建塔 · 数字键 1–5 切换塔型 · B 返回');
+      } else {
+        overlay.setMessage('回到第一人称');
+      }
+      return;
+    }
+
     const kindByDigit: Record<string, TowerKind> = {
       Digit1: 'ballista',
       Digit2: 'rune',
@@ -496,6 +578,13 @@ async function boot(): Promise<void> {
     };
     const kind = kindByDigit[event.code];
     if (kind) {
+      // 俯视：只切换"手上拿的塔型"，真正建造靠点击塔位
+      if (view.isTactical()) {
+        buildKind = kind;
+        overlay.setMessage(`已选塔型：${TOWER_LABEL[kind]} · 点击青色塔位放置`);
+        return;
+      }
+      // 第一人称：保留原来的"一键建到第一个空位"快捷方式
       const openSlot = game.towers.slots().find((s) => s.state === 'open');
       if (!openSlot) {
         overlay.setMessage('没有可用的开放塔位');
