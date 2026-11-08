@@ -81,7 +81,7 @@ export class BossEntity implements BossDebugApi, VfxSink {
 
   private timeMs = 0;
   private scale = 1;
-  private sink = -3.0;
+  private sink = -1.0;
   private shellOpen = 0;
   private materialPhase: 1 | 2 = 1;
   private transitionFxActive = false;
@@ -90,7 +90,7 @@ export class BossEntity implements BossDebugApi, VfxSink {
     this.root.name = 'boss:ignis';
     this.fxRoot.name = 'boss:ignis-fx';
     this.stoneMat = new THREE.MeshStandardMaterial({
-      color: 0x14100e,
+      color: 0x3a302a,
       roughness: 0.94,
       metalness: 0.05,
       flatShading: true,
@@ -107,7 +107,7 @@ export class BossEntity implements BossDebugApi, VfxSink {
       metalness: 0.06,
       flatShading: true,
       emissive: 0xff5a12,
-      emissiveIntensity: 2.4,
+      emissiveIntensity: 4.2,
     });
     const crack = createCrackTexture();
     this.lavaMat.map = crack;
@@ -431,7 +431,7 @@ export class BossEntity implements BossDebugApi, VfxSink {
       this.head.add(socket);
 
       // 眼窝深处烧红的煤
-      const ember = new THREE.Mesh(new THREE.IcosahedronGeometry(0.30, 0), this.lavaMat);
+      const ember = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), this.lavaMat);
       ember.position.set(side * 1.02, 0.46, 1.66);
       this.head.add(ember);
       this.rockMeshes.push(ember);
@@ -632,7 +632,7 @@ export class BossEntity implements BossDebugApi, VfxSink {
     const v = this.brain.getView();
 
     // 阶段 I 半身埋在熔岩里，阶段 II 站起来 —— 这是身高从 9 m 变 11 m 的真正来源
-    const targetSink = v.phase === 2 ? 0 : -3.0;
+    const targetSink = v.phase === 2 ? 0 : -1.0;
     this.sink += (targetSink - this.sink) * Math.min(1, dtMs / 900);
 
     this.root.position.set(v.pos[0], v.pos[1] + this.transitionY(v) + this.sink, v.pos[2]);
