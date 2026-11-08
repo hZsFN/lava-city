@@ -71,7 +71,7 @@
   },
   "lava": {
     "radius": 55,
-    "y": -22,
+    "y": -2.2,
     "radialSegments": 44,
     "angularSegments": 224,
     "waveAmplitude": 0.35,
