@@ -6,3 +6,22 @@ dist/
 *.zip
 .DS_Store
 Thumbs.db
+
+# 构建临时目录（esbuild 在沙箱里删不掉 %TEMP% 会报 Access denied，
+# gate.ps1 会把 TEMP 指到 .tmp/，所以它不能入库）
+.tmp/
+
+# 本地临时
+*.log
+coverage/
+playwright-report/
+test-results/
+
+# 编辑器
+.vscode/
+.idea/
+
+# 大型美术源文件（只留生成脚本）
+*.psd
+*.fbx
+*.blend1

@@ -1,0 +1,26 @@
+{
+  "matchLengthSec": 270,
+  "phases": [
+    { "phase": "wake",       "startSec": 0,   "endSec": 20 },
+    { "phase": "prep",       "startSec": 20,  "endSec": 40 },
+    { "phase": "boss1",      "startSec": 40,  "endSec": 130 },
+    { "phase": "transition", "startSec": 130, "endSec": 145 },
+    { "phase": "boss2",      "startSec": 145, "endSec": 245 },
+    { "phase": "rage",       "startSec": 245, "endSec": 270 },
+    { "phase": "ended",      "startSec": 270, "endSec": 270 }
+  ],
+  "core": { "maxHp": 1000 },
+  "motes": {
+    "start": 6,
+    "perBossHpPct": 10,
+    "perExecution": 2
+  },
+  "score": {
+    "grades": [
+      { "grade": "S", "maxSec": 210, "minExecutions": 3, "minCorePct": 60 },
+      { "grade": "A", "maxSec": 240, "minExecutions": 2, "minCorePct": 30 },
+      { "grade": "B", "maxSec": 270, "minExecutions": 1, "minCorePct": 1 },
+      { "grade": "C", "maxSec": 999999, "minExecutions": 0, "minCorePct": 0 }
+    ]
+  }
+}

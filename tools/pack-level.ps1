@@ -1,7 +1,7 @@
-param()
+﻿param()
 
 # Pack out/ into a platform-compliant ZIP and run the official checker on it.
-# Usage: npm run pack   (or: pwsh -NoProfile -File tools/pack-level.ps1)
+# Usage: npm run pack   (or: powershell -NoProfile -File tools/pack-level.ps1)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem

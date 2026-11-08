@@ -1,11 +1,20 @@
 {
-  "upgradeCostRatio": 0.7,
-  "sellRefundRatio": 0.7,
-  "buildSec": 0.5,
-  "demolishSec": 0.5,
+  "build": {
+    "buildSec": 0.5,
+    "demolishSec": 0.5,
+    "upgradeCostRatio": 0.7,
+    "sellRefundRatio": 0.7,
+    "maxLevel": 2
+  },
   "debuff": {
     "maxStacks": 5,
     "resistPerStack": 0.08
+  },
+  "freeze": {
+    "max": 100,
+    "perHit": 8,
+    "decayPerSec": 6,
+    "stunSec": 2.5
   },
   "kinds": {
     "ballista": {
@@ -15,7 +24,9 @@
       "range": 25,
       "damage": 25,
       "intervalSec": 1.2,
-      "special": "sunder"
+      "hp": 600,
+      "special": "sunder",
+      "sunderHitsPerStack": 4
     },
     "rune": {
       "name": "符文聚能塔",
@@ -24,6 +35,7 @@
       "range": 20,
       "damage": 18,
       "intervalSec": 0.8,
+      "hp": 600,
       "special": "scorch"
     },
     "frost": {
@@ -32,7 +44,8 @@
       "cost": 3,
       "range": 18,
       "damage": 0,
-      "intervalSec": 1,
+      "intervalSec": 1.0,
+      "hp": 600,
       "slowRatio": 0.3,
       "special": "freeze"
     },
@@ -43,6 +56,8 @@
       "range": 12,
       "damage": 0,
       "intervalSec": 2.5,
+      "hp": 600,
+      "interruptChance": 0.5,
       "special": "interrupt"
     },
     "totem": {
@@ -51,7 +66,8 @@
       "cost": 2,
       "range": 30,
       "damage": 0,
-      "durability": 300,
+      "intervalSec": 0,
+      "hp": 300,
       "tauntSec": 6,
       "cooldownSec": 20,
       "special": "taunt"

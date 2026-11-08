@@ -8,7 +8,11 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "pack": "npm run build && pwsh -NoProfile -ExecutionPolicy Bypass -File tools/pack-level.ps1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pack": "npm run build && powershell -NoProfile -ExecutionPolicy Bypass -File tools/pack-level.ps1",
+    "gate": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gate.ps1",
+    "contract": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-contract.ps1"
   },
   "dependencies": {
     "three": "^0.187.0"
@@ -16,6 +20,7 @@
   "devDependencies": {
     "@types/three": "^0.187.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.7"
+    "vite": "^7.3.7",
+    "vitest": "^3.2.4"
   }
 }
