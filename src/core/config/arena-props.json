@@ -1,0 +1,363 @@
+{
+  "$schema": "运行时场地道具数值（票 M3-04 / M3-04b 收敛，供 GameLoop 碰撞箱与 render/ArenaProps 共用）",
+  "version": "1.0.0",
+  "ticket": "M3-04",
+  "note": "坐标以塔心为原点：angleDeg 0 = +X 轴、逆时针为正，x = r·cos(a)，z = r·sin(a)。改坐标要同步改设计票并重跑 node docs/tickets/M3-04-validate.mjs。",
+  "frame": {
+    "unit": "m",
+    "origin": "塔心（arena 原点，Boss 场地中心）",
+    "angleDeg": "0° = +X 轴，逆时针为正；与 src/render/Spire.ts 的 addSlotPedestal 一致：x = r·cos(a)，z = r·sin(a)",
+    "up": "+Y",
+    "playerFeetY": 0,
+    "playerHeight": 1.8,
+    "playerEyeHeight": 1.7
+  },
+  "kinds": {
+    "slagBulwark": {
+      "category": "cover",
+      "footprint": {
+        "shape": "orientedRect",
+        "widthM": 3.6,
+        "depthM": 0.8
+      },
+      "heightM": 2.2,
+      "collider": "solid",
+      "blocksLos": true,
+      "losBottomY": 0,
+      "losTopY": 2.2,
+      "hp": 240,
+      "destructible": true
+    },
+    "obsidianPillar": {
+      "category": "cover",
+      "footprint": {
+        "shape": "circle",
+        "radiusM": 0.6
+      },
+      "heightM": 4.6,
+      "collider": "solid",
+      "blocksLos": true,
+      "losBottomY": 0,
+      "losTopY": 4.6,
+      "hp": 0,
+      "destructible": false
+    },
+    "brokenParapet": {
+      "category": "cover",
+      "footprint": {
+        "shape": "orientedRect",
+        "widthM": 2.4,
+        "depthM": 0.6
+      },
+      "heightM": 1.1,
+      "collider": "solid",
+      "blocksLos": false,
+      "losBottomY": 0,
+      "losTopY": 1.1,
+      "hp": 120,
+      "destructible": true
+    },
+    "coreWard": {
+      "category": "defense",
+      "footprint": {
+        "shape": "orientedRect",
+        "widthM": 5,
+        "depthM": 0.5
+      },
+      "heightM": 2.4,
+      "collider": "solid",
+      "blocksLos": true,
+      "losBottomY": 0,
+      "losTopY": 2.4,
+      "hp": 600,
+      "destructible": true
+    },
+    "frostAnchor": {
+      "category": "defense",
+      "footprint": {
+        "shape": "circle",
+        "radiusM": 0.8
+      },
+      "heightM": 0.5,
+      "collider": "walkable",
+      "blocksLos": false,
+      "losBottomY": 0,
+      "losTopY": 0.5,
+      "hp": 200,
+      "destructible": true
+    },
+    "jumpLedge": {
+      "category": "platform",
+      "footprint": {
+        "shape": "rect",
+        "widthM": 1.8,
+        "depthM": 1.8
+      },
+      "heightM": 0.8,
+      "collider": "solid",
+      "blocksLos": false,
+      "hp": 0,
+      "destructible": false
+    },
+    "jumpHigh": {
+      "category": "platform",
+      "footprint": {
+        "shape": "rect",
+        "widthM": 1.8,
+        "depthM": 1.8
+      },
+      "heightM": 1.6,
+      "collider": "solid",
+      "blocksLos": false,
+      "hp": 0,
+      "destructible": false
+    },
+    "bridgePier": {
+      "category": "platform",
+      "footprint": {
+        "shape": "rect",
+        "widthM": 1.8,
+        "depthM": 1.8
+      },
+      "heightM": 2.4,
+      "collider": "solid",
+      "blocksLos": false,
+      "hp": 0,
+      "destructible": false
+    }
+  },
+  "instances": [
+    {
+      "id": "W1",
+      "kind": "coreWard",
+      "angleDeg": 30,
+      "radiusM": 9.6,
+      "rotDeg": 120
+    },
+    {
+      "id": "W2",
+      "kind": "coreWard",
+      "angleDeg": 150,
+      "radiusM": 9.6,
+      "rotDeg": 240
+    },
+    {
+      "id": "W3",
+      "kind": "coreWard",
+      "angleDeg": 270,
+      "radiusM": 9.6,
+      "rotDeg": 0
+    },
+    {
+      "id": "A1",
+      "kind": "frostAnchor",
+      "angleDeg": 45,
+      "radiusM": 13,
+      "rotDeg": 0
+    },
+    {
+      "id": "A2",
+      "kind": "frostAnchor",
+      "angleDeg": 225,
+      "radiusM": 13,
+      "rotDeg": 0
+    },
+    {
+      "id": "P1",
+      "kind": "brokenParapet",
+      "angleDeg": 60,
+      "radiusM": 11.6,
+      "rotDeg": 150
+    },
+    {
+      "id": "P2",
+      "kind": "brokenParapet",
+      "angleDeg": 120,
+      "radiusM": 11.6,
+      "rotDeg": 210
+    },
+    {
+      "id": "P3",
+      "kind": "brokenParapet",
+      "angleDeg": 210,
+      "radiusM": 11.6,
+      "rotDeg": 300
+    },
+    {
+      "id": "P4",
+      "kind": "brokenParapet",
+      "angleDeg": 240,
+      "radiusM": 11.6,
+      "rotDeg": 330
+    },
+    {
+      "id": "B1",
+      "kind": "slagBulwark",
+      "angleDeg": 84.66,
+      "radiusM": 16.12,
+      "rotDeg": 174.66
+    },
+    {
+      "id": "B2",
+      "kind": "slagBulwark",
+      "angleDeg": 95.34,
+      "radiusM": 16.12,
+      "rotDeg": 185.34
+    },
+    {
+      "id": "B3",
+      "kind": "slagBulwark",
+      "angleDeg": 264.66,
+      "radiusM": 16.12,
+      "rotDeg": 354.66
+    },
+    {
+      "id": "B4",
+      "kind": "slagBulwark",
+      "angleDeg": 275.34,
+      "radiusM": 16.12,
+      "rotDeg": 5.34
+    },
+    {
+      "id": "O1",
+      "kind": "obsidianPillar",
+      "angleDeg": 15,
+      "radiusM": 11,
+      "rotDeg": 0
+    },
+    {
+      "id": "O2",
+      "kind": "obsidianPillar",
+      "angleDeg": 165,
+      "radiusM": 11,
+      "rotDeg": 0
+    },
+    {
+      "id": "O3",
+      "kind": "obsidianPillar",
+      "angleDeg": 195,
+      "radiusM": 11,
+      "rotDeg": 0
+    },
+    {
+      "id": "O4",
+      "kind": "obsidianPillar",
+      "angleDeg": 345,
+      "radiusM": 11,
+      "rotDeg": 0
+    },
+    {
+      "id": "L1",
+      "kind": "jumpLedge",
+      "angleDeg": 22.5,
+      "radiusM": 13.2,
+      "rotDeg": 0
+    },
+    {
+      "id": "L2",
+      "kind": "jumpHigh",
+      "angleDeg": 22.5,
+      "radiusM": 15.4,
+      "rotDeg": 0
+    },
+    {
+      "id": "L3",
+      "kind": "bridgePier",
+      "angleDeg": 22.5,
+      "radiusM": 17.6,
+      "rotDeg": 0
+    },
+    {
+      "id": "L4",
+      "kind": "jumpLedge",
+      "angleDeg": 157.5,
+      "radiusM": 13.2,
+      "rotDeg": 0
+    },
+    {
+      "id": "L5",
+      "kind": "jumpHigh",
+      "angleDeg": 157.5,
+      "radiusM": 15.4,
+      "rotDeg": 0
+    },
+    {
+      "id": "L6",
+      "kind": "bridgePier",
+      "angleDeg": 157.5,
+      "radiusM": 17.6,
+      "rotDeg": 0
+    },
+    {
+      "id": "L7",
+      "kind": "jumpLedge",
+      "angleDeg": 202.5,
+      "radiusM": 13.2,
+      "rotDeg": 0
+    },
+    {
+      "id": "L8",
+      "kind": "jumpHigh",
+      "angleDeg": 202.5,
+      "radiusM": 15.4,
+      "rotDeg": 0
+    },
+    {
+      "id": "L9",
+      "kind": "bridgePier",
+      "angleDeg": 202.5,
+      "radiusM": 17.6,
+      "rotDeg": 0
+    },
+    {
+      "id": "L10",
+      "kind": "jumpLedge",
+      "angleDeg": 337.5,
+      "radiusM": 13.2,
+      "rotDeg": 0
+    },
+    {
+      "id": "L11",
+      "kind": "jumpHigh",
+      "angleDeg": 337.5,
+      "radiusM": 15.4,
+      "rotDeg": 0
+    },
+    {
+      "id": "L12",
+      "kind": "bridgePier",
+      "angleDeg": 337.5,
+      "radiusM": 17.6,
+      "rotDeg": 0
+    }
+  ],
+  "damageModel": {
+    "sweepGroundBandY": [
+      0.6,
+      1.6
+    ],
+    "sweepImmuneFeetYAbove": 0.9,
+    "chargeImmuneFeetYAbove": 0.9,
+    "losRayHeightY": 1.2,
+    "note": "losRayHeightY = 玩家蹲不下，取胸口高度做 2D 射线；遮挡物 losTopY ≥ 1.2 且 losBottomY ≤ 1.2 才挡得住。"
+  },
+  "render": {
+    "platform": {
+      "sides": 8,
+      "sizeM": 1.8,
+      "topThicknessM": 0.18,
+      "rimInnerM": 0.85,
+      "rimOuterM": 0.95,
+      "rimEmissiveIntensity": 0.5
+    },
+    "materials": {
+      "rock": "#2b2523",
+      "rim": "#ff9a3c",
+      "rimEmissive": "#ff9a3c"
+    },
+    "collisionBoxes": {
+      "color": "#7fd8ff",
+      "opacity": 0.85
+    }
+  }
+}

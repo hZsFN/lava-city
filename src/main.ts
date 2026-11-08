@@ -19,6 +19,8 @@ import type { MagicWeaponConfig, PhysicalWeaponConfig, WeaponHit, WeaponInput } 
 import flowCfgJson from './core/config/flow.json';
 import playerCfgJson from './core/config/player.json';
 import towersCfgJson from './core/config/towers.json';
+import arenaPropsCfgJson from './core/config/arena-props.json';
+import type { ArenaPropsConfig } from './game/ArenaProps';
 
 interface WlSave {
   level: number;
@@ -66,6 +68,7 @@ declare global {
 }
 
 const flowCfg = flowCfgJson as unknown as FlowConfig;
+const arenaPropsCfg = arenaPropsCfgJson as unknown as ArenaPropsConfig;
 
 // 本地 dev 没有大厅下发的 CONFIG，用最小占位让按键链路可验证
 const FALLBACK_CONFIG: Record<string, unknown> = {
@@ -176,6 +179,12 @@ async function boot(): Promise<void> {
     game,
     aim: () => input.aim(),
   });
+
+  // 场地道具的表现层（M3-04）：12 件跳跃平台 + 台面描边。
+  // 位置与逻辑层碰撞箱同源（都读 core/config/arena-props.json），
+  // 所以「看得见的台子」和「站得上的台子」不可能对不上。
+  // ?boxes=1 打开碰撞箱线框，验收用。
+  const arenaPropsView = app.mountArenaProps(arenaPropsCfg, params.get('boxes') === '1');
 
   const boss = new IgnisBoss(game.bus);
   boss.attachTo(app.scene);
@@ -825,6 +834,13 @@ async function boot(): Promise<void> {
     flow: () => show.flowSnapshot(),
     handoff: () => ({ done: handoffDone, result: handoffResult }),
     audio: () => audio?.stats() ?? null,
+  };
+
+  // 场地道具诊断句柄（验收截图用）：平台件数 / 台面高度 / draw call / 碰撞箱线框开关。
+  (window.__game as unknown as Record<string, unknown>).props = {
+    stats: () => arenaPropsView.stats(),
+    setBoxes: (visible: boolean) => arenaPropsView.setCollisionBoxesVisible(visible),
+    config: () => arenaPropsCfg.instances,
   };
 
   // ── 10. ?t= 快进（逐段截图/验收用）───────────────────────────────────────
