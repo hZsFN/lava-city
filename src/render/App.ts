@@ -16,9 +16,9 @@ export class App {
   private readonly host: HTMLElement;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
-  private readonly clock = new THREE.Clock();
   private readonly flowTime = uniform(0);
   private renderer: THREE.WebGPURenderer | null = null;
+  private lastFrameTime = 0;
   private frames = 0;
   private fpsAccum = 0;
   private disposed = false;
@@ -39,17 +39,17 @@ export class App {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = visual.exposure;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setSize(this.host.clientWidth || window.innerWidth, this.host.clientHeight || window.innerHeight, false);
     this.host.appendChild(renderer.domElement);
 
     this.buildScene();
+    // 只在这里定一次尺寸，避免 init 后连续两次 setSize 触发换链重建
     this.handleResize();
     window.addEventListener('resize', this.handleResize);
   }
 
   start(): void {
     if (!this.renderer) throw new Error('渲染器尚未初始化');
-    this.clock.start();
+    this.lastFrameTime = 0;
     void this.renderer.setAnimationLoop(this.tick);
   }
 
@@ -117,11 +117,13 @@ export class App {
     this.renderer?.setSize(width, height, false);
   };
 
-  private readonly tick = (): void => {
+  private readonly tick = (time: number): void => {
     const renderer = this.renderer;
     if (!renderer || this.disposed) return;
 
-    const dt = Math.min(this.clock.getDelta(), 0.1);
+    // 首帧只记录时间戳，避免把页面加载耗时算进 dt
+    const dt = this.lastFrameTime === 0 ? 0 : Math.min((time - this.lastFrameTime) / 1000, 0.1);
+    this.lastFrameTime = time;
     this.flowTime.value += dt * visual.lava.flowSpeed;
     renderer.render(this.scene, this.camera);
 
