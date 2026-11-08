@@ -1,0 +1,60 @@
+{
+  "upgradeCostRatio": 0.7,
+  "sellRefundRatio": 0.7,
+  "buildSec": 0.5,
+  "demolishSec": 0.5,
+  "debuff": {
+    "maxStacks": 5,
+    "resistPerStack": 0.08
+  },
+  "kinds": {
+    "ballista": {
+      "name": "弩炮塔",
+      "attr": "physical",
+      "cost": 3,
+      "range": 25,
+      "damage": 25,
+      "intervalSec": 1.2,
+      "special": "sunder"
+    },
+    "rune": {
+      "name": "符文聚能塔",
+      "attr": "arcane",
+      "cost": 3,
+      "range": 20,
+      "damage": 18,
+      "intervalSec": 0.8,
+      "special": "scorch"
+    },
+    "frost": {
+      "name": "寒晶塔",
+      "attr": "arcane",
+      "cost": 3,
+      "range": 18,
+      "damage": 0,
+      "intervalSec": 1,
+      "slowRatio": 0.3,
+      "special": "freeze"
+    },
+    "quake": {
+      "name": "震地锚塔",
+      "attr": "physical",
+      "cost": 3,
+      "range": 12,
+      "damage": 0,
+      "intervalSec": 2.5,
+      "special": "interrupt"
+    },
+    "totem": {
+      "name": "嘲讽图腾",
+      "attr": "none",
+      "cost": 2,
+      "range": 30,
+      "damage": 0,
+      "durability": 300,
+      "tauntSec": 6,
+      "cooldownSec": 20,
+      "special": "taunt"
+    }
+  }
+}

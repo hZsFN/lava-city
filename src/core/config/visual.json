@@ -1,0 +1,21 @@
+{
+  "exposure": 1.05,
+  "scene": {
+    "background": "#07050a",
+    "fog": "#2b0d05",
+    "fogDensity": 0.008,
+    "ground": "#3c3b44",
+    "lavaBase": "#1b0603"
+  },
+  "camera": {
+    "fov": 55,
+    "position": [0, 6.5, 24],
+    "target": [0, -0.4, -4]
+  },
+  "lava": {
+    "size": 150,
+    "y": -1.8,
+    "emissive": 1.45,
+    "flowSpeed": 0.028
+  }
+}

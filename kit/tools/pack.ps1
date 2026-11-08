@@ -63,8 +63,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $size = (Get-Item $outPath).Length
-if ($size -gt 20MB) {
-  Write-Host "❌ 压缩后 $([math]::Round($size / 1MB, 2))MB，超过 20MB" -ForegroundColor Red
+if ($size -gt 12MB) {
+  Write-Host "❌ 压缩后 $([math]::Round($size / 1MB, 2))MB，超过 12MB" -ForegroundColor Red
   exit 1
 }
 

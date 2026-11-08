@@ -1,0 +1,21 @@
+{
+  "name": "lava-city",
+  "private": true,
+  "version": "0.1.0",
+  "description": "《熔心孤塔》单人关卡：第一人称塔防 x Boss 战",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "pack": "npm run build && pwsh -NoProfile -ExecutionPolicy Bypass -File tools/pack-level.ps1"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.187.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7"
+  }
+}

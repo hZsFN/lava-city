@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>熔心孤塔</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #07050a; }
+    #app { position: fixed; inset: 0; }
+    #app canvas { display: block; width: 100%; height: 100%; }
+    #boot-tip {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 62%, #2a0d05 0%, #07050a 72%);
+      color: #ff8a4c; letter-spacing: 0.14em;
+      font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      transition: opacity 0.45s ease;
+    }
+    #boot-tip.hidden { opacity: 0; pointer-events: none; }
+  </style>
+  <script src="shared/save-protocol.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="boot-tip">正在唤醒熔心…</div>
+
+  <script>
+    // 平台协议边界：HTML 只做 WL 适配，游戏逻辑与渲染在 src/main.ts
+    window.__WL__ = {
+      save: function () { return window.WL ? WL.readSave() : null; },
+      respawn: function () { return window.WL ? WL.respawn() : null; },
+      completeLevel: function (config, save, options) {
+        return window.WL ? WL.completeLevel(config, save, options) : null;
+      }
+    };
+  </script>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

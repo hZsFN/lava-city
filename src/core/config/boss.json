@@ -1,0 +1,30 @@
+{
+  "phases": [
+    {
+      "phase": 1,
+      "name": "岩甲形态",
+      "hp": 1400,
+      "height": 9,
+      "resist": { "physical": 0.7, "arcane": 0 },
+      "weakness": { "part": "core", "attr": "arcane" }
+    },
+    {
+      "phase": 2,
+      "name": "熔火形态",
+      "hp": 1400,
+      "height": 11,
+      "resist": { "physical": 0, "arcane": 0.7 },
+      "weakness": { "part": "back", "attr": "physical" }
+    }
+  ],
+  "execution": {
+    "damageRatio": 0.12,
+    "windowSec": 3,
+    "stunSec": 3,
+    "slowMotionScale": 0.2,
+    "cameraSec": 1.2
+  },
+  "phaseTransitionSec": 15,
+  "rageStartSec": 245,
+  "matchLengthSec": 270
+}

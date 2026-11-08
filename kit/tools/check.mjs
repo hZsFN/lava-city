@@ -17,7 +17,7 @@ const ZIP_LIMIT = 12 * 1024 * 1024;
 const UNPACKED_LIMIT = 40 * 1024 * 1024;
 const FILE_COUNT_LIMIT = 250;
 const FILE_SIZE_LIMIT = 35 * 1024 * 1024;
-const ALLOWED_EXT = new Set('html htm js mjs css json png jpg jpeg gif webp svg ico avif mp3 ogg wav m4a mp4 webm woff woff2 ttf otf wasm data pck pak mem txt md map'.split(' '));
+const ALLOWED_EXT = new Set('html htm js mjs css json png jpg jpeg gif webp svg ico avif mp3 ogg wav m4a mp4 webm woff woff2 ttf otf wasm data pck pak mem txt md map glb gltf bin hdr ktx2 drc'.split(' '));
 const normalizeZipPath = name => name.replace(/\\/g, '/').replace(/^(?:\.\/)+/, '').normalize('NFC');
 const VOCAB = { hp: [1, 2], sanity: [1, 1], max_hp: [1, 1], attack: [1, 1] };
 const FORBIDDEN = [
@@ -294,7 +294,7 @@ async function checkExternal(url) {
 
   let res;
   try {
-    res = await fetch(url, { redirect: 'follow', headers: { 'user-agent': 'infinite-world-kit-check/3.3.2' } });
+    res = await fetch(url, { redirect: 'follow', headers: { 'user-agent': 'infinite-world-kit-check/3.3.3' } });
   } catch (error) {
     bad('外链可达', error.message + '；若被 WAF 拦截，请用浏览器 Network 复核');
     return;
@@ -333,7 +333,7 @@ async function checkExternal(url) {
     if (modules.length) {
       const first = new URL(modules[0], final).href;
       try {
-        const mod = await fetch(first, { headers: { 'user-agent': 'infinite-world-kit-check/3.3.2' } });
+        const mod = await fetch(first, { headers: { 'user-agent': 'infinite-world-kit-check/3.3.3' } });
         const acao = mod.headers.get('access-control-allow-origin');
         if (mod.ok && (acao === '*' || acao === 'null')) ok('模块脚本 CORS', first + ' → ' + acao);
         else bad('模块脚本 CORS', first + ' → ' + (acao || '无 ACAO') + '；沙箱 opaque origin 下会加载失败（需 * 或 null）');
@@ -344,7 +344,7 @@ async function checkExternal(url) {
   }
 
   let sdkRes;
-  try { sdkRes = await fetch(SDK_URL, { headers: { 'user-agent': 'infinite-world-kit-check/3.3.2' } }); }
+  try { sdkRes = await fetch(SDK_URL, { headers: { 'user-agent': 'infinite-world-kit-check/3.3.3' } }); }
   catch (error) { bad('官方 SDK 可达', SDK_URL + '：' + error.message); }
   if (sdkRes) {
     if (!sdkRes.ok) bad('官方 SDK 可达', SDK_URL + ' → ' + sdkRes.status);
@@ -384,21 +384,13 @@ function checkGameDir(dir) {
 
 function checkKit(dir) {
   checkManifest(join(dir,'global-items.json'));
-  const examples = join(dir, 'examples');
-  if (!existsSync(examples)) {
-    bad('交付包结构', '缺少 examples/ 目录');
-    return;
-  }
-  const dirs = readdirSync(examples).filter(n => statSync(join(examples, n)).isDirectory());
-  for (const name of dirs) {
-    const entry = join(examples, name, 'index.html');
-    if (!existsSync(entry)) {
-      bad(`示例入口（${name}）`, '缺少 index.html');
-      continue;
-    }
+  const examples = ['技术栈/HTML5/examples/01-minimal-html5-level', '技术栈/HTML5/examples/02-effect-relic', '接入方式/外链/example'];
+  for (const name of examples) {
+    const example = join(dir, name), entry = join(example, 'index.html');
+    if (!existsSync(entry)) { bad(`示例入口（${name}）`, '缺少 index.html'); continue; }
     ok(`示例入口（${name}）`, 'index.html 存在');
     checkHtml(entry);
-    checkExt(walk(join(examples, name)));
+    checkExt(walk(example));
   }
   const versionPath = join(dir, 'VERSION.json');
   const protocolPath = join(dir, 'shared', 'save-protocol.js');

@@ -1,0 +1,19 @@
+{
+  "maxHp": 100,
+  "eyeHeight": 1.7,
+  "moveSpeed": 6.5,
+  "dashSpeed": 11,
+  "dashInvulnerableSec": 0.25,
+  "jumpHeight": 1.2,
+  "regenDelaySec": 4,
+  "respawnSec": 3,
+  "maxDeaths": 2,
+  "overheat": {
+    "capacitySec": 4,
+    "cooldownSec": 2
+  },
+  "forms": {
+    "physical": { "label": "熔岩重锤", "color": "#e9e3d2" },
+    "arcane": { "label": "地脉法杖", "color": "#4aa8ff" }
+  }
+}

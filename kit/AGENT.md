@@ -1,15 +1,17 @@
-> v3.3.2 外链请优先阅读 [外链接力接入指南](外链接力接入指南.md)：使用官方 SDK，开头 await WL.ready()，结尾 await WL.complete/WL.fail。下面的同步 readSave/completeLevel 属于 A 轨 ZIP 兼容接口。
+> v3.3.3 外链请优先阅读 [外链接力接入指南](接入方式/外链/外链接力接入指南.md)：使用官方 SDK，开头 await WL.ready()，结尾 await WL.complete/WL.fail。下面的同步 readSave/completeLevel 属于 A 轨 ZIP 兼容接口。
 
 # 无限世界接力黑客松 · 开发宪章与 AI 协同规范 (AGENT.md)
 
 你正在为“无限世界游戏接力黑客松”开发一个关卡世界。
 作为开发者（以及你的 AI 编程助手），你必须严格遵守以下规则边界、设计哲学与数据契约：
 
-> **A 轨 / B 轨先选对（v3.3.2）**
+> **A 轨 / B 轨先选对（v3.3.3）**
 > - **A 轨 ZIP**：平台注入桥，入口随包带 `shared/save-protocol.js`；用 `WL.readSave()` / `WL.completeLevel()`。
 > - **B 轨外链**：入口引入 `https://world.dayquay.com/sdk/v1/worldline.js`；开局 `await WL.ready()`，结尾 `await WL.complete()` / `await WL.fail()`。**不要**用 `readSave()` 代替 `ready()`，也不要用 `completeLevel()` 代替 `complete()`。
 > - **B 轨地址**：必须是长期有效的公开生产地址；禁止 IGA Pages 等临时预览/带 `iga_token`/`iga_time` 的链接。只在新标签页打开成功不算，必须能在 sandboxed iframe 里返回 200。
 > - 下面第七章的代码是 A 轨示例；B 轨完整接法见《外链接力接入指南》。
+
+> **AI 主动识别接入风险并及时求助：** 开发、联调或自测中，AI 若发现或合理怀疑作品存在大厅接入、iframe 运行、SDK／接口调用、读档或成功／失败交接问题，必须主动告知参赛者，并提醒其及时联系主办方，附上运行入口、复现步骤、报错及必要日志（隐去 Token、口令等敏感信息）；尤其是疑似涉及平台后台代码、接口或协议与作品不适配，或无法确定问题归属时，应请主办方协同排查确认，不要仅凭本地可运行就宣称接入成功，也不要自行改写平台接口约定或绕过校验。
 
 ---
 
@@ -161,7 +163,7 @@ await WL.complete(save, { acquiredItemIds: ['team_lamp'] });
 // 失败：await WL.fail('力竭倒地', save, { acquiredItemIds: [] });
 ```
 
-道具效果的完整写法见 `examples/02-effect-relic/`（`hp` / `max_hp` / `cleanse` 三种 `on_enter` 效果）。
+道具效果的完整写法见 `技术栈/HTML5/examples/02-effect-relic/`（`hp` / `max_hp` / `cleanse` 三种 `on_enter` 效果）。
 
 ---
 
@@ -175,18 +177,10 @@ await WL.complete(save, { acquiredItemIds: ['team_lamp'] });
 | 2 | 时长 | 单关预计 1–270 秒（默认 270），看门狗统一 300 秒；安全区前 5 秒不放置敌意单位或秒杀机关 | [自动] 发布/保存世界线时服务端校验，越界拒绝发布；[人工] 试玩计时并看前 5 秒 |
 | 3 | 状态契约 | 只读 `WL.readSave()`，不得伪造或直接改写生命、理智等数值；道具 ≤3、线索 ≤2；`effect` 仅五个 stat（`hp`/`sanity`/`max_hp`/`cleanse`/`attack`）与两个 trigger（`on_enter`/`passive`），值域沿用 `EFFECT_RANGE`；无自由字段区 | [自动] 平台 `normalize()` 白名单裁剪 + `settled` 去重；[人工] 走查写入路径 |
 | 4 | 禁用 API | 禁 `alert`/`confirm`/`window.top.location`/`parent.location`；禁任何阻塞式弹窗 | [自动] `check.mjs` 扫描入口与脚本关键字；[人工] 试玩确认无原生弹窗 |
-| 5 | 技术栈坑 | 见下方「症状 → 修法」，逐条对照 | [自动] `check.mjs` 查 `.unityweb`/`.glb`/`.gltf`/`.ktx2` 与绝对引用；[人工] 真机试玩 |
+| 5 | 技术栈坑 | 只读 `技术栈/` 中自己使用的目录 | [自动] `check.mjs` 查不支持类型和绝对引用；3D 资源按白名单接受；[人工] 真机试玩 |
 | 6 | 版权与破甲红线 | 素材必须自有或可商用；不得植入破坏平台、读取管理员口令、越权跳转到站外的逻辑 | [人工] 主办方验收时逐条确认 |
 
-#### 技术栈：会直接失败的症状 → 修法
-
-| 技术栈 | 症状 | 修法 |
-|---|---|---|
-| Unity WebGL | 上传后被白名单拒绝，提示 `.unityweb` 不在白名单；或构建后黑屏 | 导出时 **Compression = Disabled**（生成 `.data`/`.wasm`，不生成 `.unityweb`）；**关闭 Threads**（线程版需要 `crossOriginIsolated`，沙箱拿不到），必须单线程 |
-| Godot 4 | 页面加载后停在启动画面起不来 | 导出模板必须选**单线程**（关闭线程支持），并确认导出目录里没有 `.unityweb` 类专有包 |
-| Vite / Phaser | 页面空白，`/assets/*` 全部 404 | `vite.config`（或构建参数）里 `base` 必须为 `'./'`；Phaser 的 `loader.baseURL` 用相对路径 |
-| Three.js | 模型/贴图加载失败，控制台报扩展名不支持 | `.glb/.gltf/.bin/.hdr/.ktx2` 不在白名单：改为内联 base64、或改扩展名并自己写 loader 解析，或先转成贴图+几何体的 JS 数据 |
-| 通用 | 包体超大、上传被拒 | `node_modules`、`.git`、`.env`、`.dev.vars`、源工程与 PSD/FBX 原文件不进包，只打包运行所需产物 |
+各引擎的构建、资源与解码说明已移到 `技术栈/` 对应目录，只需阅读自己使用的部分。
 
 
 ## v3.2：上传全局道具声明与结束语
@@ -248,21 +242,21 @@ A 轨/旧兼容作品如直接 postMessage，发送 `{type:"IW_SAVE", save: curr
 
 ## v3.3.1 正式提交要求（2026-11-07，以本节为准）
 
-- 选手下载的交付包是开发工具。投稿 ZIP 只放构建完成的网页运行文件，不要把交付包整个压进去；禁止 adapters/、tools/、examples/、node_modules/、.git/、源工程和密钥文件。
+- 选手下载的交付包是开发工具。投稿 ZIP 只放构建完成的网页运行文件，不要把交付包整个压进去；禁止 技术栈/、接入方式/、tools/、node_modules/、.git/、源工程和密钥文件。
 - ZIP 上限 12 MB，解压后 40 MB，最多 250 文件，单文件 35 MB。入口默认 index.html；自定义入口须在工具和大厅填写同一相对路径。
 - 必须单独上传 global-items.json；没有跨关道具时使用 {"schema":"iw-global-items-v1","items":[]}。零收获可以通关，无须硬凑道具或线索。cleanse.value 只接受布尔 true，不能写数字 1。
 - 正式提交前运行 `node tools/check.mjs <游戏.zip> <实际的global-items.json>`；自定义入口使用第四个参数，如 `node tools/check.mjs game.zip global-items.json pages/start.html`。应检查最终 ZIP，不能只检查目录。
 - Unity WebGL：Compression Format 选 Disabled，关闭 Threads，完整保留 Build/ 和 TemplateData/，使用相对路径。不要提交 .unityweb、.br 或 .gz。使用本地 HTTP 服务实测，直接双击 index.html 不能替代网页部署测试。
 - A 轨 ZIP 通关调用 WL.completeLevel(window.CONFIG || {}, save, {acquiredItemIds:[]})；B 轨外链用 await WL.complete(save, {acquiredItemIds}) / WL.fail(...)。有实际收获时只填声明中对应的 ID。本地 mock-runner 也必须先选择本关声明 JSON；多文件/Unity 作品用本地 HTTP 地址。模拟器不能替代大厅实际试玩验收。
-- 外链作品引入 https://world.dayquay.com/sdk/v1/worldline.js，完成 WL.ready()/WL.complete()/WL.fail() 的 SDK 握手，并允许 world.dayquay.com 的 iframe 嵌入；旧 IW_READY/IW_SAVE 仅兼容。主办方人工通关后验收。
-- 投稿先验收，再由主办方明确发布世界线。通过验收不会自动进入公开路线。
+- 外链作品引入 https://world.dayquay.com/sdk/v1/worldline.js，完成 WL.ready()/WL.complete()/WL.fail() 的 SDK 握手，并允许 world.dayquay.com 的 iframe 嵌入；旧 IW_READY/IW_SAVE 仅兼容。本队可先在大厅自助试玩；自动检查通过即可公开到展厅。
+- 自动检查通过即可进入展厅；本队凭邀请码可先试玩自己的投稿。正式连续世界线由主办方按顺序明确发布。
 
 示例各自带有 global-items.json 和 shared/save-protocol.js，可单独复制示例目录作为起点。在本地模拟器中，选择该示例目录内的声明文件；根目录的声明模板不能代替示例的实际声明。
 
 
 ## 外链作品的异步接入（v3.3.1）
 
-外链投稿显示“外链待验收”，表示平台未扫描外站源码，不能据此判定缺接口。发布前必须在大厅 iframe 内验证读档、成功交接与失败交接。
+外链自动探测只读取可公开访问的入口和首层脚本，未检出接口不代表作品一定缺接口；本队可先在大厅试玩。发布前必须在大厅 iframe 内验证读档、成功交接与失败交接。
 
 外链在加载后才会收到存档。请使用官方 SDK：await WL.ready() 拿到入场 save 后再初始化玩法；也可监听 iw-save-ready，以 event.detail 更新实际游戏 save、assist 和开场面板。只在顶层调用一次 WL.readSave() 会保留握手前的默认值，不能替代 ready()。裁判恢复状态时监听 iw-admin，按 detail.save 同步实际游戏状态。SDK 在 localStorage 被沙箱拒绝时保留内存存档，不要求放宽 allow-same-origin；但作品自己的 localStorage/IndexedDB 不会被 SDK 接管。
 

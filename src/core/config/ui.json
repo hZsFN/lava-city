@@ -1,0 +1,18 @@
+{
+  "countdownSec": 270,
+  "teachingFirstRunOnly": true,
+  "hud": {
+    "playerBottomLeft": true,
+    "bossTopCenter": true,
+    "motesBottomRight": true,
+    "debugBottomRight": true
+  },
+  "weaknessIndicator": {
+    "edgePulse": true,
+    "worldArrow": true
+  },
+  "settlement": {
+    "grades": ["S", "A", "B", "C"],
+    "restartSec": 2
+  }
+}

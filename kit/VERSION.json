@@ -1,6 +1,6 @@
 {
-  "version": "v3.3.2",
-  "supersedes": "v3.3.1",
+  "version": "v3.3.3",
+  "supersedes": "v3.3.2",
   "date": "2026-11-08",
   "schema": "v3",
   "limits": {
@@ -23,5 +23,32 @@
     "version": "1.0.0",
     "protocol": 1,
     "url": "https://world.dayquay.com/sdk/v1/worldline.js"
+  },
+  "assets": {
+    "modelFormats": [
+      "glb",
+      "gltf",
+      "bin",
+      "drc"
+    ],
+    "textureFormats": [
+      "hdr",
+      "ktx2"
+    ],
+    "decoderRuntime": [
+      "js",
+      "wasm"
+    ],
+    "guide": "技术栈/Three.js/[GLB、Draco、KTX2]加入相应技术支持.md"
+  },
+  "layout": {
+    "common": "根目录",
+    "stacks": "技术栈/",
+    "externalGuide": "接入方式/外链/外链接力接入指南.md",
+    "examples": [
+      "技术栈/HTML5/examples/01-minimal-html5-level",
+      "技术栈/HTML5/examples/02-effect-relic",
+      "接入方式/外链/example"
+    ]
   }
 }

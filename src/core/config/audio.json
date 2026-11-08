@@ -1,0 +1,13 @@
+{
+  "masterVolume": 0.8,
+  "buses": {
+    "music": 0.55,
+    "sfx": 0.9,
+    "ui": 0.7,
+    "ambience": 0.6
+  },
+  "spatial": {
+    "reverbZone": "tower-top",
+    "rolloff": 1.6
+  }
+}

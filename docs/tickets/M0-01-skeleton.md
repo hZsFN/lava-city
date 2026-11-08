@@ -39,12 +39,10 @@ tools/pack-level.ps1
 
 ## 【关键技术约束（违反即验收失败）】
 
-1. **交付包扩展名白名单**（`kit/tools/check.mjs` 的 `ALLOWED_EXT`）只有：
-   `html htm js mjs css json png jpg jpeg gif webp svg ico avif mp3 ogg wav m4a mp4 webm woff woff2 ttf otf wasm data pck pak mem txt md map`
-   **没有 `.glb` / `.gltf` / `.bin` / `.hdr` / `.ktx2`。** 因此：
-   - 所有三维模型必须用 Three.js 几何体在代码里程序化生成，不得引入任何外部模型文件；
-   - 所有贴图必须是代码生成的 `CanvasTexture` / `DataTexture`，或白名单内的位图；
-   - 禁止引入任何会产出上述禁止扩展名的库或构建步骤。
+1. **交付包扩展名白名单**（`kit/tools/check.mjs` 的 `ALLOWED_EXT`，v3.3.3 起）：
+   `html htm js mjs css json png jpg jpeg gif webp svg ico avif mp3 ogg wav m4a mp4 webm woff woff2 ttf otf wasm data pck pak mem txt md map glb gltf bin hdr ktx2 drc`
+   v3.3.3 放开了 `glb / gltf / bin / hdr / ktx2 / drc`，但**本票仍然只用代码程序化生成的几何体与 `CanvasTexture`**，不引入任何外部模型文件——理由是加载器和解码器要随包提交、还要处理 CORS 与 iframe 隔离，这些时间今天花不起。等骨架跑通、时间有余再看要不要上 GLB。
+   若后续某票确实要用 GLB：必须同时打包 `decoders/draco/*` 与 `decoders/basis/*` 的 js+wasm，用 `new URL('./assets/x.glb', location.href)` 相对定位，`KTX2Loader.detectSupport(renderer)` 必须在加载前执行。
 2. `vite.config.ts` 必须设 `base: './'`，否则 iframe 内相对路径会 404。
 3. 交付包内所有路径必须是相对路径，禁止 `http://` / `https://` 引本地资源。
 4. 入口 `index.html` 必须在包根，且必须先 `<script src="shared/save-protocol.js"></script>` 再加载 `src/main.ts`。

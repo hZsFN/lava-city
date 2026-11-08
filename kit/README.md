@@ -1,16 +1,20 @@
-> v3.3.2 外链请优先阅读 [外链接力接入指南](外链接力接入指南.md)：使用官方 SDK，开头 await WL.ready()，结尾 await WL.complete/WL.fail。下面的同步 readSave/completeLevel 属于 A 轨 ZIP 兼容接口，不能用于外链。
+> v3.3.3 外链请优先阅读 [外链接力接入指南](接入方式/外链/外链接力接入指南.md)：使用官方 SDK，开头 await WL.ready()，结尾 await WL.complete/WL.fail。下面的同步 readSave/completeLevel 属于 A 轨 ZIP 兼容接口，不能用于外链。
 
-# 无限世界接力黑客松 · 参赛团队官方交付包使用手册（v3.3.2）
+# 无限世界接力黑客松 · 参赛团队官方交付包使用手册（v3.3.3）
 
-> **版本 v3.3.2 · 更新日期 2026-11-08 · 协议 SAVE_STATE v3 · 取代 v3.3.1**
+> **版本 v3.3.3 · 更新日期 2026-11-08 · 协议 SAVE_STATE v3 · 取代 v3.3.2**
 >
 > **外链（B 轨）只认官方 SDK：** 入口引入 `https://world.dayquay.com/sdk/v1/worldline.js`，开头 `await WL.ready()`，结尾 `await WL.complete()` 或 `await WL.fail()`。`WL.readSave()` / `WL.completeLevel()` 只用于 A 轨 ZIP 或旧兼容，不要用于外链。
 >
 > **外链地址硬性要求：** 必须是长期有效的公开生产地址；禁止 IGA Pages 等临时预览链接（`*.preview.iga-pages.com`、`iga_token`/`iga_time`）。只在新标签页打开成功不算，必须能在 sandboxed iframe 里返回 200。
 >
-> **请整包分发，不要只打包示例目录。** 示例关卡靠 `../../shared/save-protocol.js` 引用协议库；只拷 `examples/01-minimal-html5-level/` 会 404。要么整包解压使用，要么把示例整目录连同 `shared/` 一起拷走。
+> 请整包分发交付工具。投稿只打包自己的构建产物；内置示例可完整复制其目录（包含自己的 shared/ 与道具声明）。
 
 欢迎参加「无限世界百人共创游戏接力黑客松」。所有队伍接续同一位主角：上一关的生命、理智、背包道具、线索和结束语，会原样交到下一关。
+
+本次版本迭代：[[GLB、Draco、KTX2]加入相应技术支持](技术栈/Three.js/%5BGLB%E3%80%81Draco%E3%80%81KTX2%5D%E5%8A%A0%E5%85%A5%E7%9B%B8%E5%BA%94%E6%8A%80%E6%9C%AF%E6%94%AF%E6%8C%81.md)。使用这些技术的团队按需阅读；其他团队无需跟读。 网站下载卡片下方持续列出更新动态：标签涉及自己的技术栈才需重新下载，未涉及可继续使用原包。
+
+根目录只放所有团队共用的说明和工具；引擎适配器、示例与技术更新分目录存放。入口见 [按技术栈选读](技术栈/README.md)。
 
 本交付包是标准化接入工具箱，支持原生 HTML5、Godot、Unity、Phaser，10 分钟接入并本地自测。
 
@@ -19,24 +23,22 @@
 ## 一、包内有什么
 
 ```text
-participant-delivery-kit-v3.3.2/
-├── VERSION.json                   # 包版本、协议版本、协议文件哈希
-├── README.md                      # 本文档
-├── AGENT.md                       # 开发宪章（时长 / 道具 / 禁止破甲 / 版权 / 打包）
-├── 参赛团队 5 分钟接入指南.md      # 速查：读档、通关、字段表、外链注意事项
-├── mock-runner.html               # 本地沙盒：模拟大厅 iframe，捕获握手与交接事件
-├── global-items.json              # 有全局道具时修改并上传的声明示例
-├── global-items.empty.template.json # 没有全局道具时也必须上传的空声明
-├── seed-card.json                 # 初始存档样例（本地调试用）
-├── shared/
-│   └── save-protocol.js           # 协议核心库（不用改）
-├── tools/
-│   ├── pack.ps1                   # 把自己的关卡打成合规 ZIP
-│   └── check.mjs                  # 一键自检（零依赖，Node 标准库）
-├── adapters/                      # Unity / Godot / Phaser 桥接脚手架
-└── examples/
-    ├── 01-minimal-html5-level/    # 最小接力示例：读档 → 掉血复活 → 带道具通关
-    └── 02-effect-relic/           # 道具效果示例：hp / max_hp / cleanse，全部 on_enter
+participant-delivery-kit-v3.3.3/
+├── README.md / AGENT.md           # 所有团队先读的通用入口与规范
+├── 参赛团队 5 分钟接入指南.md
+├── 正式交接规则-v3.2.md / 完整流程自测记录.md
+├── VERSION.json / seed-card.json
+├── global-items.json / global-items.empty.template.json
+├── mock-runner.html              # 所有技术栈共用的模拟器
+├── shared/                       # 共用协议和声明校验库
+├── tools/                        # 共用自检与打包工具
+├── 技术栈/                       # 按自己使用的技术选读
+│   ├── HTML5/                    # 自包含网页示例
+│   ├── Unity/                    # Unity 适配器及专用说明
+│   ├── Godot/                    # Godot 适配器及专用说明
+│   ├── Phaser/                   # Phaser 适配器及专用说明
+│   └── Three.js/                 # GLB、Draco、KTX2、HDR 本轮更新
+└── 接入方式/外链/                # 外链专用指南及自包含示例
 ```
 
 ---
@@ -108,7 +110,7 @@ WL.addItem(save, {
 WL.addClue(save, "遗迹深处指向了远古的蒸汽神庙"); // 线索最多 2 条
 ```
 
-**看完 `examples/02-effect-relic/` 就知道道具怎么写**：它把 `hp +1`、`max_hp +1`、`cleanse true` 三种 `on_enter` 效果和“只结算一次”都演示了一遍。
+**看完 `技术栈/HTML5/examples/02-effect-relic/` 就知道道具怎么写**：它把 `hp +1`、`max_hp +1`、`cleanse true` 三种 `on_enter` 效果和“只结算一次”都演示了一遍。
 
 ### 2.3 死亡与复活
 
@@ -168,13 +170,9 @@ python -m http.server 8080
 
 ---
 
-## 五、引擎适配器 `adapters/`
+## 五、按技术栈选读 `技术栈/`
 
-- **Unity WebGL**：`InfiniteWorldPlugin.jslib` 放 `Assets/Plugins/WebGL/`，`InfiniteWorldBridge.cs` 挂到常驻物体。
-- **Godot 4**：`InfiniteWorldBridge.gd` 注册为 AutoLoad 单例。
-- **Phaser 3**：`InfiniteWorldPhaserPlugin.ts` 注册到 `plugins.global`。
-
-细节见 `adapters/README.md`。
+进入 [技术栈导航](技术栈/README.md)，只读自己使用的 HTML5、Unity、Godot、Phaser 或 Three.js 文件夹。引擎代码和专用排错说明都在对应目录，通用规范不重复维护。
 
 ---
 
@@ -224,20 +222,10 @@ node tools/check.mjs .\你的关卡目录
 | 2 | 时长 | 单关预计 1–270 秒（默认 270），看门狗统一 300 秒；安全区前 5 秒不放置敌意单位或秒杀机关 | [自动] 发布/保存世界线时服务端校验，越界拒绝发布；[人工] 试玩计时并看前 5 秒 |
 | 3 | 状态契约 | 只读 `WL.readSave()`，不得伪造或直接改写生命、理智等数值；道具 ≤3、线索 ≤2；`effect` 仅五个 stat（`hp`/`sanity`/`max_hp`/`cleanse`/`attack`）与两个 trigger（`on_enter`/`passive`），值域沿用 `EFFECT_RANGE`；无自由字段区 | [自动] 平台 `normalize()` 白名单裁剪 + `settled` 去重；[人工] 走查写入路径 |
 | 4 | 禁用 API | 禁 `alert`/`confirm`/`window.top.location`/`parent.location`；禁任何阻塞式弹窗 | [自动] `check.mjs` 扫描入口与脚本关键字；[人工] 试玩确认无原生弹窗 |
-| 5 | 技术栈坑 | 见下方「症状 → 修法」，逐条对照 | [自动] `check.mjs` 查 `.unityweb`/`.glb`/`.gltf`/`.ktx2` 与绝对引用；[人工] 真机试玩 |
+| 5 | 技术栈坑 | 只读 `技术栈/` 中自己使用的目录 | [自动] `check.mjs` 查不支持类型和绝对引用；3D 资源按白名单接受；[人工] 真机试玩 |
 | 6 | 版权与破甲红线 | 素材必须自有或可商用；不得植入破坏平台、读取管理员口令、越权跳转到站外的逻辑 | [人工] 主办方验收时逐条确认 |
 
-### 技术栈：会直接失败的症状 → 修法
-
-| 技术栈 | 症状 | 修法 |
-|---|---|---|
-| Unity WebGL | 上传后被白名单拒绝，提示 `.unityweb` 不在白名单；或构建后黑屏 | 导出时 **Compression = Disabled**（生成 `.data`/`.wasm`，不生成 `.unityweb`）；**关闭 Threads**（线程版需要 `crossOriginIsolated`，沙箱拿不到），必须单线程 |
-| Godot 4 | 页面加载后停在启动画面起不来 | 导出模板必须选**单线程**（关闭线程支持），并确认导出目录里没有 `.unityweb` 类专有包 |
-| Vite / Phaser | 页面空白，`/assets/*` 全部 404 | `vite.config`（或构建参数）里 `base` 必须为 `'./'`；Phaser 的 `loader.baseURL` 用相对路径 |
-| Three.js | 模型/贴图加载失败，控制台报扩展名不支持 | `.glb/.gltf/.bin/.hdr/.ktx2` 不在白名单：改为内联 base64、或改扩展名并自己写 loader 解析，或先转成贴图+几何体的 JS 数据 |
-| 通用 | 包体超大、上传被拒 | `node_modules`、`.git`、`.env`、`.dev.vars`、源工程与 PSD/FBX 原文件不进包，只打包运行所需产物 |
-
-祝你在现场大屏上跑出一个让人记住的世界。
+各引擎的构建、资源与解码说明已移到 `技术栈/` 对应目录，只需阅读自己使用的部分。
 
 
 ## v3.2：上传全局道具声明与结束语
@@ -314,21 +302,21 @@ A 轨/旧兼容作品如直接 postMessage，发送 `{type:"IW_SAVE", save: curr
 
 ## v3.3.1 正式提交要求（2026-11-07，以本节为准）
 
-- 选手下载的交付包是开发工具。投稿 ZIP 只放构建完成的网页运行文件，不要把交付包整个压进去；禁止 adapters/、tools/、examples/、node_modules/、.git/、源工程和密钥文件。
+- 选手下载的交付包是开发工具。投稿 ZIP 只放构建完成的网页运行文件，不要把交付包整个压进去；禁止 技术栈/、接入方式/、tools/、node_modules/、.git/、源工程和密钥文件。
 - ZIP 上限 12 MB，解压后 40 MB，最多 250 文件，单文件 35 MB。入口默认 index.html；自定义入口须在工具和大厅填写同一相对路径。
 - 必须单独上传 global-items.json；没有跨关道具时使用 {"schema":"iw-global-items-v1","items":[]}。零收获可以通关，无须硬凑道具或线索。cleanse.value 只接受布尔 true，不能写数字 1。
 - 正式提交前运行 `node tools/check.mjs <游戏.zip> <实际的global-items.json>`；自定义入口使用第四个参数，如 `node tools/check.mjs game.zip global-items.json pages/start.html`。应检查最终 ZIP，不能只检查目录。
 - Unity WebGL：Compression Format 选 Disabled，关闭 Threads，完整保留 Build/ 和 TemplateData/，使用相对路径。不要提交 .unityweb、.br 或 .gz。使用本地 HTTP 服务实测，直接双击 index.html 不能替代网页部署测试。
 - 通关调用 WL.completeLevel(window.CONFIG || {}, save, {acquiredItemIds:[]})，有实际收获时只填声明中对应的 ID。本地 mock-runner 也必须先选择本关声明 JSON；多文件/Unity 作品用本地 HTTP 地址。模拟器不能替代大厅实际试玩验收。
-- 外链作品引入 https://world.dayquay.com/sdk/v1/worldline.js，完成 WL.ready()/WL.complete()/WL.fail() 的 SDK 握手，并允许 world.dayquay.com 的 iframe 嵌入；旧 IW_READY/IW_SAVE 仅兼容。主办方人工通关后验收。
-- 投稿先验收，再由主办方明确发布世界线。通过验收不会自动进入公开路线。
+- 外链作品引入 https://world.dayquay.com/sdk/v1/worldline.js，完成 WL.ready()/WL.complete()/WL.fail() 的 SDK 握手，并允许 world.dayquay.com 的 iframe 嵌入；旧 IW_READY/IW_SAVE 仅兼容。本队可先在大厅自助试玩；自动检查通过即可公开到展厅。
+- 自动检查通过即可进入展厅；本队凭邀请码可先试玩自己的投稿。正式连续世界线由主办方按顺序明确发布。
 
 示例各自带有 global-items.json 和 shared/save-protocol.js，可单独复制示例目录作为起点。在本地模拟器中，选择该示例目录内的声明文件；根目录的声明模板不能代替示例的实际声明。
 
 
 ## 外链作品的异步接入（v3.3.1）
 
-外链投稿显示“外链待验收”，表示平台未扫描外站源码，不能据此判定缺接口。发布前必须在大厅 iframe 内验证读档、成功交接与失败交接。
+外链自动探测只读取可公开访问的入口和首层脚本，未检出接口不代表作品一定缺接口；本队可先在大厅试玩。发布前必须在大厅 iframe 内验证读档、成功交接与失败交接。
 
 外链在加载后才会收到存档。请使用官方 SDK：`await WL.ready()` 拿到入场 save 后再初始化玩法；也可监听 `iw-save-ready`，用 `event.detail` 更新实际游戏 save、assist 和开场面板。只在顶层调用一次 `WL.readSave()` 会保留握手前的默认值，不能替代 `ready()`。裁判恢复状态时监听 `iw-admin`，按 `detail.save` 同步实际游戏状态。SDK 在 localStorage 被沙箱拒绝时保留内存存档，不要求放宽 allow-same-origin；但作品自己的 localStorage/IndexedDB 不会被 SDK 接管。
 

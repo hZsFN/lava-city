@@ -1,0 +1,30 @@
+{
+  "tower": {
+    "diameter": 14,
+    "height": 24,
+    "floors": 2
+  },
+  "rings": {
+    "midRadius": 20,
+    "outerRadius": 34
+  },
+  "lava": {
+    "radius": 55,
+    "startY": -1.8,
+    "phase2RiseTo": -0.8,
+    "rageRisePerSec": 1.2
+  },
+  "slots": [
+    { "id": "M1", "ring": "mid", "pos": [20, 0, 0], "unlockPhase": 1 },
+    { "id": "M2", "ring": "mid", "pos": [0, 0, 20], "unlockPhase": 1 },
+    { "id": "M3", "ring": "mid", "pos": [-20, 0, 0], "unlockPhase": 1 },
+    { "id": "M4", "ring": "mid", "pos": [0, 0, -20], "unlockPhase": 1 },
+    { "id": "T1", "ring": "tower", "pos": [7.6, 12, 0], "unlockPhase": 1 },
+    { "id": "T2", "ring": "tower", "pos": [-3.8, 12, 6.6], "unlockPhase": 1 },
+    { "id": "T3", "ring": "tower", "pos": [-3.8, 12, -6.6], "unlockPhase": 1 },
+    { "id": "E1", "ring": "outer", "pos": [24, 0, 24], "unlockPhase": 2 },
+    { "id": "E2", "ring": "outer", "pos": [-24, 0, 24], "unlockPhase": 2 },
+    { "id": "E3", "ring": "outer", "pos": [-24, 0, -24], "unlockPhase": 2 },
+    { "id": "E4", "ring": "outer", "pos": [24, 0, -24], "unlockPhase": 2 }
+  ]
+}
