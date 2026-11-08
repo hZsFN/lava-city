@@ -60,7 +60,7 @@ const CSS = `
 const KEYS: ReadonlyArray<readonly [string, string]> = [
   ['WASD', '移动'], ['鼠标', '转向 / 瞄准'], ['左键 / 右键', '轻击 / 重击'], ['Q', '切换物理 / 法术形态'], ['F', '处决（弱点槽满时）'],
   ['Space', '跳跃（开场时跳过剧情）'], ['Shift', '冲刺'], ['B', '俯视建塔'], ['1 – 5', '选择塔型'],
-  ['E', '翻阅教程书'], ['M', '静音'], ['P / Esc', '暂停 / 继续'],
+  ['E', '翻阅教程书'], ['M', '查看熔岩巨人建模 + Boss 状态'], ['U', '静音'], ['P / Esc', '暂停 / 继续'],
 ];
 
 export interface GameFeelOptions {

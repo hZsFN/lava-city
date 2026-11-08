@@ -10,7 +10,7 @@
 //      一次性声部，超出时丢弃最旧的非关键音效（见 soundMap.CRITICAL_SFX）。
 //   4. 同一音效 50 ms 内不重复播放。
 //   5. BGM 换轨 0.8 s 交叉淡化；转场轨不循环，播完自动接阶段 II。
-//   6. M 键静音（localStorage 持久化），document.hidden 时 suspend。
+//   6. U 键静音（localStorage 持久化；M 让位给建模查看器），document.hidden 时 suspend。
 //
 // 接线方式（S0 在 main.ts 里一行即可）：
 //   const audio = new AudioPlayer({ bus: game.bus, bossPosition: () => [...] });
@@ -85,7 +85,7 @@ export interface AudioPlayerOptions {
    * 不传时退回 window.__boss（S0 尚未接线也能用）。
    */
   bossPosition?: () => Vec3 | null;
-  /** 是否绑定 M 键静音，默认 true */
+  /** 是否绑定 U 键静音，默认 true */
   muteKey?: boolean;
 }
 
@@ -200,7 +200,8 @@ export class AudioPlayer {
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
-    if (!this.muteKeyEnabled || event.code !== 'KeyM') return;
+    // M 让位给「熔岩巨人建模」查看器，静音改到 U
+    if (!this.muteKeyEnabled || event.code !== 'KeyU') return;
     this.setMuted(!this.muted);
   };
 
