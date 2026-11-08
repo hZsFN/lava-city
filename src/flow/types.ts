@@ -1,0 +1,120 @@
+// src/flow/types.ts
+// ============================================================================
+// P2-B 共享类型层（流程侧）· 由 S0（控制会话）维护，三路只读不改
+// ----------------------------------------------------------------------------
+// B3 实现 MatchTimeline / Scoring / Telemetry。
+// B1 的 TowerSystem 需要 setPhase / setLavaY，通过 MatchPhase 与 lavaY 对接。
+// ============================================================================
+
+import type { Bus, MatchPhase } from '../core/events';
+
+export type { Bus, MatchPhase };
+
+/** config/flow.json 里单个阶段 */
+export interface PhaseConfig {
+  phase: MatchPhase;
+  startSec: number;
+  endSec: number;
+}
+
+/** config/flow.json 的评分档位 */
+export interface GradeConfig {
+  grade: 'S' | 'A' | 'B' | 'C';
+  maxSec: number;
+  minExecutions: number;
+  minCorePct: number;
+}
+
+/** config/flow.json 整体形状 */
+export interface FlowConfig {
+  matchLengthSec: number;
+  phases: PhaseConfig[];
+  core: { maxHp: number };
+  motes: {
+    start: number;
+    perBossHpPct: number;
+    perExecution: number;
+  };
+  score: { grades: GradeConfig[] };
+}
+
+/** 一局结束的原因 */
+export type EndReason =
+  | 'boss_defeated'
+  | 'core_destroyed'
+  | 'player_out_of_lives'
+  | 'timeout'
+  | 'lava_swallowed';
+
+/** 一局的结果 */
+export interface MatchResult {
+  result: 'win' | 'lose';
+  reason: EndReason;
+  tSec: number;
+}
+
+/** 评分输入 */
+export interface ScoreInput {
+  tSec: number;
+  executions: number;
+  coreHpPct: number;
+  deaths: number;
+  won: boolean;
+}
+
+/** 评分结果 */
+export interface ScoreResult {
+  grade: 'S' | 'A' | 'B' | 'C';
+  breakdown: Record<string, number>;
+}
+
+/**
+ * 时间轴状态机：B3 实现。
+ * S0 在集成期用它在 src/main.ts 里驱动一局。
+ */
+export interface MatchTimeline {
+  init(deps: { bus: Bus; flowCfg: FlowConfig; arenaCfg: unknown }): void;
+
+  /** 固定步长推进。返回本帧是否发生阶段切换 */
+  update(dtSec: number): boolean;
+
+  phase(): MatchPhase;
+  tSec(): number;
+  /** 当前阶段结束时刻；ended 时为 0 */
+  endsAtSec(): number;
+  /** 一局结束后才有值 */
+  result(): MatchResult | null;
+  /** 熔岩当前高度 */
+  lavaY(): number;
+
+  /** 外部通知：Boss 死了 */
+  notifyBossDefeated(): void;
+  /** 外部通知：塔心被打爆 */
+  notifyCoreDestroyed(): void;
+  /** 外部通知：玩家死亡数到上限 */
+  notifyPlayerOutOfLives(): void;
+  /** 外部伤害：塔心扣血 */
+  applyCoreDamage(amount: number): void;
+}
+
+/** 遥测记录：每局一份 JSON */
+export interface TelemetryRecord {
+  version: 1;
+  seed: number;
+  result: 'win' | 'lose';
+  reason: string;
+  tSec: number;
+  phaseTimes: Record<string, number>;
+  executions: number;
+  executionTimes: number[];
+  damageBySource: { tower: number; player: number; execution: number };
+  towerBuildOrder: Array<{ tSec: number; kind: string; slotId: string }>;
+  deaths: number;
+  coreHpPct: number;
+  grade: 'S' | 'A' | 'B' | 'C';
+}
+
+export interface Telemetry {
+  record(): TelemetryRecord;
+  toJson(): string;
+}
