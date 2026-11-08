@@ -415,8 +415,8 @@ async function boot(): Promise<void> {
     game.player.setHpLock(locked);
     // 硬锁：连结算层的 lose 分支一起挡住（狂暴吞噬/塔心爆/血尽都算），否则血量锁了照样会弹失败页
     game.timeline.setInvincible(locked);
+    // 只留左上角那枚 K 角标，不再弹文字提示（2026-11-08 按主人要求）
     hpLockBadge.style.display = locked ? 'flex' : 'none';
-    notify(locked ? '锁血：开 · 不死（K 关闭）' : '锁血：关');
   };
 
   // ── 4.9 剧情层：表里双世界 + 五幕（迷惘·成长·舍弃·决绝·新生）─────────────
