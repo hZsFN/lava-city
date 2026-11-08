@@ -292,20 +292,22 @@ export class PlayerController {
     this.moveAxis('z', vz * dt);
   }
 
-  /** 单轴移动；撞到侧壁就退回本步之前的位置 */
+  /** 单轴移动 + 逐盒推出，避免穿墙 */
   private moveAxis(axis: 'x' | 'z', delta: number): void {
     if (delta === 0) return;
-    const before = axis === 'x' ? this.x : this.z;
     if (axis === 'x') this.x += delta;
     else this.z += delta;
 
+    const r = this.cfg.movement.radius;
     for (const b of this.world.colliders) {
+      // overlapsBody 已经用 GROUND_SNAP_TOLERANCE 排除了"站在顶面上"的情况，
+      // 所以能走到这里就说明是真的卡进侧壁了，吸附到边界是正确解。
       if (!this.overlapsBody(b)) continue;
-      // 退回，而不是吸附到盒子边界：这块 collider 是整块地面平台，
-      // 边界吸附等于把玩家瞬移到平台最外沿。
-      if (axis === 'x') this.x = before;
-      else this.z = before;
-      break;
+      if (axis === 'x') {
+        this.x = delta > 0 ? b.minX - r : b.maxX + r;
+      } else {
+        this.z = delta > 0 ? b.minZ - r : b.maxZ + r;
+      }
     }
   }
 
