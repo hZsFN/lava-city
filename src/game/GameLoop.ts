@@ -98,6 +98,11 @@ export interface Game {
   seed(): number;
   /** 调试用：手动建塔 */
   placeTower(slotId: string, kind: TowerKind): boolean;
+  /**
+   * 换塔：塔位已有塔时，先按 sellRefundRatio 折价卖掉旧塔，再建新塔。
+   * 旧塔与想要的是同一种、或折返后仍买不起新塔 → 返回 false 且不动旧塔。
+   */
+  replaceTower(slotId: string, kind: TowerKind): boolean;
   /** 调试用：设置熔核数 */
   setMotes(n: number): void;
 }
@@ -260,6 +265,35 @@ export function createGame(deps: GameDeps): Game {
     placeTower: (slotId, kind) => {
       const ok = towers.place(slotId, kind, motesBalance);
       if (ok) motesBalance = towers.motes();
+      return ok;
+    },
+    replaceTower: (slotId, kind) => {
+      const slot = towers.slots().find((s) => s.slotId === slotId);
+      if (!slot) return false;
+
+      // 空位直接建
+      if (slot.state === 'open') {
+        const okOpen = towers.place(slotId, kind, motesBalance);
+        if (okOpen) motesBalance = towers.motes();
+        return okOpen;
+      }
+      if (slot.state !== 'occupied' || !slot.towerId) return false;
+
+      const old = towers.list().find((t) => t.id === slot.towerId);
+      const cfg = towersCfgJson.kinds[kind];
+      if (!old || !cfg) return false;
+      // 已经是这种塔：不拆不建，免得白吃一次折价
+      if (old.kind === kind) return false;
+
+      const refundRatio = towersCfgJson.build?.sellRefundRatio ?? 0;
+      const refund = Math.floor(old.investedCost * refundRatio);
+      // 先算账：折返之后仍买不起 → 干脆不动旧塔（towers.place 自己也会再校验一次）
+      if (motesBalance + refund < cfg.cost) return false;
+
+      if (!towers.sell(old.id)) return false;
+      motesBalance = towers.motes();
+      const ok = towers.place(slotId, kind, motesBalance);
+      motesBalance = towers.motes();
       return ok;
     },
     setMotes: (n) => {

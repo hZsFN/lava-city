@@ -212,13 +212,13 @@
     "mouthPos": [
       0,
       0,
-      26
+      27
     ],
     "mouthRadiusM": 3.0,
     "rippleSec": 0.6,
     "riseSec": 1.5,
     "fromY": -9,
-    "toY": 0,
+    "toY": -3.2,
     "fromScale": 0.85,
     "toScale": 1,
     "shakeSec": 0.35,
@@ -237,7 +237,8 @@
     "restoreEndSec": 15,
     "lavaRiseStartSec": 10,
     "lavaRiseEndSec": 13,
-    "visualLavaRiseM": 2
+    "visualLavaRiseM": 2,
+    "riseEndY": 0
   },
   "victoryShow": {
     "shatterSec": 0.8,

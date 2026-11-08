@@ -53,7 +53,7 @@ interface SkillDef {
   damage: number;
 }
 
-const ORBIT_RADIUS = 26;        // 米，Boss 巡游所在的熔岩环带（中环 24 与外环 32 之间）
+const ORBIT_RADIUS = 27;        // 米，Boss 巡游所在的熔岩环带（中环 24 与外环 32 之间）
 const ORBIT_SPEED = 0.16;       // 弧度/秒，绕塔心一圈约 39 秒
 
 const SKILLS: Record<SkillId, SkillDef> = {
@@ -300,6 +300,7 @@ export class IgnisBoss {
     this.showT = 0;
     this.showDur = Math.max(1, durMs);
     this.showFromY = this.root.position.y;
+    // 起身：从"嵌在熔岩里"升到完整站立
     this.showToY = 0;
     this.showFromScale = this.scaleNow;
     this.showToScale = toScale;

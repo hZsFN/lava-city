@@ -18,6 +18,7 @@ import type { FormSwitchConfig } from './player/FormSwitch';
 import type { MagicWeaponConfig, PhysicalWeaponConfig, WeaponHit, WeaponInput } from './player/weaponTypes';
 import flowCfgJson from './core/config/flow.json';
 import playerCfgJson from './core/config/player.json';
+import towersCfgJson from './core/config/towers.json';
 
 interface WlSave {
   level: number;
@@ -40,6 +41,7 @@ declare global {
     __game?: {
       snapshot: () => unknown;
       placeTower: (slotId: string, kind: string) => boolean;
+      replaceTower: (slotId: string, kind: string) => boolean;
       setMotes: (n: number) => void;
       endReason: () => string | null;
       /** 手动推进逻辑（无头测试用；正常游戏由渲染循环驱动） */
@@ -595,7 +597,9 @@ async function boot(): Promise<void> {
     app.canvas.style.cursor = on ? 'crosshair' : '';
     if (on && document.pointerLockElement) document.exitPointerLock();
     overlay.setMessage(
-      on ? '俯视：点击青色塔位建塔 · 数字键 1–5 切换塔型 · B 返回' : '回到第一人称',
+      on
+        ? `俯视：点塔位建塔/换塔（旧塔折返 ${Math.round((towersCfgJson.build?.sellRefundRatio ?? 0) * 100)}%）· 1–5 换塔型 · B 返回`
+        : '回到第一人称',
     );
   };
 
@@ -611,35 +615,115 @@ async function boot(): Promise<void> {
   tacBtn.addEventListener('click', () => setTacticalMode(!view.isTactical()));
   document.body.appendChild(tacBtn);
 
-  // 当前塔型常驻标签（俯视时也看得见自己在建哪种）
-  const kindTag = document.createElement('div');
-  Object.assign(kindTag.style, {
-    position: 'fixed', right: '18px', top: '58px', zIndex: '30',
-    padding: '8px 14px', borderRadius: '8px',
-    border: '1px solid rgba(255,138,76,0.5)', background: 'rgba(20,10,6,0.72)',
-    color: '#ffd0a8', font: '600 13px/1 system-ui, sans-serif',
-    pointerEvents: 'none',
-  });
-  const refreshKindTag = (): void => {
-    kindTag.textContent = `当前塔型：${TOWER_LABEL[buildKind]}`;
+  // 建塔面板（右上常驻）：五种塔的伤害/射程/造价 + 特效，当前手上的那一种高亮。
+  // 数值全部现读 config/towers.json —— 改平衡不用回来动 UI。
+  const KIND_ORDER: readonly TowerKind[] = ['ballista', 'rune', 'frost', 'quake', 'totem'];
+  const ATTR_LABEL: Record<string, string> = { physical: '物理', arcane: '奥术', none: '无属性' };
+  interface TowerCfgRow {
+    name?: string; attr?: string; cost?: number; range?: number; damage?: number;
+    intervalSec?: number; sunderHitsPerStack?: number; interruptChance?: number;
+    tauntSec?: number; cooldownSec?: number;
+  }
+  const kindCfg = (kind: TowerKind): TowerCfgRow => towersCfgJson.kinds[kind] as unknown as TowerCfgRow;
+  const pct = (v: number | undefined): string => `${Math.round((v ?? 0) * 100)}%`;
+  const statLine = (kind: TowerKind): string => {
+    const c = kindCfg(kind);
+    const dmg = c.damage && c.damage > 0 ? `伤害 ${c.damage}` : '无直伤';
+    const rate = c.intervalSec && c.intervalSec > 0 ? ` / ${c.intervalSec}s` : '';
+    const attr = ATTR_LABEL[c.attr ?? 'none'] ?? '—';
+    return `${attr} · ${dmg}${rate} · 射程 ${c.range ?? '—'} · 造价 ${c.cost ?? '—'}`;
   };
-  refreshKindTag();
-  document.body.appendChild(kindTag);
+  const effectText = (kind: TowerKind): string => {
+    const c = kindCfg(kind);
+    const debuff = towersCfgJson.debuff;
+    const freeze = towersCfgJson.freeze;
+    switch (kind) {
+      case 'ballista':
+        return `碎甲：每 ${c.sunderHitsPerStack ?? '?'} 次命中 +1 层，每层抗性 -${pct(debuff.resistPerStack)}（最多 ${debuff.maxStacks} 层）`;
+      case 'rune':
+        return `灼烙：每次命中 +1 层，每层抗性 -${pct(debuff.resistPerStack)}（最多 ${debuff.maxStacks} 层）`;
+      case 'frost':
+        return `冻结：每次命中 +${freeze.perHit} 冻结值，满 ${freeze.max} 定身 ${freeze.stunSec}s；出射程每秒 -${freeze.decayPerSec}`;
+      case 'quake':
+        return `打断：Boss 施法时每 ${c.intervalSec}s 掷一次，${pct(c.interruptChance)} 打断`;
+      default:
+        return `嘲讽：持续 ${c.tauntSec}s（冷却 ${c.cooldownSec}s）—— 阶段 II 让 Boss 转身露背`;
+    }
+  };
 
-  // 俯视时鼠标点击塔位 → 建塔
+  const buildPanel = document.createElement('div');
+  Object.assign(buildPanel.style, {
+    // 右下角：上面是 Boss 血条（顶部居中）、下面是熔核药丸，这里是空地
+    position: 'fixed', right: '18px', bottom: '60px', zIndex: '30', width: '404px',
+    padding: '10px 12px', borderRadius: '8px',
+    border: '1px solid rgba(255,138,76,0.5)', background: 'rgba(20,10,6,0.85)',
+    color: '#ffd0a8', font: '600 12px/1.55 system-ui, sans-serif', pointerEvents: 'none',
+  });
+  const buildTitle = document.createElement('div');
+  buildTitle.textContent = '建塔 · 1–5 选塔型';
+  buildTitle.style.cssText = 'color:#ff9a5c;letter-spacing:.5px;margin-bottom:4px';
+  buildPanel.appendChild(buildTitle);
+
+  const kindRows = new Map<TowerKind, HTMLDivElement>();
+  KIND_ORDER.forEach((k, i) => {
+    const row = document.createElement('div');
+    row.textContent = `${i + 1}  ${kindCfg(k).name ?? TOWER_LABEL[k]} · ${statLine(k)}`;
+    row.style.cssText = 'padding:1px 6px;border-radius:4px;border-left:3px solid transparent;white-space:nowrap';
+    kindRows.set(k, row);
+    buildPanel.appendChild(row);
+  });
+
+  const buildDetail = document.createElement('div');
+  buildDetail.style.cssText =
+    'margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,138,76,.25);color:#ffcfa8;white-space:normal;font-weight:500';
+  buildPanel.appendChild(buildDetail);
+
+  const refreshBuildPanel = (): void => {
+    for (const [k, row] of kindRows) {
+      const on = k === buildKind;
+      row.style.background = on ? 'rgba(255,138,76,0.22)' : 'transparent';
+      row.style.color = on ? '#ffe6cf' : '#c5a189';
+      row.style.borderLeftColor = on ? '#ff8a4c' : 'transparent';
+    }
+    buildDetail.textContent = `特效 · ${effectText(buildKind)}`;
+  };
+  refreshBuildPanel();
+  document.body.appendChild(buildPanel);
+
+  // 俯视时鼠标点击塔位 → 建塔；已被占用的塔位则以"最新点下去的那种塔"为准换塔
+  // （旧塔按 sellRefundRatio 折价返还；同种塔不动，免得白吃一次折价）
   app.canvas.addEventListener('mousedown', (event) => {
     if (!view.isTactical() || event.button !== 0) return;
     const slotId = view.pickTowerSlot(event.clientX, event.clientY);
     if (!slotId) return;
     const slot = game.towers.slots().find((s2) => s2.slotId === slotId);
-    if (!slot || slot.state !== 'open') {
+    if (!slot || (slot.state !== 'open' && slot.state !== 'occupied')) {
       overlay.setMessage(`${slotId} 不可建（${slot?.state ?? '未知'}）`);
       return;
     }
+    const label = TOWER_LABEL[buildKind];
+
+    if (slot.state === 'occupied') {
+      const cur = game.towers.list().find((t) => t.id === slot.towerId);
+      if (cur && cur.kind === buildKind) {
+        overlay.setMessage(`${slotId} 已经是${label}了`);
+        return;
+      }
+      const refund = cur
+        ? Math.floor(cur.investedCost * (towersCfgJson.build?.sellRefundRatio ?? 0))
+        : 0;
+      const ok = game.replaceTower(slotId, buildKind);
+      overlay.setMessage(
+        ok
+          ? `${slotId} 换塔：${cur ? TOWER_LABEL[cur.kind] : '旧塔'} → ${label}（折返 ${refund}，熔核 ${game.towers.motes()}）`
+          : `换塔失败：折返 ${refund} 后仍买不起${label}（造价 ${kindCfg(buildKind).cost ?? '?'}）`,
+      );
+      return;
+    }
+
     const ok = game.placeTower(slotId, buildKind);
     overlay.setMessage(
-      ok ? `在 ${slotId} 建了 ${TOWER_LABEL[buildKind]}（熔核 ${game.towers.motes()}）`
-         : `建塔失败：熔核不足`,
+      ok ? `在 ${slotId} 建了 ${label}（熔核 ${game.towers.motes()}）` : '建塔失败：熔核不足',
     );
   });
 
@@ -675,8 +759,10 @@ async function boot(): Promise<void> {
       // 俯视：只切换"手上拿的塔型"，真正建造靠点击塔位
       if (view.isTactical()) {
         buildKind = kind;
-        refreshKindTag();
-        overlay.setMessage(`已选塔型：${TOWER_LABEL[kind]} · 点击青色塔位放置`);
+        refreshBuildPanel();
+        overlay.setMessage(
+          `已选塔型：${TOWER_LABEL[kind]} · ${statLine(kind)} · 点击青色塔位放置/替换`,
+        );
         return;
       }
       // 第一人称：保留原来的"一键建到第一个空位"快捷方式
@@ -723,6 +809,7 @@ async function boot(): Promise<void> {
   window.__game = {
     snapshot: () => game.snapshot(),
     placeTower: (slotId, kind) => game.placeTower(slotId, kind as TowerKind),
+    replaceTower: (slotId, kind) => game.replaceTower(slotId, kind as TowerKind),
     setMotes: (n) => game.setMotes(n),
     endReason: () => (game.timeline.result()?.reason ?? null),
     tick: (dtSec) => {
