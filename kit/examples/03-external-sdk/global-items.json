@@ -1,0 +1,16 @@
+{
+  "schema": "iw-global-items-v1",
+  "items": [
+    {
+      "id": "example_relay_lamp",
+      "name": "接力灯",
+      "type": "light",
+      "desc": "从本关取得的灯，常驻攻击加一。",
+      "effect": {
+        "stat": "attack",
+        "value": 1,
+        "trigger": "passive"
+      }
+    }
+  ]
+}

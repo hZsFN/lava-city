@@ -1,0 +1,16 @@
+{
+  "schema": "iw-global-items-v1",
+  "items": [
+    {
+      "id": "item_mech_gear",
+      "name": "精密动力齿轮",
+      "type": "tool",
+      "desc": "机械遗迹中拆解出的动力核心",
+      "effect": {
+        "stat": "attack",
+        "value": 1,
+        "trigger": "passive"
+      }
+    }
+  ]
+}

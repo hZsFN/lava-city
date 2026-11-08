@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>无限世界 · 选手本地沙盒仿真器 (Mock Runner)</title>
+  <style>
+    :root {
+      --bg: #0f141c;
+      --panel: #182230;
+      --border: #26354a;
+      --primary: #4ade80;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --danger: #f87171;
+      --accent: #38bdf8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 16px; font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+    .status-badge { font-size: 12px; background: rgba(74, 222, 128, 0.15); color: var(--primary); padding: 4px 10px; border-radius: 999px; }
+    
+    .main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 360px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 16px;
+      gap: 16px;
+    }
+    .field-group { display: flex; flex-direction: column; gap: 6px; }
+    .field-group label { font-size: 12px; font-weight: 500; color: var(--muted); }
+    input, select, textarea {
+      background: #0d1520;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+    textarea { font-family: monospace; font-size: 12px; resize: vertical; height: 140px; }
+    
+    .btn {
+      background: var(--primary);
+      color: #0f172a;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn.secondary { background: var(--border); color: var(--text); }
+    .btn.danger { background: rgba(248, 113, 113, 0.2); color: var(--danger); border: 1px solid rgba(248, 113, 113, 0.4); }
+
+    .stage-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #000;
+      position: relative;
+    }
+    .stage-bar {
+      background: #111827;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    iframe {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fff;
+    }
+
+    .log-panel {
+      height: 200px;
+      background: #0b1017;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+    .log-header {
+      padding: 6px 16px;
+      background: var(--panel);
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .log-content {
+      flex: 1;
+      padding: 10px 16px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .log-item { display: flex; gap: 8px; }
+    .log-time { color: var(--muted); }
+    .log-ok { color: var(--primary); }
+    .log-info { color: var(--accent); }
+    .log-warn { color: #facc15; }
+    .log-err { color: var(--danger); }
+    .hint { font-size: 12px; color: var(--muted); line-height: 1.6; }
+    .hint.warn { color: #facc15; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>🎮</span> 无限世界 · 选手本地沙盒仿真器</h1>
+    <span class="status-badge">SAVE_STATE v3 仿真容器已就绪</span>
+  </header>
+
+  <div class="main-container">
+    <aside class="sidebar">
+      <div class="field-group">
+        <label>① 选择本地文件（推荐先用这个）</label>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn secondary" id="btnPickFile" style="flex: 1;">选择 HTML</button>
+          <button class="btn secondary" id="btnPickDir" style="flex: 1;">选择文件夹</button>
+        </div>
+        <input type="file" id="filePicker" accept=".html,.htm" hidden>
+        <input type="file" id="dirPicker" webkitdirectory directory multiple hidden>
+        <p class="hint" id="pickHint">单文件只加载 HTML；若页面用相对路径引用脚本，请选文件夹或改用本地服务。</p>
+      </div>
+
+      <div class="field-group">
+        <label>② 或填写游戏入口路径 / 本地服务地址：</label>
+        <input type="text" id="gameUrl" value="examples/01-minimal-html5-level/index.html" placeholder="例如: index.html 或 http://localhost:5173">
+      </div>
+
+      <div class="field-group">
+        <label>模拟上游初始小人卡片：</label>
+        <select id="presetSelect">
+          <option value="standard">标准满状态 (HP:3, San:2, 启程火炬)</option>
+          <option value="wounded">负伤残血 (HP:1, San:1, 破损短刀)</option>
+          <option value="relic">继承者探墓 (HP:3, 遗物: 前人的旧短刀, 墓碑)</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label>初始卡片 JSON (可自由微调测试边界)：</label>
+        <textarea id="saveJson"></textarea>
+      </div>
+
+      <label>本关实际全局道具声明（必填，可使用空声明）：<input type="file" id="manifestPicker" accept=".json"></label><p class="hint">Unity、图片和多文件游戏请填写本地 HTTP 服务地址。文件选择仅适合单页结构检查，不能证明资源加载成功。</p>
+      <button class="btn" id="btnLaunch">🚀 启动并在沙盒中运行</button>
+      <button class="btn secondary" id="btnReload">🔄 重新载入当前关卡</button>
+      <button class="btn danger" id="btnMockFail">⚡ 模拟触发 300s 超时 / 失败熔断</button>
+      <p class="hint warn">注意：本页 iframe 与线上一致，没有 allow-modals、没有 allow-same-origin。本地能看的，上线也可能被沙箱拦：alert()/confirm() 会被拒绝，window.top.location / parent.location 跳转会失败。请改用页面内提示元素。</p>
+    </aside>
+
+    <main class="stage-view">
+      <div class="stage-bar">
+        <div><span>当前模拟关卡：</span><b id="worldDisplay">未知世界</b></div>
+        <div><span>沙盒通信模式：</span><span class="log-ok">Iframe postMessage 双向监听</span></div>
+      </div>
+      <iframe id="gameFrame" sandbox="allow-scripts allow-pointer-lock allow-orientation-lock"></iframe>
+      
+      <div class="log-panel">
+        <div class="log-header">
+          <span>通信与卡片校验监控台</span>
+          <a href="#" style="color:var(--muted); text-decoration:none;" id="btnClearLog">清空日志</a>
+        </div>
+        <div class="log-content" id="logBox">
+          <div class="log-item"><span class="log-time">[就绪]</span><span class="log-info">沙盒仿真器已初始化。点击“启动”加载你的游戏。</span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import {parseItemManifest,acquiredHandoffItems,declaredHandoffItems} from './shared/item-manifest.browser.js';
+    let itemManifest=null,currentConfig=null,currentSession=null,revision=0;
+    const requestReceipts=new Map();
+    document.getElementById('manifestPicker').onchange=async event=>{try{itemManifest=parseItemManifest(await event.target.files[0].text());log('道具声明校验通过：'+itemManifest.items.length+' 件','ok');}catch(error){itemManifest=null;log('道具声明错误：'+error.message,'err');}};
+    const presets = {
+      standard: {
+        schema: "v3", level: 1, world: "启程神殿",
+        player: { hp: 3, max_hp: 3, sanity: 2, level: 1, status: "normal", curses: [], deaths: 0 },
+        items: [{ id: "torch", name: "启程火炬", type: "light", desc: "照明微光", effect: { stat: "sanity", value: 1, trigger: "passive" }, relic: false }],
+        clues: ["时空裂隙在不断扩张"], exit_hook: "石门开启，风暴呼啸...", prev_world: "虚空奇点", next_world: "你的世界", tombstone: {}, settled: []
+      },
+      wounded: {
+        schema: "v3", level: 2, world: "幽暗密林",
+        player: { hp: 1, max_hp: 3, sanity: 1, level: 1, status: "wounded", curses: ["虚弱"], deaths: 1 },
+        items: [{ id: "blade", name: "生锈小刀", type: "weapon", desc: "锋刃微卷", effect: { stat: "attack", value: 1, trigger: "passive" }, relic: false }],
+        clues: ["林中有怪物在巡逻"], exit_hook: "踏过枯枝，来到你的门前...", prev_world: "启程神殿", next_world: "你的世界", tombstone: {}, settled: []
+      },
+      relic: {
+        schema: "v3", level: 3, world: "坍塌遗迹",
+        player: { hp: 3, max_hp: 3, sanity: 1, level: 1, status: "normal", curses: ["恐惧"], deaths: 2 },
+        items: [{ id: "relic_knife", name: "前人的·旧短刀", type: "weapon", desc: "前任探索者留下的遗物", effect: { stat: "attack", value: 1, trigger: "passive" }, relic: true }],
+        clues: ["前人未能走出的迷宫"], exit_hook: "继承者拾起短刀，推门而入...", prev_world: "深渊裂谷", next_world: "你的世界",
+        tombstone: { fallen_level: 2, cause: "跌落暗刺陷阱", epitaph: "[第2关] 跌落暗刺陷阱" }, settled: []
+      }
+    };
+
+    const saveText = document.getElementById('saveJson');
+    const presetSelect = document.getElementById('presetSelect');
+    const logBox = document.getElementById('logBox');
+    const iframe = document.getElementById('gameFrame');
+
+    function applyPreset(key) {
+      saveText.value = JSON.stringify(presets[key] || presets.standard, null, 2);
+    }
+    presetSelect.addEventListener('change', (e) => applyPreset(e.target.value));
+    applyPreset('standard');
+
+    function log(msg, type = 'info') {
+      const now = new Date().toTimeString().split(' ')[0];
+      const div = document.createElement('div');
+      div.className = 'log-item';
+      div.textContent = `[${now}] ${msg}`;div.classList.add('log-'+type);
+      logBox.appendChild(div);
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+    document.getElementById('btnClearLog').onclick = (e) => { e.preventDefault(); logBox.innerHTML = ''; };
+
+    let pendingUrl = '';
+
+    function launch() {
+      try {
+        if(!itemManifest)return log('请先选择本关实际的 global-items.json；没有道具时用空声明。','err');
+        const save = JSON.parse(saveText.value);
+        currentSession=crypto.randomUUID();revision=0;requestReceipts.clear();
+        currentConfig={routeId:'local-preview',slot:Math.max(0,(save.level||1)-1),gameId:'local-game',level:save.level||1,world:save.next_world||save.world,prevWorld:save.world,nextWorld:'模拟下一关',nextUrl:new URL('mock-runner.html',location.href).href,exitHook:'本地通关交接',itemManifest,passViaUrl:false};
+        const urlInput = pendingUrl || document.getElementById('gameUrl').value.trim();
+        if (!urlInput) return log('❌ 请先选择本地文件，或填写游戏入口路径。', 'err');
+
+        document.getElementById('worldDisplay').innerText = save.next_world || save.world || '测试世界';
+        const targetUrl = urlInput; // 通过握手传档，不用 URL 掩盖异步初始化错误。
+
+        log(`正在加载游戏: ${pendingUrl ? '本地文件' : urlInput}`, 'info');
+        iframe.src = targetUrl;
+      } catch (e) {
+        log(`初始 JSON 解析失败: ${e.message}`, 'err');
+      }
+    }
+    document.getElementById('btnLaunch').onclick = launch;
+    document.getElementById('btnReload').onclick = () => { if (iframe.src) iframe.src = iframe.src; };
+
+    // ---- 本地文件 / 文件夹加载 ----
+    const filePicker = document.getElementById('filePicker');
+    const dirPicker = document.getElementById('dirPicker');
+    const pickHint = document.getElementById('pickHint');
+
+    document.getElementById('btnPickFile').onclick = () => filePicker.click();
+    document.getElementById('btnPickDir').onclick = () => dirPicker.click();
+
+    filePicker.onchange = () => {
+      const file = filePicker.files[0];
+      if (!file) return;
+      pendingUrl = URL.createObjectURL(file);
+      pickHint.className = 'hint warn';
+      pickHint.textContent = '单文件预览不会补齐相对路径依赖（如 shared/save-protocol.js）。若白屏或提示 WL 未定义，请改用“选择文件夹”或本地服务。';
+      log(`已选择文件：${file.name}`, 'info');
+      launch();
+    };
+
+    function resolvePath(base, ref) {
+      const stack = base.split('/').slice(0, -1);
+      for (const p of ref.split('/')) {
+        if (p === '..') stack.pop();
+        else if (p !== '.' && p !== '') stack.push(p);
+      }
+      return stack.join('/');
+    }
+
+    dirPicker.onchange = async () => {
+      const map = {};
+      let rootName = '';
+      for (const f of dirPicker.files) {
+        const rel = f.webkitRelativePath.replace(/\\/g, '/');
+        rootName = rootName || rel.split('/')[0];
+        map[rel.split('/').slice(1).join('/')] = f;
+      }
+      const entries = Object.keys(map)
+        .filter(p => /(^|\/)index\.html$/i.test(p))
+        .sort((a, b) => a.split('/').length - b.split('/').length || a.length - b.length);
+      if (!entries.length) return log('❌ 文件夹里没找到 index.html', 'err');
+
+      const entry = entries[0];
+      const textMap = {};
+      for (const p of Object.keys(map)) {
+        if (/\.(js|css)$/i.test(p)) textMap[p] = await map[p].text();
+      }
+
+      let missing = 0;
+      const inline = (ref) => {
+        if (/^(https?:|data:|blob:|\/\/)/i.test(ref)) return null;
+        const p = resolvePath(entry, ref.split(/[?#]/)[0]);
+        if (!textMap[p]) { missing++; return null; }
+        return textMap[p];
+      };
+      let html = await map[entry].text();
+      html = html.replace(/<script([^>]*?)src=(["'])([^"']+)\2([^>]*)><\/script>/gi,
+        (m, pre, q, ref, post) => {
+          const code = inline(ref);
+          return code === null ? m : `<script${pre}${post}>\n${code}\n<\/script>`;
+        });
+      html = html.replace(/<link([^>]*?)href=(["'])([^"']+)\2([^>]*)>/gi,
+        (m, pre, q, ref, post) => {
+          if (!/stylesheet/i.test(pre + post)) return m;
+          const css = inline(ref);
+          return css === null ? m : `<style>\n${css}\n</style>`;
+        });
+
+      pendingUrl = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      log(`已选择文件夹：${rootName}，入口 ${entry}${missing ? `（${missing} 个相对引用未补齐）` : ''}`, missing ? 'warn' : 'info');
+      pickHint.className = missing ? 'hint warn' : 'hint';
+      pickHint.textContent = missing
+        ? '有脚本/样式没在所选文件夹内找到；图片音视频请用本地服务。'
+        : '已内联本地脚本与样式。图片音视频请用本地服务。';
+      launch();
+    };
+
+    // 监听子 Iframe 发送的 postMessage 握手
+    window.addEventListener('message', (e) => {
+      const d = e.data;
+      if (e.source!==iframe.contentWindow || !d || typeof d !== 'object') return;
+
+      if (d.type === 'IW_READY' || d.type === 'iw-enter') {
+        log(`📥 收到子游戏初始化通知 (${d.type})，握手成功！`, 'ok');
+        if (d.protocolVersion !== 1) log('⚠️ 旧协议 IW_READY：大厅兼容，但没有 SDK 的 ACK/回执，不作为外链官方验收口径。', 'warn');
+        // 回发当前存档供 B 轨使用
+        try {
+          const currentSave = JSON.parse(saveText.value);
+          if(d.protocolVersion!==undefined&&d.protocolVersion!==1){iframe.contentWindow.postMessage({type:'IW_PROTOCOL_ERROR',error:'模拟器不支持该协议版本'},'*');return;}
+          iframe.contentWindow.postMessage({ type: 'IW_INIT_SAVE', protocolVersion:d.protocolVersion===1?1:undefined,sessionId:d.protocolVersion===1?currentSession:undefined,save: currentSave,config:currentConfig }, '*');
+        } catch {}
+      }
+
+      if(d.type==='IW_SAVE_ACK'&&d.sessionId===currentSession)log('SDK 已确认接收系统存档。','ok');
+      if(d.type==='IW_REQUEST'){
+        if(d.sessionId!==currentSession||d.protocolVersion!==1)return;
+        const reply=receipt=>iframe.contentWindow.postMessage({type:'IW_RESULT',sessionId:currentSession,requestId:d.requestId,...receipt},'*');
+        if(requestReceipts.has(d.requestId)){reply(requestReceipts.get(d.requestId));return;}
+        let receipt;
+        try{
+          if(!['complete','fail'].includes(d.action))throw Error('未知操作');
+          const save={...d.save,exit_hook:currentConfig.exitHook};
+          const acquired=d.acquiredItemIds||[];
+          const acquiredSet=new Set(acquired);
+          const held=(Array.isArray(d.save?.items)?d.save.items:JSON.parse(saveText.value).items||[]).filter(item=>!acquiredSet.has(item.id));
+          save.items=acquiredHandoffItems(acquired,held,itemManifest);
+          validateAndReport(save,d.action==='fail');
+          receipt={ok:true,save,revision:++revision,step:currentConfig.slot+1,done:true,preview:true,persisted:false};
+          log('官方 SDK 交接通过（试玩回执，未写入正式旅程）。','ok');
+        }catch(error){receipt={ok:false,error:error.message};log('交接失败：'+error.message,'err');}
+        requestReceipts.set(d.requestId,receipt);reply(receipt);return;
+      }
+
+      if (d.type === 'IW_COMPLETE' || d.type === 'IW_SAVE' || d.type === 'iw-save') {
+        log(`🎉 收到通关/交接事件！(${d.type})`, 'ok');
+        log('⚠️ 旧协议交档：没有 IW_REQUEST/IW_RESULT 保存回执；外链正式验收请改用 WL.complete/WL.fail。','warn');
+        try{const inherited=JSON.parse(saveText.value).items||[];const save={...d.save,exit_hook:currentConfig.exitHook};if(d.acquiredItemIds!==undefined){const acquiredSet=new Set(d.acquiredItemIds);const held=(Array.isArray(d.save?.items)?d.save.items:inherited).filter(item=>!acquiredSet.has(item.id));save.items=acquiredHandoffItems(d.acquiredItemIds,held,itemManifest);}else{save.items=declaredHandoffItems(save.items||[],inherited,itemManifest,{failure:d.failure===true});}log('实际获得的道具 ID：'+JSON.stringify(d.acquiredItemIds||[]),'info');validateAndReport(save,d.failure===true);}catch(error){log('交接校验失败：'+error.message,'err');}
+      }
+
+      if (d.type === 'IW_FAIL') {
+        log(`⚠️ 收到阵亡/放弃失败事件！原因: 「${d.reason || '力竭'}」`, 'warn');
+        if (d.fallenSave) log(`墓碑与遗物已生成，可交接给下位继承者。`, 'info');
+      }
+    });
+
+    const EFFECT_VOCAB = { hp: [1, 2], sanity: [1, 1], max_hp: [1, 1], attack: [1, 1] };
+
+    function checkEffects(save) {
+      let warns = 0;
+      (save.items || []).forEach((it) => {
+        const e = it && it.effect;
+        if (!e) return;
+        const label = `道具「${it.name || it.id || '未命名'}」`;
+        if (e.stat === 'cleanse') {
+          if (e.value !== true) {
+            warns++; log(`⚠️ ${label}: cleanse 的 value 必须是布尔 true，不能用数字 1，否则平台会丢弃该效果。`, 'warn');
+          }
+        } else if (!EFFECT_VOCAB[e.stat]) {
+          warns++; log(`⚠️ ${label}: effect.stat「${e.stat}」不在词表（hp/sanity/max_hp/cleanse/attack），会被降级成装饰。`, 'warn');
+        } else {
+          const [min, max] = EFFECT_VOCAB[e.stat];
+          const n = Number(e.value);
+          if (!Number.isFinite(n) || n < min || n > max) {
+            warns++; log(`⚠️ ${label}: ${e.stat} 的 value 必须在 ${min}~${max}，当前为 ${e.value}。`, 'warn');
+          }
+        }
+        if (e.trigger !== 'on_enter' && e.trigger !== 'passive') {
+          warns++; log(`⚠️ ${label}: trigger 只能是 on_enter 或 passive。`, 'warn');
+        }
+      });
+      if (!warns) log('✅ effect 词条合法。', 'ok');
+      return warns;
+    }
+
+    function validateAndReport(save, failed) {
+      if (!save) return log('❌ 严重错误: 通关传出的 save 为空！', 'err');
+      let errors = [];
+      if (save.schema !== 'v3') errors.push(`schema 必须为 "v3"（当前为: ${save.schema}）`);
+      if (!Array.isArray(save.items)) errors.push('items 必须是数组');
+      else if (save.items.length > 3) errors.push(`items 道具数超过上限 3 件（当前: ${save.items.length} 件）`);
+      if (!Array.isArray(save.clues)) errors.push('clues 必须是数组');
+      else if (save.clues.length > 2) errors.push(`clues 线索数超过上限 2 条（当前: ${save.clues.length} 条）`);
+      if (!failed && (!save.exit_hook || !String(save.exit_hook).trim())) {
+        errors.push('exit_hook 出口故事钩子不能为空！');
+      }
+      if (failed) {
+        const t = save.tombstone || {};
+        log(`⚰️ 失败交接：墓碑记在第 ${t.fallen_level || '?'} 关，遗物 ${save.items.length} 件，下一关满状态接棒。`, 'warn');
+      }
+
+      if (errors.length) {
+        errors.forEach(err => log(`❌ 校验不合格: ${err}`, 'err'));
+      } else {
+        log(`✅ 卡片结构符合交接规范。`, 'ok');
+        log(`下发卡片简报: [道具: ${save.items.map(i=>i.name).join(', ')||'无'}] [线索: ${save.clues.length}条] [钩子: "${String(save.exit_hook || '').slice(0, 30)}..."]`, 'info');
+      }
+      checkEffects(save);
+    }
+
+    document.getElementById('btnMockFail').onclick = () => {
+      log('⚡ 仿真触发: 宿主向游戏注入强制超时熔断...', 'warn');
+      iframe.contentWindow.postMessage({ type: 'IW_TIMEOUT' }, '*');
+    };
+  </script>
+</body>
+</html>

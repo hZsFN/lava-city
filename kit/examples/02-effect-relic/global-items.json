@@ -1,0 +1,38 @@
+{
+  "schema": "iw-global-items-v1",
+  "items": [
+    {
+      "id": "item_heal_charm",
+      "name": "回血护符",
+      "type": "token",
+      "desc": "进入下一关时恢复 1 点生命",
+      "effect": {
+        "stat": "hp",
+        "value": 1,
+        "trigger": "on_enter"
+      }
+    },
+    {
+      "id": "item_exoskeleton",
+      "name": "外骨骼胸甲",
+      "type": "tool",
+      "desc": "进入下一关时生命上限 +1",
+      "effect": {
+        "stat": "max_hp",
+        "value": 1,
+        "trigger": "on_enter"
+      }
+    },
+    {
+      "id": "item_cleanse_water",
+      "name": "净化圣水",
+      "type": "food",
+      "desc": "进入下一关时净化 1 项诅咒",
+      "effect": {
+        "stat": "cleanse",
+        "value": true,
+        "trigger": "on_enter"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema": "v3",
+  "level": 1,
+  "world": "启程神殿",
+  "player": {
+    "hp": 3,
+    "max_hp": 3,
+    "sanity": 2,
+    "level": 1,
+    "status": "normal",
+    "curses": [],
+    "deaths": 0
+  },
+  "items": [
+    {
+      "id": "item_origin_torch",
+      "name": "启程火炬",
+      "type": "light",
+      "desc": "照亮迷雾的微弱火种",
+      "effect": {
+        "stat": "sanity",
+        "value": 1,
+        "trigger": "passive"
+      },
+      "relic": false
+    }
+  ],
+  "clues": [
+    "多元宇宙的时空裂隙正在不断扩张..."
+  ],
+  "exit_hook": "石门轰然开启，无尽的虚空风暴在眼前呼啸...",
+  "prev_world": "虚空奇点",
+  "next_world": "未知世界",
+  "tombstone": {},
+  "settled": []
+}

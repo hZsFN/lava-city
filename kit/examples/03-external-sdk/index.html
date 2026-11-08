@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>外链接力 SDK 示例</title>
+<style>body{margin:0;padding:32px;background:#111b19;color:#edf4ef;font:16px/1.6 system-ui}main{max-width:680px;margin:auto}button{padding:10px 18px;margin:6px;border:1px solid #74927e;border-radius:6px;background:#254132;color:#fff}button:disabled{opacity:.45}pre{white-space:pre-wrap;background:#0b1210;padding:16px;border-radius:8px}#message{min-height:2em;color:#bee9cd}</style>
+<main><h1>开头接档，结尾交档</h1><p>作品在自己的地址运行。大厅负责系统存档和下一关，本页仅展示最小接入。</p><p id="message" role="status">正在等待大厅存档…</p><pre id="panel"></pre>
+<button id="hit" disabled>生命 -1</button><button id="pick" disabled>拾取接力灯</button><button id="win" disabled>成功交接</button><button id="lose" disabled>失败交接</button></main>
+<!-- 示例携带与远程官方地址相同的 SDK，便于离线开发；正式外链可替换为 https://world.dayquay.com/sdk/v1/worldline.js。只引入一份。 -->
+<script src="shared/save-protocol.js"></script>
+<script>
+let save;
+const acquired=new Set();
+const message=document.getElementById('message');
+function render(){document.getElementById('panel').textContent=JSON.stringify({level:save.level,player:save.player,items:save.items,acquiredItemIds:[...acquired]},null,2);}
+function enable(value){document.querySelectorAll('button').forEach(button=>button.disabled=!value);}
+async function finish(failed){
+ enable(false);
+ try{
+  message.textContent='正在交接，请等待大厅回执…';
+  const options={acquiredItemIds:[...acquired]};
+  const receipt=failed?await WL.fail('示例探索失败',save,options):await WL.complete(save,options);
+  message.textContent=receipt.preview?'试玩交接校验通过，正式进度未写入。':receipt.persisted===true?'交接已保存，大厅正在进入下一关。':'交接已受理，但未确认写入；请返回大厅核对进度。';
+ }catch(error){message.textContent=error.message;enable(true);}
+}
+document.getElementById('hit').onclick=()=>{save.player.hp=Math.max(0,save.player.hp-1);render();};
+document.getElementById('pick').onclick=()=>{acquired.add('example_relay_lamp');render();};
+document.getElementById('win').onclick=()=>finish(false);
+document.getElementById('lose').onclick=()=>finish(true);
+addEventListener('iw-admin',event=>{if(event.detail.save){save=event.detail.save;render();}});
+WL.ready().then(incoming=>{save=incoming;render();enable(true);message.textContent='已收到大厅当前状态，可以开始游戏。';}).catch(error=>{message.textContent=error.message;});
+</script>
+</html>

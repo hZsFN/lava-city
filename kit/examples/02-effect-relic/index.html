@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>示例 02 · 道具效果演示</title>
+  <style>
+    body { margin: 0; padding: 24px; background: #0b1020; color: #e8eef8;
+           font-family: -apple-system, "Microsoft YaHei", sans-serif; }
+    h1 { font-size: 20px; color: #7dd3fc; margin: 0 0 6px; }
+    p { color: #94a3b8; font-size: 13px; line-height: 1.7; }
+    .panel, .log { background: #141d2e; border: 1px solid #2a3b57; border-radius: 10px;
+                   padding: 12px 14px; font-size: 13px; line-height: 1.8; }
+    .panel { margin: 12px 0; }
+    .btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    button { padding: 9px 12px; border-radius: 8px; border: 1px solid #334155;
+             background: #1e293b; color: #e8eef8; font-size: 13px; cursor: pointer; }
+    button:hover { background: #263449; }
+    .primary { border-color: #35e08c; color: #9ff5c8; }
+    .warn { border-color: #f0b429; color: #f0b429; }
+    .log { white-space: pre-wrap; font-family: Consolas, monospace; font-size: 12px;
+           max-height: 280px; overflow-y: auto; }
+    #card { margin-top: 12px; }
+  </style>
+  <script src="shared/save-protocol.js"></script>
+</head>
+<body>
+  <h1>示例 02 · 道具效果演示</h1>
+  <p>
+    三种合法 <code>effect</code>：<code>hp +1</code>、<code>max_hp +1</code>、<code>cleanse true</code>，
+    触发时机都是 <code>on_enter</code>（进入下一关时结算，且只结算一次）。
+    全部逻辑都在本页，不依赖网络。
+  </p>
+
+  <div class="btns">
+    <button onclick="pick('hp')">拾取 回血护符（hp +1）</button>
+    <button onclick="pick('max_hp')">拾取 外骨骼（max_hp +1）</button>
+    <button onclick="pick('cleanse')">拾取 净化圣水（cleanse）</button>
+    <button class="warn" onclick="curse()">染上一项诅咒</button>
+    <button class="primary" onclick="enterNext()">模拟进入下一关（结算一次）</button>
+    <button class="primary" onclick="finish()">通关（跳转由平台接管）</button>
+    <button class="warn" onclick="lose()">阵亡交接</button>
+    <button onclick="reset()">重置本机存档</button>
+  </div>
+
+  <div class="panel" id="panel"></div>
+  <div class="log" id="log"></div>
+  <div id="card"></div>
+
+  <script>
+    const CONFIG = window.CONFIG || { level: 12, world: "遗迹工坊", nextWorld: "下一片未知" };
+
+    const ITEMS = {
+      hp: {
+        id: "item_heal_charm", name: "回血护符", type: "token",
+        desc: "进入下一关时恢复 1 点生命",
+        effect: { stat: "hp", value: 1, trigger: "on_enter" }
+      },
+      max_hp: {
+        id: "item_exoskeleton", name: "外骨骼胸甲", type: "tool",
+        desc: "进入下一关时生命上限 +1",
+        effect: { stat: "max_hp", value: 1, trigger: "on_enter" }
+      },
+      cleanse: {
+        id: "item_cleanse_water", name: "净化圣水", type: "food",
+        desc: "进入下一关时净化 1 项诅咒",
+        effect: { stat: "cleanse", value: true, trigger: "on_enter" }
+      }
+    };
+
+    let save = WL.readSave();
+    window.addEventListener('iw-save-ready', event => {
+      save = event.detail;
+      render();
+    });
+    window.addEventListener('iw-admin', event => {
+      if (event.detail.save) {
+        save = event.detail.save;
+        render();
+      }
+    });
+
+    function log(text) {
+      document.getElementById("log").textContent += text + "\n";
+    }
+
+    function render() {
+      const bag = save.items.length
+        ? save.items.map(i => i.name + "(" + i.type + ")" + (i.effect ? " · " + i.effect.stat : " · 无效果")).join("、")
+        : "空";
+      document.getElementById("panel").innerHTML =
+        "生命：<b>" + save.player.hp + " / " + save.player.max_hp + "</b>　" +
+        "理智：<b>" + save.player.sanity + "</b>　" +
+        "状态：<b>" + save.player.status + "</b>　" +
+        "连续阵亡：<b>" + save.player.deaths + "</b><br>" +
+        "诅咒：" + (save.player.curses.length ? save.player.curses.join("、") : "无") + "<br>" +
+        "背包：" + bag + "<br>" +
+        "已结算道具：" + (save.settled.length ? save.settled.join("、") : "无") + "<br>" +
+        "线索：" + (save.clues.length ? save.clues.join("、") : "无");
+    }
+
+    function pick(key) {
+      const item = ITEMS[key];
+      WL.addItem(save, JSON.parse(JSON.stringify(item)));
+      log("拾取「" + item.name + "」：道具数 " + save.items.length + " / 上限 3。");
+      render();
+    }
+
+    function curse() {
+      save.player.curses.push("低语缠身");
+      save.player.status = "cursed";
+      log("染上诅咒「低语缠身」：下一关用 cleanse 道具可净化 1 项。");
+      render();
+    }
+
+    function enterNext() {
+      const before = {
+        hp: save.player.hp, max_hp: save.player.max_hp, curses: save.player.curses.length
+      };
+      save = WL.settle(save);
+      log("模拟进入下一关：生命 " + before.hp + "→" + save.player.hp +
+          "，上限 " + before.max_hp + "→" + save.player.max_hp +
+          "，诅咒 " + before.curses + "→" + save.player.curses.length + " 项。");
+      log("已结算 " + save.settled.length + " 件；再点一次不会重复生效。");
+      render();
+    }
+
+    function finish() {
+      const opts = { exitHook: "他收起外骨骼，走进蒸汽弥漫的下一座门。" };
+      // nextUrl 只透传平台注入的值，不要自己拼。
+      if (window.CONFIG && window.CONFIG.nextUrl) opts.nextUrl = window.CONFIG.nextUrl;
+      const handed = WL.completeLevel(window.CONFIG || CONFIG, save, opts);
+      if (handed) {
+        log("已交给下一关。");
+      } else {
+        log("独立打开时没有下一关地址（真实比赛由平台注入）；这里只预览交接卡。");
+        document.getElementById("card").innerHTML = WL.renderSaveCard(save, CONFIG.level, CONFIG.world);
+      }
+    }
+
+    function lose() {
+      const relic = WL.failLevel("被遗迹守卫击倒", save, CONFIG);
+      save = relic;
+      log("已生成遗物交接：下一关满状态，背包带「" + relic.items[0].name + "」，墓碑记在第 " + relic.tombstone.fallen_level + " 关。");
+      render();
+    }
+
+    function reset() {
+      WL.resetRun();
+      save = WL.readSave();
+      document.getElementById("card").innerHTML = "";
+      document.getElementById("log").textContent = "";
+      log("已重置本机存档。");
+      render();
+    }
+
+    log("本关只演示道具词条：hp / max_hp / cleanse，全部 on_enter。");
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>示例关卡 · 机械遗迹</title>
+  <style>
+    body {
+      margin: 0; padding: 20px;
+      background: #0f172a; color: #f8fafc;
+      font-family: -apple-system, sans-serif;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #1e293b; border: 1px solid #334155;
+      padding: 24px; border-radius: 12px; max-width: 480px; width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    h1 { font-size: 20px; margin-top: 0; color: #38bdf8; }
+    p { font-size: 14px; color: #94a3b8; line-height: 1.6; }
+    .status-box {
+      background: #0f172a; padding: 12px; border-radius: 8px; margin: 16px 0;
+      font-size: 13px; line-height: 1.8;
+    }
+    .btn-group { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    button {
+      padding: 10px; border-radius: 6px; border: none; font-weight: 600;
+      cursor: pointer; font-size: 14px; transition: 0.2s;
+    }
+    .btn-win { background: #4ade80; color: #0f172a; }
+    .btn-hit { background: #facc15; color: #0f172a; }
+    .btn-die { background: #f87171; color: #fff; }
+    button:hover { opacity: 0.9; }
+  </style>
+  <script src="shared/save-protocol.js"></script>
+</head>
+<body>
+  <div class="card">
+    <h1>🏛️ 关卡：失落的机械遗迹</h1>
+    <p id="loreText">正在从上一棒接收小人数据...</p>
+
+    <div class="status-box" id="statusBox">
+      血量: 加载中...<br>
+      背包: 加载中...
+    </div>
+
+    <div class="btn-group">
+      <button class="btn-hit" onclick="onHitTrap()">踩中陷阱 (HP -1)</button>
+      <button class="btn-win" onclick="onWin()">解开机械核心并通关 (胜利)</button>
+      <button class="btn-die" onclick="onSurrender()">力竭倒地 (认输交接给下一代)</button>
+    </div>
+  </div>
+
+  <script>
+    let save = WL.readSave();
+
+    // 1. 关卡初始化：读取上游卡片
+    function adoptSave(incoming) {
+      save = incoming;
+      
+      // 显示上游剧情钩子
+      if (save.exit_hook) {
+        document.getElementById('loreText').innerText = `承接前路: "${save.exit_hook}"`;
+      } else {
+        document.getElementById('loreText').innerText = "你迈入了第一座未知世界。";
+      }
+
+      updateUI();
+    }
+    window.addEventListener('load', () => adoptSave(WL.readSave()));
+    window.addEventListener('iw-save-ready', event => adoptSave(event.detail));
+    window.addEventListener('iw-admin', event => {
+      if (event.detail.save) adoptSave(event.detail.save);
+    });
+
+    function updateUI() {
+      const itemsStr = save.items.map(i => `${i.name}(${i.type})`).join('、') || '空';
+      document.getElementById('statusBox').innerHTML = `
+        ❤️ <b>当前血量:</b> ${save.player.hp} / ${save.player.max_hp}<br>
+        🧠 <b>理智值:</b> ${save.player.sanity}<br>
+        🎒 <b>背包遗物:</b> ${itemsStr}<br>
+        📜 <b>已知线索数:</b> ${save.clues.length} 条
+      `;
+    }
+
+    // 2. 踩陷阱扣血
+    function onHitTrap() {
+      save.player.hp--;
+      if (save.player.hp <= 0) {
+        document.getElementById('loreText').innerText = "血量归零，已就近复活重试。";
+        save = WL.respawn(); // 就近复活重试
+      }
+      updateUI();
+    }
+
+    // 3. 通关胜利
+    function onWin() {
+      // 获得一件符合通用规范的道具
+      WL.addItem(save, {
+        id: "item_mech_gear",
+        name: "精密动力齿轮",
+        type: "tool",
+        desc: "机械遗迹中拆解出的动力核心",
+        effect: { stat: "attack", value: 1, trigger: "passive" }
+      });
+      WL.addClue(save, "遗迹深处指向了远古的蒸汽神庙");
+
+      // 提交关卡并流转给下一位。
+      // 下一关地址由平台决定，不要自己拼 nextUrl。
+      WL.completeLevel(window.CONFIG || {}, save, {
+        exitHook: "他收起动力齿轮，推开暗门，前方隐隐传来滚滚热浪..."
+      });
+    }
+
+    // 4. 彻底认输放弃
+    function onSurrender() {
+      WL.failLevel("力竭倒在机械巨偶脚下", save, window.CONFIG || {});
+    }
+  </script>
+</body>
+</html>

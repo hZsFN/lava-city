@@ -1,0 +1,27 @@
+{
+  "version": "v3.3.2",
+  "supersedes": "v3.3.1",
+  "date": "2026-11-08",
+  "schema": "v3",
+  "limits": {
+    "zipMB": 12,
+    "unpackedMB": 40,
+    "files": 250,
+    "fileMB": 35,
+    "levelSeconds": [
+      1,
+      270
+    ],
+    "watchdogSeconds": 300,
+    "completePlaythroughMaxSeconds": 270
+  },
+  "protocol": {
+    "path": "shared/save-protocol.js",
+    "sha256": "a2986f9b1d3c8490afb514127e22c2b9392c4c0c1568d385abcacafb04f29a65"
+  },
+  "sdk": {
+    "version": "1.0.0",
+    "protocol": 1,
+    "url": "https://world.dayquay.com/sdk/v1/worldline.js"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "schema": "iw-global-items-v1",
+  "items": [
+    {
+      "id": "myteam_warm_oden",
+      "name": "暖胃关东煮",
+      "type": "food",
+      "desc": "来自本关的纪念战利品，进入下一关时恢复 1 点生命。",
+      "effect": { "stat": "hp", "value": 1, "trigger": "on_enter" }
+    }
+  ]
+}
