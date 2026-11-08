@@ -1,0 +1,1733 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>苏尔特 · 熔岩巨人 — 三维快速预览</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<style>
+  :root{
+    --ember:#ff7a2f;
+    --blue:#8fb4ff;
+    --gold:#ffe6a8;
+    --bg:#050407;
+    --line:rgba(255,255,255,.09);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;height:100%;overflow:hidden;background:var(--bg);color:#e9e3dc;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  canvas{display:block;}
+  .vignette{
+    position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:
+      radial-gradient(ellipse 74% 70% at 50% 52%,transparent 42%,rgba(0,0,0,.62) 100%),
+      linear-gradient(to top,rgba(74,16,2,.22),transparent 32%);
+  }
+  .hud{position:fixed;inset:0;pointer-events:none;z-index:10;}
+  .panel{
+    position:absolute;pointer-events:auto;
+    background:rgba(12,9,11,.72);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:16px 18px;
+    backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);
+    box-shadow:0 14px 44px rgba(0,0,0,.55);
+  }
+  /* 左上：标题与设计说明 */
+  .info{top:22px;left:22px;max-width:412px;}
+  .tag{
+    display:inline-block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ember);border:1px solid rgba(255,122,47,.35);border-radius:999px;
+    padding:3px 10px;margin-bottom:12px;background:rgba(255,122,47,.08);
+  }
+  .info h1{margin:0 0 2px;font-size:21px;font-weight:600;letter-spacing:.02em;line-height:1.3;}
+  .info h1 span{font-weight:400;font-size:14px;color:#9d948c;}
+  .info p{margin:12px 0 0;font-size:12.5px;line-height:1.75;color:#a89e95;}
+  .info p b{color:#e6dcd2;font-weight:600;}
+  .info p.dim{color:#8d847c;margin-top:8px;}
+  .stats{
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+    font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-size:11.5px;color:#8d847c;letter-spacing:.02em;line-height:1.7;
+  }
+  .stats span{color:var(--gold);}
+  /* 右上：机位与开关 */
+  .controls{top:22px;right:22px;width:252px;display:flex;flex-direction:column;gap:10px;}
+  .controls .views{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .controls button{
+    font:inherit;font-size:13px;cursor:pointer;border-radius:10px;padding:10px 12px;
+    border:1px solid rgba(255,122,47,.35);color:#ffd8bd;background:rgba(255,122,47,.13);
+    transition:.18s;text-align:center;
+  }
+  .controls button:hover{background:rgba(255,122,47,.22);border-color:rgba(255,122,47,.6);}
+  .controls button.secondary{
+    border-color:var(--line);color:#b6ada5;background:rgba(255,255,255,.04);
+  }
+  .controls button.secondary:hover{background:rgba(255,255,255,.09);}
+  .controls button.secondary.active{
+    border-color:rgba(255,122,47,.62);color:#ffd8bd;background:rgba(255,122,47,.2);
+  }
+  .controls .views button{padding:7px 0;font-size:12px;}
+  .controls label{
+    display:flex;align-items:center;gap:9px;font-size:12.5px;color:#b6ada5;cursor:pointer;
+    user-select:none;
+  }
+  .controls input[type=checkbox]{
+    appearance:none;width:34px;height:19px;border-radius:999px;background:rgba(255,255,255,.12);
+    position:relative;cursor:pointer;transition:.2s;flex:none;
+  }
+  .controls input[type=checkbox]::after{
+    content:"";position:absolute;top:2.5px;left:3px;width:14px;height:14px;border-radius:50%;
+    background:#9c948c;transition:.2s;
+  }
+  .controls input[type=checkbox]:checked{background:rgba(255,122,47,.45);}
+  .controls input[type=checkbox]:checked::after{left:17px;background:#ffd0ae;}
+  .hint{font-size:11px;color:#6f6862;line-height:1.6;}
+  /* 左下：弱点图例（内容由 meta.weakPoints 生成） */
+  .legend{bottom:22px;left:22px;max-width:430px;}
+  .legend h2{
+    margin:0 0 10px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8d847c;font-weight:500;
+  }
+  .legend ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px;}
+  .legend li{display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.5;color:#a89e95;}
+  .dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;box-shadow:0 0 10px currentColor;}
+  .legend li b{color:#e6dcd2;font-weight:600;display:inline-block;min-width:52px;}
+  /* 右下：阶段切换 */
+  .phasebar{bottom:22px;right:22px;width:252px;padding:12px;display:flex;flex-direction:column;gap:8px;}
+  .phasebar button{
+    font:inherit;font-size:13px;cursor:pointer;border-radius:10px;padding:11px 12px;
+    border:1px solid rgba(255,122,47,.4);color:#ffd8bd;background:rgba(255,122,47,.14);
+    transition:.18s;width:100%;
+  }
+  .phasebar button:hover{background:rgba(255,122,47,.24);border-color:rgba(255,122,47,.65);}
+  .phasebar .pstate{font-size:11px;color:#6f6862;text-align:center;}
+  /* 加载层 */
+  #loading{
+    position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:16px;background:radial-gradient(circle at 50% 45%,#171018 0%,#07060c 60%);
+    transition:opacity .6s ease;
+  }
+  #loading.hide{opacity:0;pointer-events:none;}
+  .spinner{
+    width:38px;height:38px;border-radius:50%;
+    border:2px solid rgba(255,122,47,.18);border-top-color:var(--ember);
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loading .txt{font-size:12.5px;color:#8d847c;letter-spacing:.08em;}
+  #loading .err{color:#ff9b7a;font-size:12px;max-width:460px;text-align:center;line-height:1.8;padding:0 20px;}
+  @media (max-width:900px){
+    .info{max-width:calc(100vw - 44px);top:16px;left:16px;padding:12px 14px;}
+    .info h1{font-size:17px;}
+    .info p{display:none;}
+    .controls{top:auto;bottom:96px;right:16px;width:212px;gap:8px;padding:12px;}
+    .phasebar{bottom:16px;right:16px;width:212px;}
+    .legend{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="txt">正在唤醒熔岩巨人…</div>
+  <div class="err" id="loadErr"></div>
+</div>
+
+<div id="ui">
+  <div class="vignette"></div>
+
+  <div class="hud">
+    <div class="panel info">
+      <div class="tag">SurtrRig.ts · 三维预览</div>
+      <h1>苏尔特 <span>· 熔岩巨人</span></h1>
+      <p>
+        一具从火山口里站起来的<b>黑曜岩巨人</b>：躯体是层层剥裂的玄武岩壳，岩缝里淌着橙红熔岩；
+        巨肩高过头顶，牛角与火焰王冠把剪影顶到 <b>14.5 m</b>。阶段 I 是冷却的岩甲，
+        只有胸口那颗熔岩心还在呼吸；阶段 II 岩壳转炽，背部火山口喷焰、熔岩瀑布开始流动、矿渣浮空。
+      </p>
+      <p class="dim">
+        地火从脚下自下而上打光，把下颚、胸口与腿内侧照亮；冷色轮廓光从后上方勾出牛角与肩刺的剪影——
+        只有真的站在它脚下仰头，才会觉得它在俯视你。
+      </p>
+      <div class="stats" id="stats">统计中…</div>
+    </div>
+
+    <div class="panel controls">
+      <div class="views">
+        <button class="secondary" data-view="hero">3/4</button>
+        <button class="secondary" data-view="front">正面</button>
+        <button class="secondary" data-view="side">侧面</button>
+        <button class="secondary" data-view="back">背面</button>
+        <button class="secondary" data-view="close">特写</button>
+        <button class="secondary" data-view="low">贴地</button>
+        <button class="secondary" data-view="top">俯视</button>
+      </div>
+      <label><input type="checkbox" id="rotChk" /> 自动旋转</label>
+      <label><input type="checkbox" id="weakChk" /> 显示弱点判定球</label>
+      <div class="hint">拖拽旋转 · 滚轮缩放 · 空格切换阶段 · 数字键 1–7 切机位</div>
+    </div>
+
+    <div class="panel legend">
+      <h2>弱点（读取 build.meta.weakPoints）</h2>
+      <ul id="legendList"></ul>
+    </div>
+
+    <div class="panel phasebar">
+      <button id="phaseBtn">切换到阶段 II · 熔火形态</button>
+      <div class="pstate" id="phaseState">当前：阶段 I · 岩甲</div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ===========================================================================
+// 模型注入点：构建脚本把 SurtrRig.ts 转译后的代码替换到下面这一行。
+// 约定：占位标记单独成行、全页只出现一次、位于 import 之后且早于 createSurtrRig() 的调用。
+// ===========================================================================
+/*__SURTR_MODEL__*/
+
+// ===========================================================================
+// 0. URL 参数
+//    ?phase=1|2 & view=hero|front|side|back|close|low|top & hud=0|1
+//    & rot=<度> & weak=0|1
+//    另附三个纯调参用的可选参数（不写就用默认）：fog=<密度> & exposure=<曝光> & bloom=<强度>
+// ===========================================================================
+const Q = new URLSearchParams(location.search);
+const START_PHASE2 = Q.get('phase') === '2';
+const START_VIEW = Q.get('view') || 'hero';
+const ROT_DEG = Number.parseFloat(Q.get('rot') || '') || 0;
+const SHOW_HUD = Q.get('hud') !== '0';
+const FOG_DENSITY = Number.parseFloat(Q.get('fog') || '') || 0.026;
+const EXPOSURE = Number.parseFloat(Q.get('exposure') || '') || 1.05;
+const BLOOM_STRENGTH = Number.parseFloat(Q.get('bloom') || '') || 0.62;
+const HEAT_HAZE = Q.get('haze') !== '0';
+
+if (!SHOW_HUD) {
+  const ui = document.getElementById('ui');
+  if (ui) ui.style.display = 'none';
+}
+
+// ===========================================================================
+// 1. 渲染器
+// ===========================================================================
+const renderer = new THREE.WebGLRenderer({
+  antialias: true,
+  powerPreference: 'high-performance',
+  preserveDrawingBuffer: true, // 截图脚本依赖：保证 toDataURL / 截图能取到像素
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = EXPOSURE;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+// ===========================================================================
+// 2. 场景与相机
+// ===========================================================================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080405);
+// 暖灰偏红的体积雾。0.026 时：12 m 处约 8% 衰减（可察觉），20 m 的巨物本体约 22%（保住可读性），
+// 50 m 外的黑曜尖峰约 79%、80 m 外基本融进雾里 —— 远景靠雾消失来堆空间纵深。
+scene.fog = new THREE.FogExp2(0x1b0d0a, FOG_DENSITY);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 800);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.enablePan = false;                 // 取景固定，方便多机位截图比对
+controls.autoRotate = false;                // 默认不自动转，保证截图确定
+controls.autoRotateSpeed = 0.4;
+controls.minPolarAngle = 0.10;
+controls.maxPolarAngle = Math.PI * 0.82;    // 允许相机压到目标点以下（贴地极限仰视机位）
+
+// ===========================================================================
+// 3. 环境反射（黑曜岩要一点暖底冷顶的反射，否则全黑没有体积）
+// ===========================================================================
+{
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envScene = new THREE.Scene();
+  const g = new THREE.SphereGeometry(12, 48, 24);
+  const pos = g.attributes.position;
+  const cols = [];
+  const lo = new THREE.Color(0.46, 0.13, 0.02);   // 地面：熔岩反射
+  const mid = new THREE.Color(0.02, 0.017, 0.02); // 水平：近黑
+  const hi = new THREE.Color(0.09, 0.12, 0.20);   // 天顶：冷蓝
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const t = pos.getY(i) / 12;
+    if (t < 0) c.copy(mid).lerp(lo, Math.pow(-t, 0.7));
+    else c.copy(mid).lerp(hi, Math.pow(t, 0.8));
+    cols.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  envScene.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  scene.environment = pmrem.fromScene(envScene, 0.04).texture;
+  scene.environmentIntensity = 0.5;
+  pmrem.dispose();
+}
+
+// 远景天幕：地平线一圈暗红火山辉光，让黑曜尖峰有背景可衬托
+{
+  const g = new THREE.SphereGeometry(320, 32, 16);
+  const pos = g.attributes.position;
+  const cols = [];
+  const top = new THREE.Color(0x050308);
+  const hor = new THREE.Color(0x3a0f06);
+  const c = new THREE.Color();
+  for (let i = 0; i < pos.count; i++) {
+    const t = THREE.MathUtils.clamp(pos.getY(i) / 320, -1, 1);
+    // t≈0 是地平线，越往上越暗；地平线以下也给一点余温
+    const k = t > 0 ? Math.pow(1 - t, 3.2) : Math.pow(1 + t * 0.4, 2.0);
+    c.copy(top).lerp(hor, k * 0.9);
+    cols.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  const sky = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    vertexColors: true, side: THREE.BackSide, depthWrite: false, fog: false,
+  }));
+  sky.renderOrder = -10;
+  scene.add(sky);
+}
+
+// ===========================================================================
+// 4. 程序化贴图工具
+// ===========================================================================
+/** 线性同余伪随机：固定种子 → 每次截图的地面裂纹完全一致，便于逐帧比对 */
+function rng(seed) {
+  return () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+}
+
+/** 径向渐变贴图（热辉 / 粒子圆点 / 烟雾都用它） */
+function makeRadialTexture(stops, size = 256) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  for (const [o, col] of stops) grd.addColorStop(o, col);
+  g.fillStyle = grd;
+  g.fillRect(0, 0, size, size);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/**
+ * 熔岩裂地贴图（在基线 makeGroundTextures 上升级）：
+ *  - 底色：黑曜玄武岩碎屑 + 大块岩板
+ *  - 自发光：5 条更宽的熔岩主河 + 每条 2~3 道分叉支流 + 细碎裂纹网
+ *  - 流心：四层描边（宽暗晕 → 橙红河身 → 近白炽流心），越靠场地中心越亮
+ * 输出两张 CanvasTexture，供地面材质当 map / emissiveMap。
+ *
+ * 性能注记：这里刻意不用 ctx.shadowBlur —— 在 1500² 画布上做上千次带模糊的描边
+ * 会吃掉 1 s 以上，直接顶穿"2.5 s 内首帧"的约束。改用"同一条线画多遍、逐层加宽降透明"
+ * 的廉价辉光，视觉接近而开销小一个量级。
+ */
+function makeGroundTextures() {
+  const S = 1536;
+  const base = document.createElement('canvas');
+  const emi = document.createElement('canvas');
+  base.width = base.height = S;
+  emi.width = emi.height = S;
+  const b = base.getContext('2d');
+  const e = emi.getContext('2d');
+  const R = rng(19);
+  const cx = S / 2, cy = S / 2;
+
+  // ---- 底色：黑曜玄武岩 ----
+  b.fillStyle = '#100b09';
+  b.fillRect(0, 0, S, S);
+  for (let i = 0; i < 5200; i++) {
+    const l = 8 + R() * 26;
+    b.fillStyle = `rgba(${Math.round(l + 10)},${Math.round(l)},${Math.round(l * 0.8)},${(0.2 + R() * 0.35).toFixed(2)})`;
+    b.beginPath();
+    b.arc(R() * S, R() * S, 3 + R() * 26, 0, Math.PI * 2);
+    b.fill();
+  }
+  for (let i = 0; i < 150; i++) {
+    const x = R() * S, y = R() * S, r = 20 + R() * 76;
+    const g = b.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(34,29,31,0.5)');
+    g.addColorStop(1, 'rgba(12,9,10,0)');
+    b.fillStyle = g;
+    b.beginPath();
+    b.arc(x, y, r, 0, Math.PI * 2);
+    b.fill();
+  }
+
+  // ---- 河网生成 ----
+  /** 从 (x,y) 沿 a 方向游走，返回折线点与逐段宽度（起点宽、终点窄，模拟熔岩从中心流散） */
+  function march(x, y, a, steps, step, jitter, w0, w1) {
+    const pts = [[x, y]];
+    const ws = [w0];
+    let ang = a;
+    for (let k = 0; k < steps; k++) {
+      ang += (R() - 0.5) * jitter;
+      x += Math.cos(ang) * step;
+      y += Math.sin(ang) * step;
+      pts.push([x, y]);
+      ws.push(w0 + (w1 - w0) * (k / steps));
+    }
+    return { pts, ws };
+  }
+
+  const rivers = [];
+  // 5 条主河：从中心附近出发，向外辐射到画面边缘
+  for (let i = 0; i < 5; i++) {
+    const a0 = (i / 5) * Math.PI * 2 + (R() - 0.5) * 0.55;
+    const r0 = S * (0.02 + R() * 0.05);
+    const rv = march(cx + Math.cos(a0) * r0, cy + Math.sin(a0) * r0,
+      a0, 24 + Math.floor(R() * 10), S * 0.055, 0.42,
+      S * 0.021, S * 0.007);        // 主河：起点约 32 px 宽 → 末端约 11 px
+    rivers.push(rv);
+    // 每条主河再分叉 2~3 道支流
+    const branches = 2 + Math.floor(R() * 2);
+    for (let k = 0; k < branches; k++) {
+      const idx = 3 + Math.floor(R() * (rv.pts.length - 8));
+      const [px, py] = rv.pts[idx];
+      const [qx, qy] = rv.pts[Math.min(idx + 1, rv.pts.length - 1)];
+      const a1 = Math.atan2(qy - py, qx - px) + (R() - 0.5) * 1.5;
+      rivers.push(march(px, py, a1, 10 + Math.floor(R() * 10), S * 0.05, 0.6,
+        S * 0.009, S * 0.003));
+    }
+  }
+
+  /** 按逐段宽度描一遍河网 */
+  function strokeRivers(ctx, styleFn, widthMul) {
+    for (const rv of rivers) {
+      for (let k = 1; k < rv.pts.length; k++) {
+        const [x0, y0] = rv.pts[k - 1];
+        const [x1, y1] = rv.pts[k];
+        const d = Math.hypot((x0 + x1) / 2 - cx, (y0 + y1) / 2 - cy) / (S / 2);
+        ctx.strokeStyle = styleFn(d);
+        ctx.lineWidth = Math.max(1, rv.ws[k] * widthMul * (1 - (k / rv.pts.length) * 0.35));
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // 底色上压出河道凹槽（更深的黑）
+  b.lineCap = 'round';
+  b.lineJoin = 'round';
+  strokeRivers(b, () => 'rgba(3,2,1,0.92)', 2.6);
+
+  // ---- 自发光：熔岩河（四层廉价辉光，不用 shadowBlur） ----
+  e.fillStyle = '#000';
+  e.fillRect(0, 0, S, S);
+  e.lineCap = 'round';
+  e.lineJoin = 'round';
+
+  // 第 1 层：最宽的暗橙热晕（把河岸烤红）
+  strokeRivers(e, (d) => {
+    const k = Math.max(0, 1 - d * 0.9);
+    return `rgba(255,72,14,${(0.012 + 0.05 * k).toFixed(4)})`;
+  }, 6.0);
+  // 第 2 层：次宽的橙红晕
+  strokeRivers(e, (d) => {
+    const k = Math.max(0, 1 - d * 0.95);
+    return `rgba(255,84,18,${(0.03 + 0.13 * k).toFixed(4)})`;
+  }, 3.0);
+  // 第 3 层：河身本体，中心近白、边缘深橙
+  strokeRivers(e, (d) => {
+    const k = Math.max(0, 1 - d * 1.05);
+    return `rgba(255,${Math.round(96 + 116 * k)},${Math.round(24 + 86 * k)},${(0.28 + 0.68 * k * k).toFixed(3)})`;
+  }, 1.0);
+  // 第 4 层：流心（最亮的一条细线，靠 Bloom 发光）
+  strokeRivers(e, (d) => {
+    const k = Math.max(0, 1 - d * 1.25);
+    return `rgba(255,${Math.round(206 + 44 * k)},${Math.round(140 + 86 * k)},${(0.3 + 0.7 * k).toFixed(3)})`;
+  }, 0.36);
+
+  // ---- 细碎裂纹网（底色压暗 + 极弱发光，增加岩石破碎感） ----
+  const cracks = [];
+  for (let i = 0; i < 300; i++) {
+    let x = R() * S, y = R() * S;
+    let a = R() * Math.PI * 2;
+    const pts = [[x, y]];
+    const steps = 3 + Math.floor(R() * 8);
+    for (let k = 0; k < steps; k++) {
+      a += (R() - 0.5) * 1.1;
+      x += Math.cos(a) * (5 + R() * 12);
+      y += Math.sin(a) * (5 + R() * 12);
+      pts.push([x, y]);
+    }
+    cracks.push({ pts, w: 0.8 + R() * 2.2 });
+  }
+  b.strokeStyle = 'rgba(2,1,1,0.9)';
+  for (const cr of cracks) {
+    for (let k = 1; k < cr.pts.length; k++) {
+      const [x0, y0] = cr.pts[k - 1];
+      const [x1, y1] = cr.pts[k];
+      const d = Math.hypot(x0 - cx, y0 - cy) / (S / 2);
+      b.lineWidth = cr.w * 1.8;
+      b.beginPath(); b.moveTo(x0, y0); b.lineTo(x1, y1); b.stroke();
+      const kk = Math.max(0, 1 - d * 1.3);
+      e.strokeStyle = `rgba(255,74,14,${(0.05 + 0.34 * kk * kk).toFixed(3)})`;
+      e.lineWidth = cr.w;
+      e.beginPath(); e.moveTo(x0, y0); e.lineTo(x1, y1); e.stroke();
+    }
+  }
+
+  const map = new THREE.CanvasTexture(base);
+  const emissiveMap = new THREE.CanvasTexture(emi);
+  for (const t of [map, emissiveMap]) {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+  }
+  return { map, emissiveMap };
+}
+
+/** 熔岩流动贴图：可平铺，供熔岩池 / 熔岩河做 UV 滚动 */
+function makeLavaTexture(seed) {
+  const S = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  const R = rng(seed);
+  g.fillStyle = '#1d0401';
+  g.fillRect(0, 0, S, S);
+
+  // 亮斑：越亮越偏黄白，做成"结壳被顶开"的熔浆
+  for (let i = 0; i < 300; i++) {
+    const x = R() * S, y = R() * S, r = 4 + R() * R() * 44;
+    const hot = R();
+    const col = hot > 0.86
+      ? `rgba(255,${Math.round(214 + 40 * R())},${Math.round(150 + 80 * R())},`
+      : hot > 0.5
+        ? `rgba(255,${Math.round(96 + 90 * R())},${Math.round(20 + 40 * R())},`
+        : `rgba(${Math.round(120 + 90 * R())},${Math.round(22 + 34 * R())},8,`;
+    const grd = g.createRadialGradient(x, y, 0, x, y, r);
+    grd.addColorStop(0, `${col}${(0.55 + 0.4 * R()).toFixed(2)})`);
+    grd.addColorStop(1, `${col}0)`);
+    g.fillStyle = grd;
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+    // 只在贴边时补画到对侧，保证平铺无缝；内部斑点不重复画，省掉大量渐变填充
+    if (x < r) { g.save(); g.translate(S, 0); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.restore(); }
+    if (x > S - r) { g.save(); g.translate(-S, 0); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.restore(); }
+    if (y < r) { g.save(); g.translate(0, S); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.restore(); }
+    if (y > S - r) { g.save(); g.translate(0, -S); g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.restore(); }
+  }
+  // 冷却结壳：暗色细纹
+  g.strokeStyle = 'rgba(14,4,2,0.55)';
+  g.lineCap = 'round';
+  for (let i = 0; i < 160; i++) {
+    let x = R() * S, y = R() * S, a = R() * Math.PI * 2;
+    g.lineWidth = 1 + R() * 3.5;
+    g.beginPath();
+    g.moveTo(x, y);
+    for (let k = 0; k < 5; k++) {
+      a += (R() - 0.5) * 1.2;
+      x += Math.cos(a) * (8 + R() * 26);
+      y += Math.sin(a) * (8 + R() * 26);
+      g.lineTo(x, y);
+    }
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  return t;
+}
+
+// ===========================================================================
+// 5. 地面 / 热辉 / 熔岩池河 / 黑曜尖峰 / 碎石
+// ===========================================================================
+const GROUND_SIZE = 128;
+const groundTex = makeGroundTextures();
+const groundMat = new THREE.MeshStandardMaterial({
+  map: groundTex.map,
+  emissiveMap: groundTex.emissiveMap,
+  emissive: 0xffffff,
+  // 0.85 是实测值：再高（1.9 那种）整块地面会被泛光糊成一张白纸，
+  // 只剩熔岩河的流心还亮得起来，岩石本身的破碎感全丢了。
+  emissiveIntensity: 0.85,
+  roughness: 0.96,
+  metalness: 0.0,
+});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE), groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// 脚下热辉：按新体型放大到 22 m
+const halo = new THREE.Mesh(
+  new THREE.PlaneGeometry(22, 22),
+  new THREE.MeshBasicMaterial({
+    map: makeRadialTexture([
+      [0, 'rgba(255,120,36,0.52)'],
+      [0.32, 'rgba(255,74,16,0.24)'],
+      [1, 'rgba(255,40,0,0)'],
+    ]),
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    opacity: 0.9,
+  }),
+);
+halo.rotation.x = -Math.PI / 2;
+halo.position.y = 0.03;
+scene.add(halo);
+
+// ---- 流动熔岩池 / 熔岩河（4 处，全部避开模型正面 6 m 以内，避免正面过曝） ----
+const lavaFlows = [];
+let lavaSeed = 101;
+function addLavaFlow(geometry, position, rotationY, repeat, speed, tint) {
+  // 用递增种子而不是 Math.random，保证每次截图的地面纹理完全一致
+  const tex = makeLavaTexture((lavaSeed += 37));
+  tex.repeat.set(repeat[0], repeat[1]);
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex,
+    color: new THREE.Color(tint),
+    // 与地面几乎共面，用 polygonOffset 压掉 z-fighting
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2,
+  });
+  const mesh = new THREE.Mesh(geometry, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.z = rotationY;
+  mesh.position.copy(position);
+  mesh.renderOrder = 1;
+  scene.add(mesh);
+  lavaFlows.push({ tex, mat, speed, base: mat.color.clone() });
+  return mesh;
+}
+// 左后方熔岩湖
+addLavaFlow(new THREE.CircleGeometry(12, 48), new THREE.Vector3(-20, 0.05, -14), 0.4, [3, 3], [0.012, 0.02], 0xffffff);
+// 右前方熔岩湖（离中轴横向 21 m，避开正面）
+addLavaFlow(new THREE.CircleGeometry(8.5, 40), new THREE.Vector3(21, 0.05, 11), -0.7, [2.4, 2.4], [-0.016, 0.014], 0xf3d9c6);
+// 背后的熔岩河：横贯场地，从两侧把巨人夹住
+addLavaFlow(new THREE.PlaneGeometry(78, 9), new THREE.Vector3(0, 0.04, -26), 0.06, [7, 1], [0.03, 0.008], 0xffe6d2);
+// 侧向支流
+addLavaFlow(new THREE.PlaneGeometry(46, 5.5), new THREE.Vector3(-26, 0.04, 4), 1.36, [5, 1], [0.026, -0.01], 0xf7ded0);
+
+// ---- 远景黑曜石尖峰群：给巨物做尺度参照 ----
+{
+  const R = rng(41);
+  const spikeMat = new THREE.MeshStandardMaterial({
+    color: 0x0b0809,
+    roughness: 0.88,
+    metalness: 0.22,
+    flatShading: true,
+    emissive: 0x140402,
+    emissiveIntensity: 0.4,
+  });
+  const spikeGeoA = new THREE.ConeGeometry(1, 1, 6, 1);
+  const spikeGeoB = new THREE.DodecahedronGeometry(1, 0);
+  const group = new THREE.Group();
+  group.name = 'obsidianSpikes';
+  for (let i = 0; i < 34; i++) {
+    const a = (i / 34) * Math.PI * 2 + (R() - 0.5) * 0.24;
+    // 控制在 26~58 m：既落在地面（半幅 64 m）之内，又足够远形成雾中剪影
+    const d = 26 + R() * R() * 32;
+    const h = 7 + R() * R() * 30;
+    const w = h * (0.16 + R() * 0.22);
+    const geo = R() > 0.45 ? spikeGeoA : spikeGeoB;
+    const m = new THREE.Mesh(geo, spikeMat);
+    m.scale.set(w, h * (geo === spikeGeoA ? 1 : 0.62), w * (0.8 + R() * 0.5));
+    m.position.set(Math.cos(a) * d, h * (geo === spikeGeoA ? 0.48 : 0.42), Math.sin(a) * d);
+    m.rotation.set((R() - 0.5) * 0.22, R() * Math.PI * 2, (R() - 0.5) * 0.22);
+    group.add(m);
+  }
+  scene.add(group);
+}
+
+// ---- 近景碎石（尺度参照 + 让地面不空） ----
+{
+  const R = rng(7);
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x241c19, roughness: 0.96, flatShading: true });
+  const geo = new THREE.DodecahedronGeometry(1, 0);
+  for (let i = 0; i < 34; i++) {
+    const a = R() * Math.PI * 2;
+    const d = 7 + R() * 22;
+    const s = 0.22 + R() * R() * 1.5;
+    const m = new THREE.Mesh(geo, rockMat);
+    m.scale.set(s * (0.8 + R() * 0.7), s * (0.45 + R() * 0.5), s * (0.8 + R() * 0.7));
+    m.rotation.set(R() * 3, R() * 3, R() * 3);
+    m.position.set(Math.cos(a) * d, s * 0.2, Math.sin(a) * d);
+    m.castShadow = m.receiveShadow = true;
+    scene.add(m);
+  }
+}
+
+// ===========================================================================
+// 6. 灯光（主光是地火仰光，冷色轮廓光只负责勾边）
+// ===========================================================================
+// 极弱的天光，只保证暗部不死黑。0.34 时侧视机会整具糊成黑块
+// （侧向没有胸口熔岩自发光支撑），因此抬到 0.62。
+scene.add(new THREE.HemisphereLight(0x2a3350, 0x3a1004, 0.62));
+
+// 6.1 地火仰光：正面偏下的大范围橙光，把下颚 / 胸口 / 腿内侧照亮。
+// 强度与衰减范围是"明暗结构"的关键：范围一旦超过模型半高（~8 m），
+// 整具躯体就被均匀照亮，黑曜岩的块面与阴影全部消失，画面糊成一团橙色。
+// 实测 90 / 26 时，腿内侧被烤亮、上身仍保留冷灰暗部，剪影可读。
+const underFire = new THREE.PointLight(0xff4a12, 90, 26, 1.8);
+underFire.position.set(0, 1.0, 7.0);
+scene.add(underFire);
+
+// 6.2 背后地火：从后下方反打，勾出腿与腰的暗部体积
+const underFireBack = new THREE.PointLight(0xff5c1c, 55, 22, 1.9);
+underFireBack.position.set(0, 0.7, -8.5);
+scene.add(underFireBack);
+
+// 6.3 冷色轮廓光：从后上方勾出牛角、肩刺、火焰王冠的剪影。
+// 侧面机位全靠它读剪影，强度太低会让侧视图变成一团黑，因此比暖主光更强。
+const rimCold = new THREE.DirectionalLight(0x8fb4ff, 4.2);
+rimCold.position.set(-16, 30, -24);
+scene.add(rimCold);
+
+const rimCold2 = new THREE.DirectionalLight(0x9a7bff, 2.2);
+rimCold2.position.set(18, 24, -20);
+scene.add(rimCold2);
+
+// 6.4 一盏暖色主光，投一层方向明确的影子（影子是"巨大"的读数依据），
+// 同时给侧向提供足够的基础照明，避免侧视图只剩剪影。
+const shadowKey = new THREE.DirectionalLight(0xffd6b4, 1.55);
+shadowKey.position.set(20, 26, 14);
+shadowKey.castShadow = true;
+shadowKey.shadow.mapSize.set(2048, 2048);
+shadowKey.shadow.camera.near = 1;
+shadowKey.shadow.camera.far = 120;
+shadowKey.shadow.bias = -0.0008;
+shadowKey.shadow.normalBias = 0.05;
+scene.add(shadowKey);
+const shadowCam = shadowKey.shadow.camera;
+shadowCam.left = -22;
+shadowCam.right = 22;
+shadowCam.top = 26;
+shadowCam.bottom = -6;
+shadowCam.updateProjectionMatrix();
+
+// 6.5 跟随头部 / 胸口的补光（位置每帧从骨骼世界坐标取，见动画循环）
+const headLight = new THREE.PointLight(0xff9a3c, 9, 6, 2);
+scene.add(headLight);
+
+const chestLight = new THREE.PointLight(0xff6a18, 18, 10, 2);
+scene.add(chestLight);
+
+// 6.6 阶段 II：背部火山口的炽白灯
+const craterLight = new THREE.PointLight(0xfff2d2, 0, 30, 2);
+scene.add(craterLight);
+
+// ===========================================================================
+// 7. 构建苏尔特
+// ===========================================================================
+const build = createSurtrRig();
+const rig = build.rig;
+const root = rig.root;
+scene.add(root);
+
+// 让模型参与阴影（只改渲染设置，不改几何）
+const solid = Array.isArray(build.solidMeshes) ? build.solidMeshes : [];
+const glow = Array.isArray(build.glowMeshes) ? build.glowMeshes : [];
+const phase1Meshes = Array.isArray(build.phase1Meshes) ? build.phase1Meshes : [];
+const phase2Meshes = Array.isArray(build.phase2Meshes) ? build.phase2Meshes : [];
+const M = build.materials || {};
+const meta = build.meta || {};
+
+for (const m of solid) { m.castShadow = true; m.receiveShadow = true; }
+for (const m of glow) { m.castShadow = false; m.receiveShadow = true; }
+for (const m of phase2Meshes) { m.visible = false; }
+
+// 立刻把全模型所有材质的自发光强度基准值记下来（必须在任何动画改写之前）
+// 之后 meta.eyes / crater / lavaFalls 的脉动都基于这份基准值，不会互相污染
+const _matBaseCache = new WeakMap();
+function matBase(material) {
+  let v = _matBaseCache.get(material);
+  if (v === undefined) {
+    v = typeof material.emissiveIntensity === 'number' ? material.emissiveIntensity : 1;
+    _matBaseCache.set(material, v);
+  }
+  return v;
+}
+{
+  const seen = new Set();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    for (const mt of mats) {
+      if (mt && !seen.has(mt)) { seen.add(mt); matBase(mt); }
+    }
+  });
+}
+
+// ---- 量出阶段 I 的真实包围盒（相机自适应与 HUD 统计都依赖它） ----
+function measureStageOneBox() {
+  root.updateMatrixWorld(true);
+  const p2 = new Set(phase2Meshes);
+  const box = new THREE.Box3();
+  const v = new THREE.Vector3();
+  let meshes = 0;
+  let tris = 0;
+  root.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    meshes++;
+    const g = o.geometry;
+    const pos = g.attributes && g.attributes.position;
+    if (pos) tris += (g.index ? g.index.count : pos.count) / 3;
+    if (p2.has(o)) return;           // 阶段 II 专属网格不计入阶段 I 尺寸
+    if (!pos) return;
+    for (let i = 0; i < pos.count; i++) {
+      box.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld));
+    }
+  });
+  // 兜底：万一手写包围盒为空，退回 three 自带的 setFromObject
+  if (box.isEmpty()) box.setFromObject(root);
+  return { box, meshes, tris: Math.round(tris) };
+}
+
+const measured = measureStageOneBox();
+const stage1Box = measured.box;
+const stage1Size = stage1Box.getSize(new THREE.Vector3());
+const stage1Center = stage1Box.getCenter(new THREE.Vector3());
+
+// 高度优先用实测值，实测异常时退回 meta.height
+let H = stage1Size.y;
+if (!(H > 1) || !Number.isFinite(H)) H = Number(meta.height) > 1 ? Number(meta.height) : 14.5;
+let W = stage1Size.x;
+if (!(W > 0.5) || !Number.isFinite(W)) W = Number(meta.width) > 0 ? Number(meta.width) : 8.6;
+const center = Number.isFinite(stage1Center.x) ? stage1Center : new THREE.Vector3(0, H / 2, 0);
+
+// ?rot=<度>：让模型绕 Y 轴旋转（多角度评审用）。放在量完包围盒之后，不影响尺寸口径。
+if (ROT_DEG) root.rotation.y = THREE.MathUtils.degToRad(ROT_DEG);
+
+// 相机限制按模型尺寸自适应
+controls.minDistance = H * 0.3;
+controls.maxDistance = H * 5.5;
+
+// 影子相机的范围也按尺寸收紧
+shadowCam.left = -W * 2.2;
+shadowCam.right = W * 2.2;
+shadowCam.top = H * 1.7;
+shadowCam.bottom = -H * 0.35;
+shadowCam.updateProjectionMatrix();
+
+// 地火灯的位置按体型外推（正面 0.45H 处、离地 0.07H）
+underFire.position.set(0, H * 0.07, H * 0.48);
+underFire.distance = H * 0.55;
+underFireBack.position.set(0, H * 0.05, -H * 0.6);
+underFireBack.distance = H * 0.5;
+rimCold.position.set(-W * 1.9, H * 2.1, -H * 1.65);
+rimCold2.position.set(W * 2.1, H * 1.7, -H * 1.4);
+
+// ===========================================================================
+// 8. 弱点判定球与标签（坐标全部来自 build.meta.weakPoints）
+// ===========================================================================
+const weakPoints = Array.isArray(meta.weakPoints) ? meta.weakPoints.filter(Boolean) : [];
+
+const weakGroup = new THREE.Group();
+weakGroup.name = 'weakPoints';
+weakGroup.visible = Q.get('weak') === '1';
+root.add(weakGroup);
+
+/** 生成一个圆角标签 Sprite（中文标签） */
+function makeLabel(text, css) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 384;
+  canvas.height = 112;
+  const g = canvas.getContext('2d');
+  g.fillStyle = 'rgba(8,7,12,0.8)';
+  g.strokeStyle = css;
+  g.lineWidth = 3;
+  const r = 22, w = 360, h = 88, x = 12, y = 12;
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  g.font = 'bold 40px "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif';
+  g.fillStyle = css;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, 192, 58);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, transparent: true, depthTest: false, depthWrite: false,
+  }));
+  sprite.renderOrder = 10;
+  return sprite;
+}
+
+const WEAK_DESC = {
+  core: '胸口熔岩心，阶段 I 的主要弱点',
+  back: '背部火山口，阶段 II 的主要弱点',
+  kneeL: '左膝岩壳裂口',
+  kneeR: '右膝岩壳裂口',
+};
+
+for (const wp of weakPoints) {
+  const pos = Array.isArray(wp.pos) && wp.pos.length === 3 ? wp.pos : [0, H * 0.5, 0];
+  const radius = Number(wp.r) > 0 ? Number(wp.r) : H * 0.05;
+  const css = typeof wp.css === 'string' ? wp.css : '#ff7a2f';
+  const color = new THREE.Color();
+  try { color.set(css); } catch (err) { color.set(0xff7a2f); }
+
+  const geo = new THREE.SphereGeometry(radius, 20, 14);
+
+  const shell = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    color, transparent: true, opacity: 0.12, depthWrite: false, depthTest: false,
+    blending: THREE.AdditiveBlending,
+  }));
+  shell.position.set(pos[0], pos[1], pos[2]);
+  weakGroup.add(shell);
+
+  const wire = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    color, wireframe: true, transparent: true, opacity: 0.34, depthWrite: false, depthTest: false,
+  }));
+  wire.position.copy(shell.position);
+  weakGroup.add(wire);
+
+  const label = makeLabel(wp.label || wp.key || '?', css);
+  // 标签大小随判定球半径缩放，避免巨物上标签过小
+  const lw = Math.max(1.6, radius * 2.6);
+  label.scale.set(lw, lw * 0.29, 1);
+  const side = wp.key === 'kneeL' ? -1 : wp.key === 'kneeR' ? 1 : 0;
+  label.position.set(pos[0] + side * radius * 1.5, pos[1] + radius + lw * 0.2, pos[2]);
+  weakGroup.add(label);
+}
+
+// 左下弱点图例：同样从 meta 生成，不写死
+{
+  const list = document.getElementById('legendList');
+  if (list) {
+    for (const wp of weakPoints) {
+      const li = document.createElement('li');
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      dot.style.color = wp.css || '#ff7a2f';
+      dot.style.background = wp.css || '#ff7a2f';
+      const text = document.createElement('span');
+      const b = document.createElement('b');
+      b.textContent = wp.label || wp.key || '?';
+      text.appendChild(b);
+      text.appendChild(document.createTextNode(WEAK_DESC[wp.key] || '弱点'));
+      li.appendChild(dot);
+      li.appendChild(text);
+      list.appendChild(li);
+    }
+  }
+}
+
+// ===========================================================================
+// 9. 粒子：余烬 + 火山灰 + 地面火星（总数 1000，控制在 1200 以内）
+// ===========================================================================
+const dotTex = makeRadialTexture(
+  [[0, 'rgba(255,255,255,1)'], [0.25, 'rgba(255,204,150,0.85)'], [1, 'rgba(255,120,40,0)']], 64,
+);
+const ashTex = makeRadialTexture(
+  [[0, 'rgba(255,255,255,0.55)'], [0.55, 'rgba(220,200,190,0.16)'], [1, 'rgba(180,160,150,0)']], 64,
+);
+
+// 9.1 上升余烬（480）
+const EMBER_COUNT = 480;
+const emberPos = new Float32Array(EMBER_COUNT * 3);
+const emberSpeed = new Float32Array(EMBER_COUNT);
+const emberRad = new Float32Array(EMBER_COUNT);
+const emberAng = new Float32Array(EMBER_COUNT);
+const emberTop = H * 1.9;
+{
+  const R = rng(11);
+  for (let i = 0; i < EMBER_COUNT; i++) {
+    emberRad[i] = 1.2 + R() * R() * H * 2.0;
+    emberAng[i] = R() * Math.PI * 2;
+    emberPos[i * 3] = Math.cos(emberAng[i]) * emberRad[i];
+    emberPos[i * 3 + 1] = R() * emberTop;
+    emberPos[i * 3 + 2] = Math.sin(emberAng[i]) * emberRad[i];
+    emberSpeed[i] = 0.4 + R() * 1.5;
+  }
+}
+const emberGeo = new THREE.BufferGeometry();
+emberGeo.setAttribute('position', new THREE.BufferAttribute(emberPos, 3));
+const emberPoints = new THREE.Points(emberGeo, new THREE.PointsMaterial({
+  color: 0xff9a4a, size: 0.2, map: dotTex, transparent: true, opacity: 0.92,
+  blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+}));
+scene.add(emberPoints);
+
+// 9.2 火山灰 / 尘埃（400）：缓慢下沉飘移，暗红灰，给空气"厚度"
+const ASH_COUNT = 400;
+const ashPos = new Float32Array(ASH_COUNT * 3);
+const ashVel = new Float32Array(ASH_COUNT * 3);
+{
+  const R = rng(23);
+  for (let i = 0; i < ASH_COUNT; i++) {
+    const a = R() * Math.PI * 2;
+    const d = 6 + R() * 46;
+    ashPos[i * 3] = Math.cos(a) * d;
+    ashPos[i * 3 + 1] = R() * H * 2.2;
+    ashPos[i * 3 + 2] = Math.sin(a) * d;
+    ashVel[i * 3] = (R() - 0.5) * 0.22;
+    ashVel[i * 3 + 1] = 0.06 + R() * 0.22;
+    ashVel[i * 3 + 2] = (R() - 0.5) * 0.22;
+  }
+}
+const ashGeo = new THREE.BufferGeometry();
+ashGeo.setAttribute('position', new THREE.BufferAttribute(ashPos, 3));
+const ashPoints = new THREE.Points(ashGeo, new THREE.PointsMaterial({
+  color: 0xb08a78, size: 0.5, map: ashTex, transparent: true, opacity: 0.35,
+  depthWrite: false, sizeAttenuation: true,
+}));
+scene.add(ashPoints);
+
+// 9.3 地面火星（120）：贴着熔岩池与地面低空乱窜
+const SPARK_COUNT = 120;
+const sparkPos = new Float32Array(SPARK_COUNT * 3);
+const sparkVel = new Float32Array(SPARK_COUNT * 3);
+{
+  const R = rng(31);
+  for (let i = 0; i < SPARK_COUNT; i++) {
+    const a = R() * Math.PI * 2;
+    const d = 6 + R() * 34;
+    sparkPos[i * 3] = Math.cos(a) * d;
+    sparkPos[i * 3 + 1] = 0.2 + R() * 3.2;
+    sparkPos[i * 3 + 2] = Math.sin(a) * d;
+    sparkVel[i * 3] = (R() - 0.5) * 0.8;
+    sparkVel[i * 3 + 1] = 0.5 + R() * 1.6;
+    sparkVel[i * 3 + 2] = (R() - 0.5) * 0.8;
+  }
+}
+const sparkGeo = new THREE.BufferGeometry();
+sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkPos, 3));
+const sparkPoints = new THREE.Points(sparkGeo, new THREE.PointsMaterial({
+  color: 0xffc06a, size: 0.14, map: dotTex, transparent: true, opacity: 0.85,
+  blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
+}));
+scene.add(sparkPoints);
+
+// ===========================================================================
+// 9b. 脚下烈焰、碎岩环、飞溅碎石与火星（参考图：火从双脚与小腿处窜起）
+const _footL=new THREE.Vector3(-1.5,0,0),_footR=new THREE.Vector3(1.5,0,0);
+function updateFeet(){root.updateMatrixWorld();
+ if(rig.footL&&rig.footL.getWorldPosition)rig.footL.getWorldPosition(_footL);else _footL.set(-1.5,0,0);
+ if(rig.footR&&rig.footR.getWorldPosition)rig.footR.getWorldPosition(_footR);else _footR.set(1.5,0,0);
+ if(!Number.isFinite(_footL.x))_footL.set(-1.5,0,0); if(!Number.isFinite(_footR.x))_footR.set(1.5,0,0);
+ _footL.y=0;_footR.y=0;}
+updateFeet(); const FEET=[_footL,_footR]; const kH=H/15;
+function makeFlameTexture(seed){const CW=128,CH=256,c=document.createElement('canvas');c.width=CW;c.height=CH;
+ const g=c.getContext('2d'),R=rng(seed);g.globalCompositeOperation='lighter';const ph=R()*6.28;
+ for(let i=0;i<28;i++){const t=i/27,y=CH*(0.9-t*0.8),x=CW/2+Math.sin(t*5.5+ph)*CW*0.1*t+(R()-0.5)*CW*0.05,
+  r=CW*(0.34*(1-t)+0.05),a=0.2*(1-t*0.75),grd=g.createRadialGradient(x,y,0,x,y,r);
+  grd.addColorStop(0,`rgba(255,${Math.round(190-110*t)},${Math.round(80-70*t)},${a.toFixed(3)})`);
+  grd.addColorStop(0.55,`rgba(255,${Math.round(90-50*t)},14,${(a*0.45).toFixed(3)})`);
+  grd.addColorStop(1,'rgba(255,30,0,0)');g.fillStyle=grd;g.fillRect(0,0,CW,CH);}
+ const core=g.createRadialGradient(CW/2,CH*0.84,0,CW/2,CH*0.84,CW*0.26);
+ core.addColorStop(0,'rgba(255,248,215,0.6)');core.addColorStop(1,'rgba(255,190,110,0)');
+ g.fillStyle=core;g.fillRect(0,0,CW,CH);const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;return tex;}
+const flameTexes=[makeFlameTexture(3),makeFlameTexture(17),makeFlameTexture(29)];
+const flames=[];{const R=rng(61);for(let f=0;f<2;f++)for(let i=0;i<22;i++){
+ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:flameTexes[i%3],color:new THREE.Color(1.7,1.25,1.0),
+  transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+ s.center.set(0.5,0.08);s.renderOrder=3;scene.add(s);const big=i<5;
+ flames.push({s,foot:f,ang:R()*Math.PI*2,rad:(big?0.2+R()*0.7:0.6+R()*1.6)*kH,life:big?1.4+R()*0.8:0.7+R()*0.8,
+  age:R()*2,hMax:(big?3.0+R()*1.0:1.4+R()*1.8)*kH,sway:R()*6.28});}}
+const footLights=[0,1].map(()=>{const l=new THREE.PointLight(0xff7a26,26,H*0.4,2);scene.add(l);return l;});
+const boulderMat=new THREE.MeshStandardMaterial({color:0x18120f,roughness:0.68,metalness:0.14,flatShading:true,emissive:0x0a0201});
+const boulderLavaMat=new THREE.MeshStandardMaterial({color:0x0a0200,roughness:0.6,emissive:0xff5a12,emissiveIntensity:3.2});
+function makeBoulderGeo(R,cracked){const g=new THREE.IcosahedronGeometry(1,1),pos=g.attributes.position,jit=new Map(),v=new THREE.Vector3();
+ for(let i=0;i<pos.count;i++){v.fromBufferAttribute(pos,i);const key=`${v.x.toFixed(3)},${v.y.toFixed(3)},${v.z.toFixed(3)}`;
+  let s=jit.get(key);if(s===undefined){s=0.7+R()*0.55;jit.set(key,s);}v.multiplyScalar(s);
+  if(v.y<-0.3)v.y=-0.3+(v.y+0.3)*0.2;pos.setXYZ(i,v.x,v.y,v.z);}
+ const core=g.clone();
+ if(cracked){const dirs=[],n=4+Math.floor(R()*3);for(let k=0;k<n;k++)dirs.push(new THREE.Vector3(R()-0.5,R()-0.3,R()-0.5).normalize());
+  const a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3();
+  for(let i=0;i<pos.count;i+=3){a.fromBufferAttribute(pos,i);b.fromBufferAttribute(pos,i+1);c.fromBufferAttribute(pos,i+2);
+   const cen=a.clone().add(b).add(c).normalize();let best=dirs[0],bd=-2;for(const d of dirs){const dd=d.dot(cen);if(dd>bd){bd=dd;best=d;}}
+   for(let j=0;j<3;j++){v.fromBufferAttribute(pos,i+j).addScaledVector(best,0.075);pos.setXYZ(i+j,v.x,v.y,v.z);}}}
+ g.computeVertexNormals();return{geo:g,core};}
+const boulderGroup=new THREE.Group();boulderGroup.name='footRubble';scene.add(boulderGroup);
+{const R=rng(77),FMIN=THREE.MathUtils.degToRad(-22),FMAX=THREE.MathUtils.degToRad(48);
+ for(let i=0;i<16;i++){const a=(i/16)*Math.PI*2+(R()-0.5)*0.35;let rad=(3.4+R()*4.6)*kH,size=(0.6+R()*R()*1.9)*kH;
+  const az=Math.atan2(Math.sin(a),Math.cos(a));
+  if(az>FMIN&&az<FMAX){size=Math.min(size,0.85*kH);rad=Math.min(rad,5.2*kH);} if(size>1.3*kH)rad=Math.max(rad,4.2*kH);
+  const cracked=R()<0.55,{geo,core}=makeBoulderGeo(R,cracked),m=new THREE.Mesh(geo,boulderMat),sy=0.5+R()*0.45;
+  m.scale.set(size*(0.85+R()*0.5),size*sy,size*(0.85+R()*0.5));m.rotation.set((R()-0.5)*0.5,R()*Math.PI*2,(R()-0.5)*0.5);
+  m.position.set(Math.sin(a)*rad,size*sy*0.22,Math.cos(a)*rad);m.castShadow=m.receiveShadow=true;
+  if(cracked){const c=new THREE.Mesh(core,boulderLavaMat);c.scale.setScalar(0.97);m.add(c);}boulderGroup.add(m);}
+ const chipGeo=new THREE.DodecahedronGeometry(1,0);
+ for(let i=0;i<56;i++){const a=R()*Math.PI*2,rad=(2.4+R()*6.6)*kH,s=(0.1+R()*R()*0.45)*kH,hot=R()<0.14;
+  const m=new THREE.Mesh(chipGeo,hot?boulderLavaMat:boulderMat);m.scale.set(s*(0.8+R()*0.6),s*(0.5+R()*0.5),s*(0.8+R()*0.6));
+  m.rotation.set(R()*3,R()*3,R()*3);m.position.set(Math.sin(a)*rad,s*0.25,Math.cos(a)*rad);m.castShadow=!hot;m.receiveShadow=true;boulderGroup.add(m);}}
+const flyChips=[];{const geo=new THREE.TetrahedronGeometry(1,0);for(let i=0;i<40;i++){
+ const m=new THREE.Mesh(geo,i%5===0?boulderLavaMat:boulderMat);scene.add(m);
+ flyChips.push({m,v:new THREE.Vector3(),spin:new THREE.Vector3(),wait:Math.random()*2.5});}}
+function spawnChip(c,p){const foot=FEET[Math.random()<0.5?0:1],a=Math.random()*Math.PI*2,r=(0.4+Math.random()*1.2)*kH;
+ c.m.position.set(foot.x+Math.cos(a)*r,0.2,foot.z+Math.sin(a)*r);const out=(1.0+Math.random()*2.6)*kH;
+ c.v.set(Math.cos(a)*out,(3.5+Math.random()*4.5)*Math.sqrt(kH)*(1+0.3*p),Math.sin(a)*out);
+ c.spin.set(Math.random()*8-4,Math.random()*8-4,Math.random()*8-4);c.m.scale.setScalar((0.05+Math.random()*Math.random()*0.2)*kH);c.m.visible=true;}
+const FSPARK_COUNT=240,fsPos=new Float32Array(FSPARK_COUNT*3),fsVel=new Float32Array(FSPARK_COUNT*3);
+function spawnFootSpark(i,p){const foot=FEET[i&1],a=Math.random()*Math.PI*2,r=Math.random()*2.0*kH;
+ fsPos[i*3]=foot.x+Math.cos(a)*r;fsPos[i*3+1]=Math.random()*1.5;fsPos[i*3+2]=foot.z+Math.sin(a)*r;
+ fsVel[i*3]=(Math.random()-0.5)*1.6;fsVel[i*3+1]=(1.8+Math.random()*3.5)*(1+0.4*p);fsVel[i*3+2]=(Math.random()-0.5)*1.6;}
+for(let i=0;i<FSPARK_COUNT;i++){spawnFootSpark(i,START_PHASE2?1:0);fsPos[i*3+1]=Math.random()*H*0.6;}
+const fsGeo=new THREE.BufferGeometry();fsGeo.setAttribute('position',new THREE.BufferAttribute(fsPos,3));
+scene.add(new THREE.Points(fsGeo,new THREE.PointsMaterial({color:new THREE.Color(1.8,1.1,0.5),size:0.16,map:dotTex,
+ transparent:true,opacity:0.95,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true})));
+function updateFootFX(dt,t,p){updateFeet();const fireK=1+0.45*p;
+ for(const fl of flames){fl.age+=dt*(1+0.25*p);if(fl.age>fl.life){fl.age-=fl.life;fl.ang=Math.random()*Math.PI*2;}
+  const k=fl.age/fl.life,foot=FEET[fl.foot],rr=fl.rad*(1+0.25*k);
+  fl.s.position.set(foot.x+Math.cos(fl.ang)*rr,k*0.9*kH,foot.z+Math.sin(fl.ang)*rr);
+  const env=Math.pow(Math.sin(Math.PI*Math.min(1,k*1.1)),0.7),h=fl.hMax*fireK*(0.55+0.45*env)*(0.9+0.1*Math.sin(t*13+fl.sway));
+  fl.s.scale.set(h*0.5,h,1);fl.s.material.opacity=env*(0.8+0.2*p);fl.s.material.rotation=Math.sin(t*2.3+fl.sway)*0.12;}
+ for(let i=0;i<2;i++){footLights[i].position.set(FEET[i].x,1.3*kH,FEET[i].z+0.9*kH);
+  footLights[i].intensity=26*fireK*(0.85+0.1*Math.sin(t*11+i*2)+0.05*Math.sin(t*23+i));}
+ for(const c of flyChips){if(c.wait>0){c.wait-=dt;c.m.visible=false;if(c.wait<=0)spawnChip(c,p);continue;}
+  c.v.y-=9.8*dt;c.m.position.addScaledVector(c.v,dt);c.m.rotation.x+=c.spin.x*dt;c.m.rotation.y+=c.spin.y*dt;c.m.rotation.z+=c.spin.z*dt;
+  if(c.m.position.y<0.05&&c.v.y<0){c.m.visible=false;c.wait=Math.random()*1.8*(1-0.5*p);}}
+ const top=H*(0.45+0.25*p);
+ for(let i=0;i<FSPARK_COUNT;i++){fsVel[i*3]+=(Math.random()-0.5)*3*dt;fsVel[i*3+2]+=(Math.random()-0.5)*3*dt;
+  fsPos[i*3]+=fsVel[i*3]*dt;fsPos[i*3+1]+=fsVel[i*3+1]*dt;fsPos[i*3+2]+=fsVel[i*3+2]*dt;
+  if(fsPos[i*3+1]>top*(0.5+0.5*((i*0.618)%1)))spawnFootSpark(i,p);}
+ fsGeo.attributes.position.needsUpdate=true;}
+
+// 10. 阶段 II：背部火山口的黑烟（Sprite，不算粒子配额）
+// ===========================================================================
+const smokeTex = (() => {
+  const S = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const g = c.getContext('2d');
+  const R = rng(5);
+  for (let i = 0; i < 18; i++) {
+    const x = S / 2 + (R() - 0.5) * S * 0.4;
+    const y = S / 2 + (R() - 0.5) * S * 0.4;
+    const r = S * (0.15 + R() * 0.25);
+    const grd = g.createRadialGradient(x, y, 0, x, y, r);
+    grd.addColorStop(0, 'rgba(255,255,255,0.2)');
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, 0, S, S);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+})();
+
+const smoke = [];
+const SMOKE_PER_SOURCE = 12;
+{
+  const R = rng(13);
+  for (let i = 0; i < SMOKE_PER_SOURCE; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: smokeTex, color: 0x3a2a26, transparent: true, depthWrite: false, opacity: 0,
+    }));
+    s.visible = false;
+    scene.add(s);
+    smoke.push({
+      s,
+      age: (i / SMOKE_PER_SOURCE) * 5.0,
+      life: 5.0,
+      drift: new THREE.Vector3(
+        -0.5 + 1.0 * R(),
+        1.1 + R() * 0.8,
+        -0.7 - 0.5 * R(),
+      ).multiplyScalar(H / 14.5),
+    });
+  }
+}
+
+// ===========================================================================
+// 11. 热浪扭曲（全屏后处理：极轻的 UV 抖动，不引入外部依赖）
+//    用 ShaderPass 做，成本很低；?haze=0 可关闭，便于对比截图。
+// ===========================================================================
+const HeatHazeShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uTime: { value: 0 },
+    uAmount: { value: 0.0016 },
+    uAspect: { value: window.innerWidth / Math.max(1, window.innerHeight) },
+  },
+  vertexShader: /* glsl */`
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */`
+    uniform sampler2D tDiffuse;
+    uniform float uTime;
+    uniform float uAmount;
+    uniform float uAspect;
+    varying vec2 vUv;
+
+    void main() {
+      // 越靠画面下方（地面 / 熔岩）扭曲越强，越靠上方越干净
+      float low = smoothstep(0.72, 0.06, vUv.y);
+      float w1 = sin(vUv.y * 46.0 + uTime * 2.1) * cos(vUv.x * 31.0 - uTime * 1.3);
+      float w2 = sin(vUv.y * 88.0 - uTime * 3.4 + vUv.x * 12.0);
+      vec2 off = vec2(w1, w2 * 0.6) * uAmount * low;
+      off.x /= max(0.35, uAspect);
+      vec3 col = texture2D(tDiffuse, vUv + off).rgb;
+      gl_FragColor = vec4(col, 1.0);
+    }
+  `,
+};
+
+// ===========================================================================
+// 12. 后期：Bloom（阈值压低 + 强度抬高，让熔岩与火焰真的发光）
+// ===========================================================================
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  BLOOM_STRENGTH, // strength
+  0.45,           // radius：收紧光晕，只让熔岩缝发光，不糊掉岩板刻面
+  0.6,            // threshold：普通受光岩面不进泛光
+);
+composer.addPass(bloom);
+
+const hazePass = new ShaderPass(HeatHazeShader);
+hazePass.enabled = HEAT_HAZE;
+composer.addPass(hazePass);
+
+composer.addPass(new OutputPass());
+
+// ===========================================================================
+// 13. 双阶段：状态、材质过渡、meta 动画对象
+// ===========================================================================
+const PHASE2_SCALE = 1.05;   // 阶段 II 整体轻微放大
+const PHASE_DURATION = 1.2;  // 过渡时长（秒）
+
+let phaseTarget = START_PHASE2 ? 1 : 0;
+let phaseT = phaseTarget;
+
+/** 从 meta 里安全取对象 / 数组（契约里所有字段都可能为 null 或空数组） */
+function asObject(v) {
+  return v && typeof v === 'object' && typeof v.traverse === 'function' ? v : null;
+}
+function asObjectList(v) {
+  return Array.isArray(v) ? v.filter((o) => o && typeof o === 'object') : [];
+}
+
+const metaEyes = asObject(meta.eyes);
+const metaCrater = asObject(meta.crater);
+const metaCrest = asObjectList(meta.flameCrest);
+const metaLavaFalls = asObjectList(meta.lavaFalls);
+
+// 火山口备用名：契约说 name 可能是 'crater' 也可能是 'flueMouth'
+const craterNode = (() => {
+  if (metaCrater) return metaCrater;
+  let found = null;
+  root.traverse((o) => {
+    if (!found && (o.name === 'crater' || o.name === 'flueMouth')) found = o;
+  });
+  return found;
+})();
+
+// 阶段 II 网格里 name === 'slag' 的，做缓慢悬浮 + 自转
+const slag = [];
+for (const m of phase2Meshes) {
+  if (m.name === 'slag') {
+    slag.push({ m, base: m.position.clone(), rot: m.rotation.clone(), phase: slag.length * 1.7 });
+  }
+}
+
+// 记录阶段 I 的材质基准值，用于过渡插值（缺哪个材质就跳过哪个）
+const MAT_BASE = {};
+if (M.rock) MAT_BASE.rock = { emi: M.rock.emissive.clone(), i: M.rock.emissiveIntensity };
+if (M.char) MAT_BASE.char = { emi: M.char.emissive.clone(), i: M.char.emissiveIntensity };
+if (M.lava) MAT_BASE.lava = { emi: M.lava.emissive.clone(), i: M.lava.emissiveIntensity };
+if (M.lavaHot) MAT_BASE.lavaHot = { emi: M.lavaHot.emissive.clone(), i: M.lavaHot.emissiveIntensity };
+if (M.ember) MAT_BASE.ember = { emi: M.ember.emissive.clone(), i: M.ember.emissiveIntensity };
+if (M.core) MAT_BASE.core = { emi: M.core.emissive.clone(), i: M.core.emissiveIntensity };
+if (M.vent) MAT_BASE.vent = { emi: M.vent.emissive.clone(), i: M.vent.emissiveIntensity };
+
+const ROCK_EMI_HOT = new THREE.Color(0xff2a06);
+const CHAR_EMI_HOT = new THREE.Color(0xff3d10);
+
+const phaseBtn = document.getElementById('phaseBtn');
+const phaseState = document.getElementById('phaseState');
+const viewButtons = Array.from(document.querySelectorAll('[data-view]'));
+
+function setPhase(on) {
+  const target = on ? 1 : 0;
+  phaseTarget = target;
+  if (phaseBtn) {
+    phaseBtn.textContent = on ? '返回阶段 I · 岩甲形态' : '切换到阶段 II · 熔火形态';
+    phaseBtn.style.borderColor = on ? 'rgba(255,230,168,.55)' : '';
+    phaseBtn.style.color = on ? '#ffe6a8' : '';
+    phaseBtn.style.background = on ? 'rgba(255,230,168,.14)' : '';
+  }
+  if (phaseState) phaseState.textContent = on ? '当前：阶段 II · 熔火' : '当前：阶段 I · 岩甲';
+}
+
+// ===========================================================================
+// 14. 七机位（全部按实测高度 H / 宽度 W 推距离，不写死旧数值）
+//     约定：d 是"相机到模型中心的距离"，以模型高度 H 为单位；
+//     target 的 y 用 0~1 的比例表示"看多高"。
+// ===========================================================================
+// 每个机位只声明 4 个无量纲量，全部乘实测高度 H，因此换任何体型的模型都自动成立：
+//   azim  = 绕 Y 轴的方位角（度，0 = 正前方 +Z，90 = 模型右侧 +X）
+//   horiz = 相机到模型中心轴的水平距离 / H
+//   camY  = 相机高度 / H（0 = 地面；< look 即为仰视，> look 即为俯视）
+//   look  = 看向的高度 / H（0 = 脚底，1 = 头顶）
+//   fov   = 该机位专用焦距（特写收窄、贴地放大，进一步强化透视）
+//   exp   = 该机位的曝光倍率（可选）。近景机位离发光体太近，按默认曝光会被
+//           Bloom 冲成一片白，因此特写/俯视单独压一档。
+const VIEW_SPECS = {
+  // 3/4 前侧、稍仰视（默认）
+  hero: { azim: 30, horiz: 1.75, camY: 0.28, look: 0.52, fov: 42 },
+  // 正面略仰
+  front: { azim: 0, horiz: 1.58, camY: 0.30, look: 0.56, fov: 40 },
+  // 正侧剪影：模型前后仅约 6.8 m（全高的 0.45），按 hero 距离拍会显得很小。
+  // 取景余量：该距离下纵向可视高度 = 2·horiz·tan(fov/2) = 2·2.05H·tan18° ≈ 1.33H，
+  // 相对 H=1 的模型留出 33% 余量，牛角尖与脚爪都能完整入画。
+  side: { azim: 90, horiz: 1.95, camY: 0.46, look: 0.5, fov: 36, exp: 1.9 },
+  // 背面看火山口：站到背后略偏右，抬到肩线之上俯看背部
+  back: { azim: 168, horiz: 1.42, camY: 0.84, look: 0.58, fov: 40 },
+  // 头胸特写：镜头压到胸线高度、离得近，fov 收窄做压缩感
+  close: { azim: 24, horiz: 0.62, camY: 0.74, look: 0.84, fov: 34, exp: 0.55 },
+  // 贴地极限仰视：相机离地约 0.045H（15 m 体型下约 0.68 m），仰角约 42°
+  low: { azim: 18, horiz: 0.66, camY: 0.045, look: 0.64, fov: 55, exp: 0.88 },
+  // 俯视看肩背与火山口：相机升到 1.42H，俯角约 45°
+  top: { azim: 26, horiz: 1.0, camY: 1.42, look: 0.52, fov: 44, exp: 0.62 },
+};
+
+/** 应用机位：按实测包围盒自适应取景 */
+let currentViewExp = 1;
+function applyView(name) {
+  const spec = VIEW_SPECS[name] || VIEW_SPECS.hero;
+  const cx = Number.isFinite(center.x) ? center.x : 0;
+  const cz = Number.isFinite(center.z) ? center.z : 0;
+  const baseY = Number.isFinite(stage1Box.min.y) ? stage1Box.min.y : 0; // 脚底基准，正常为 0
+  // 阶段 II 会整体放大 5%，取景距离跟着放大，保证构图一致
+  const s = root && Number.isFinite(root.scale.y) ? root.scale.y : 1;
+  const Hv = H * s;
+
+  const targetY = baseY + THREE.MathUtils.clamp(spec.look, 0, 1.5) * Hv;
+  controls.target.set(cx, targetY, cz);
+
+  const az = THREE.MathUtils.degToRad(spec.azim);
+  const horiz = Math.max(0.2, spec.horiz) * Hv;
+  camera.position.set(
+    cx + Math.sin(az) * horiz,
+    // 相机永不钻到地面以下：地面固定 y=0，留 0.45 m 余量避免贴面裁切
+    Math.max(0.45, baseY + spec.camY * Hv),
+    cz + Math.cos(az) * horiz,
+  );
+
+  camera.fov = spec.fov;
+  camera.updateProjectionMatrix();
+  // 机位专属曝光：近景机位离熔岩太近，压一档避免过曝
+  currentViewExp = spec.exp ?? 1;
+  renderer.toneMappingExposure = EXPOSURE * currentViewExp;
+  controls.update();
+
+  // 高亮当前机位按钮
+  for (const b of viewButtons) b.classList.toggle('active', b.dataset.view === name);
+}
+
+// ===========================================================================
+// 15. 交互绑定
+// ===========================================================================
+setPhase(START_PHASE2);
+applyView(VIEW_SPECS[START_VIEW] ? START_VIEW : 'hero');
+
+if (phaseBtn) {
+  phaseBtn.title = '阶段 II：岩壳转炽、背部火山口喷焰、熔岩瀑布流动、矿渣浮空，整体放大 5%';
+  phaseBtn.addEventListener('click', () => setPhase(phaseTarget < 0.5));
+}
+
+const rotChk = document.getElementById('rotChk');
+if (rotChk) {
+  rotChk.checked = false;
+  rotChk.addEventListener('change', () => { controls.autoRotate = rotChk.checked; });
+}
+
+const weakChk = document.getElementById('weakChk');
+if (weakChk) {
+  weakChk.checked = weakGroup.visible;
+  weakChk.addEventListener('change', () => { weakGroup.visible = weakChk.checked; });
+}
+
+for (const btn of viewButtons) {
+  btn.addEventListener('click', () => applyView(btn.dataset.view));
+}
+
+const VIEW_KEYS = ['hero', 'front', 'side', 'back', 'close', 'low', 'top'];
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    setPhase(phaseTarget < 0.5);
+    return;
+  }
+  const n = Number.parseInt(e.key, 10);
+  if (n >= 1 && n <= VIEW_KEYS.length) applyView(VIEW_KEYS[n - 1]);
+});
+
+// ===========================================================================
+// 16. 动画循环
+// ===========================================================================
+const clock = new THREE.Clock();
+let firstFrame = true;
+const _headPos = new THREE.Vector3();
+const _chestPos = new THREE.Vector3();
+const _craterPos = new THREE.Vector3();
+const _tmp = new THREE.Vector3();
+
+/** 阶段过渡的缓动：1.2 s 内 easeInOutCubic 走完 */
+function stepPhase(dt) {
+  const speed = 1 / PHASE_DURATION;
+  if (phaseT < phaseTarget) phaseT = Math.min(phaseTarget, phaseT + dt * speed);
+  else if (phaseT > phaseTarget) phaseT = Math.max(phaseTarget, phaseT - dt * speed);
+  // easeInOutCubic：把线性进度 p 映射成缓动值
+  return phaseT < 0.5
+    ? 4 * phaseT * phaseT * phaseT
+    : 1 - Math.pow(-2 * phaseT + 2, 3) / 2;
+}
+
+// 渲染循环驱动：rAF 为主，另配一个"看门狗"兜底。
+// headless 截图时页面可见、rAF 正常；但若宿主把标签页判成后台、rAF 被节流到 1 Hz 甚至暂停，
+// 看门狗会补帧，保证 __SURTR__.ready 与画面状态不会卡在中间态。
+let rafPending = false;
+let lastFrameAt = 0;
+function scheduleFrame() {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => {
+    rafPending = false;
+    lastFrameAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    animate();
+  });
+}
+
+function animate() {
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  const p = stepPhase(dt);
+
+  // ---- 16.1 双阶段可见性与整体缩放 ----
+  for (const m of phase2Meshes) m.visible = phaseT > 0.02;
+  for (const m of phase1Meshes) m.visible = phaseT < 0.98;
+  const scale = 1 + (PHASE2_SCALE - 1) * p;
+  root.scale.setScalar(scale);
+
+  // ---- 16.2 材质向炽热过渡 ----
+  // 关键：阶段 II 的"炽热"要表现在**裂缝与熔岩**上，而不是把整块岩石点亮。
+  // 岩石自发光一旦超过 ~0.8，黑曜岩的明暗结构就全被冲平，模型会糊成一团橙色。
+  if (M.rock && MAT_BASE.rock) {
+    M.rock.emissive.lerpColors(MAT_BASE.rock.emi, ROCK_EMI_HOT, p * 0.35);
+    M.rock.emissiveIntensity = MAT_BASE.rock.i + 0.08 * p;
+  }
+  if (M.char && MAT_BASE.char) {
+    M.char.emissive.lerpColors(MAT_BASE.char.emi, CHAR_EMI_HOT, p * 0.6);
+    M.char.emissiveIntensity = MAT_BASE.char.i + 0.12 * p;
+  }
+  if (M.lava && MAT_BASE.lava) {
+    M.lava.emissiveIntensity = MAT_BASE.lava.i * (1 + 0.3 * p);
+  }
+  if (M.lavaHot && MAT_BASE.lavaHot) {
+    M.lavaHot.emissiveIntensity = MAT_BASE.lavaHot.i * (1 + 0.22 * p);
+  }
+  if (M.ember && MAT_BASE.ember) {
+    M.ember.emissiveIntensity = MAT_BASE.ember.i * (1 + 0.6 * p) * (1 + Math.sin(t * 2.1) * 0.08);
+  }
+
+  // ---- 16.3 环境与灯光的阶段变化 ----
+  underFire.intensity = 90 * (0.94 + Math.sin(t * 2.6) * 0.06) * (1 + 0.06 * p);
+  underFireBack.intensity = 55 * (0.92 + Math.sin(t * 2.1 + 1.3) * 0.08) * (1 + 0.12 * p);
+  halo.material.opacity = 0.86 + 0.1 * Math.sin(t * 1.9) + 0.1 * p;
+  halo.scale.setScalar(1 + 0.025 * Math.sin(t * 1.5) + 0.1 * p);
+  groundMat.emissiveIntensity = 0.9 + 0.3 * p + 0.1 * Math.sin(t * 1.6);
+  rimCold.intensity = 4.2 + 0.6 * p;
+  scene.fog.density = FOG_DENSITY * (1 + 0.1 * p);
+
+  // ---- 16.4 熔岩池 / 熔岩河：UV 滚动 + 自发光脉动 ----
+  for (const f of lavaFlows) {
+    f.tex.offset.x = (f.tex.offset.x + f.speed[0] * dt) % 1;
+    f.tex.offset.y = (f.tex.offset.y + f.speed[1] * dt) % 1;
+    const pulse = 0.9 + 0.1 * Math.sin(t * 1.7 + f.speed[0] * 40);
+    f.mat.color.copy(f.base).multiplyScalar(pulse * (1 + 0.12 * p));
+  }
+
+  // ---- 16.5 跟随骨骼的灯光 ----
+  if (rig.head) {
+    rig.head.getWorldPosition(_headPos);
+    headLight.position.copy(_headPos);
+    headLight.intensity = (8 + 4 * p) * (1 + Math.sin(t * 2.4 + 0.7) * 0.1);
+  }
+  if (rig.chest) {
+    rig.chest.getWorldPosition(_chestPos);
+    chestLight.position.copy(_chestPos);
+    chestLight.intensity = 52 * (0.92 + 0.08 * Math.sin(t * 2.2)) * (1 - 0.25 * p);
+  }
+  if (craterNode) {
+    craterNode.getWorldPosition(_craterPos);
+    craterLight.position.copy(_craterPos);
+    craterLight.intensity = 90 * p * (0.85 + 0.15 * Math.sin(t * 6.2));
+  }
+
+  // ---- 16.6 阶段 II：meta 动画（全部容错） ----
+  // 注意：模型里多个网格可能共用同一个材质，所以基准值必须按「材质」缓存，
+  // 不能按网格缓存，否则同一帧内会被反复乘算放大。
+  if (metaEyes) {
+    // 眼缝亮度脉动
+    const k = 1 + 0.22 * Math.sin(t * 3.1) + 0.1 * Math.sin(t * 7.7);
+    let applied = false;
+    metaEyes.traverse((o) => {
+      if (o.isMesh && o.material && typeof o.material.emissiveIntensity === 'number') {
+        o.material.emissiveIntensity = matBase(o.material) * k * (1 + 0.5 * p);
+        applied = true;
+      }
+    });
+    if (!applied) metaEyes.scale.setScalar(1 + 0.02 * Math.sin(t * 3.1));
+  }
+
+  if (craterNode) {
+    // 火山口喷焰 / 闪光：阶段 II 才亮，闪光用尖锐的三次方脉冲
+    const flare = Math.pow(Math.max(0, Math.sin(t * 4.3)), 3);
+    craterNode.traverse((o) => {
+      if (o.isMesh && o.material && typeof o.material.emissiveIntensity === 'number') {
+        o.material.emissiveIntensity = matBase(o.material) * (1 + 1.5 * p * (0.6 + 0.8 * flare));
+      }
+    });
+    if (craterNode.scale) craterNode.scale.setScalar(1 + 0.06 * p * flare);
+  }
+
+  // 火焰王冠：按 index 错相位轻微摇曳（记录初始旋转，避免累加漂移）
+  for (let i = 0; i < metaCrest.length; i++) {
+    const o = metaCrest[i];
+    const ph = i * 0.9;
+    if (!o.userData.__crestRot) {
+      o.userData.__crestRot = { x: o.rotation.x, z: o.rotation.z };
+    }
+    const cr = o.userData.__crestRot;
+    const amp = 0.4 + 0.6 * p;
+    o.rotation.z = cr.z + Math.sin(t * 2.2 + ph) * 0.06 * amp;
+    o.rotation.x = cr.x + Math.cos(t * 1.7 + ph * 1.3) * 0.045 * amp;
+    o.scale.setScalar(1 + Math.sin(t * 3.1 + ph) * 0.035 * p);
+  }
+
+  // 熔岩瀑布：自发光强度沿瀑布流动（按材质缓存基准，同样避免共用材质被反复乘）
+  for (let i = 0; i < metaLavaFalls.length; i++) {
+    const o = metaLavaFalls[i];
+    const flow = 0.75 + 0.25 * Math.sin(t * 2.6 - i * 0.8);
+    o.traverse((c) => {
+      if (c.isMesh && c.material && typeof c.material.emissiveIntensity === 'number') {
+        c.material.emissiveIntensity = matBase(c.material) * (1 + 0.5 * p) * flow;
+      }
+    });
+  }
+
+  // 矿渣（name === 'slag' 的阶段 II 网格）：缓慢悬浮与自转
+  for (const s of slag) {
+    if (!s.m.visible) continue;
+    s.m.position.y = s.base.y + Math.sin(t * 0.85 + s.phase) * 0.35 * p;
+    s.m.rotation.set(s.rot.x + t * 0.28, s.rot.y + t * 0.4, s.rot.z + Math.sin(t * 0.6 + s.phase) * 0.1);
+  }
+
+  // ---- 16.7 待机呼吸（幅度按体型缩放，肩部用基准值 + 正弦，避免逐帧累加漂移） ----
+  const k = H / 14.5;
+  if (rig.rig) {
+    rig.rig.position.y = Math.sin(t * 0.8) * 0.06 * k;
+    rig.rig.rotation.z = Math.sin(t * 0.47) * 0.006;
+  }
+  if (rig.head) {
+    if (rig.head.userData.__baseRx === undefined) rig.head.userData.__baseRx = rig.head.rotation.x;
+    rig.head.rotation.x = rig.head.userData.__baseRx + Math.sin(t * 0.9) * 0.02;
+  }
+  if (rig.shoulderL) {
+    if (rig.shoulderL.userData.__baseRz === undefined) rig.shoulderL.userData.__baseRz = rig.shoulderL.rotation.z;
+    rig.shoulderL.rotation.z = rig.shoulderL.userData.__baseRz + Math.sin(t * 0.8 + 0.4) * 0.022;
+  }
+  if (rig.shoulderR) {
+    if (rig.shoulderR.userData.__baseRz === undefined) rig.shoulderR.userData.__baseRz = rig.shoulderR.rotation.z;
+    rig.shoulderR.rotation.z = rig.shoulderR.userData.__baseRz - Math.sin(t * 0.8 + 0.4) * 0.022;
+  }
+
+  // ---- 16.8 粒子 ----
+  // 余烬上升
+  {
+    const arr = emberGeo.attributes.position.array;
+    for (let i = 0; i < EMBER_COUNT; i++) {
+      arr[i * 3 + 1] += emberSpeed[i] * dt * (1 + 0.6 * p);
+      emberAng[i] += dt * 0.22;
+      arr[i * 3] = Math.cos(emberAng[i]) * emberRad[i];
+      arr[i * 3 + 2] = Math.sin(emberAng[i]) * emberRad[i];
+      if (arr[i * 3 + 1] > emberTop) arr[i * 3 + 1] = 0;
+    }
+    emberGeo.attributes.position.needsUpdate = true;
+  }
+  // 火山灰飘移
+  {
+    const arr = ashGeo.attributes.position.array;
+    for (let i = 0; i < ASH_COUNT; i++) {
+      arr[i * 3] += ashVel[i * 3] * dt;
+      arr[i * 3 + 1] += ashVel[i * 3 + 1] * dt;
+      arr[i * 3 + 2] += ashVel[i * 3 + 2] * dt;
+      if (arr[i * 3 + 1] > H * 2.4) arr[i * 3 + 1] = 0;
+      if (arr[i * 3] > 52) arr[i * 3] = -52;
+      if (arr[i * 3] < -52) arr[i * 3] = 52;
+      if (arr[i * 3 + 2] > 52) arr[i * 3 + 2] = -52;
+      if (arr[i * 3 + 2] < -52) arr[i * 3 + 2] = 52;
+    }
+    ashGeo.attributes.position.needsUpdate = true;
+  }
+  // 地面火星
+  {
+    const arr = sparkGeo.attributes.position.array;
+    for (let i = 0; i < SPARK_COUNT; i++) {
+      arr[i * 3] += sparkVel[i * 3] * dt;
+      arr[i * 3 + 1] += sparkVel[i * 3 + 1] * dt;
+      arr[i * 3 + 2] += sparkVel[i * 3 + 2] * dt;
+      if (arr[i * 3 + 1] > 5.5) {
+        const a = Math.random() * Math.PI * 2;
+        const d = 6 + Math.random() * 34;
+        arr[i * 3] = Math.cos(a) * d;
+        arr[i * 3 + 1] = 0.2;
+        arr[i * 3 + 2] = Math.sin(a) * d;
+      }
+    }
+    sparkGeo.attributes.position.needsUpdate = true;
+  }
+
+  updateFootFX(dt, t, p);
+
+  // ---- 16.9 背部火山口黑烟（阶段 II） ----
+  if (craterNode && smoke.length) {
+    root.updateMatrixWorld();
+    craterNode.getWorldPosition(_craterPos);
+    for (const s of smoke) {
+      s.age = (s.age + dt) % s.life;
+      const kk = s.age / s.life;
+      s.s.visible = p > 0.15;
+      if (!s.s.visible) continue;
+      _tmp.copy(_craterPos).addScaledVector(s.drift, s.age);
+      s.s.position.copy(_tmp);
+      s.s.scale.setScalar((0.8 + kk * 5.0) * (H / 14.5));
+      s.s.material.opacity = Math.sin(Math.PI * Math.min(1, kk * 1.35)) * (0.42 - 0.2 * kk) * p;
+      s.s.material.rotation = kk * 1.6;
+    }
+  }
+
+  // ---- 16.10 热浪扭曲时间 ----
+  hazePass.uniforms.uTime.value = t;
+
+  controls.update();
+  composer.render();
+
+  if (firstFrame) {
+    firstFrame = false;
+    const loading = document.getElementById('loading');
+    if (loading) loading.classList.add('hide');
+    updateStats();
+    // 首帧渲染完成 → 截图工具可以开始抓图
+    if (window.__SURTR__) window.__SURTR__.ready = true;
+  }
+
+  scheduleFrame(); // 排下一帧
+}
+
+// 看门狗：rAF 被宿主节流/暂停时补帧（间隔 250 ms，正常 rAF 下不会触发）
+setInterval(() => {
+  const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  if (!rafPending && now - lastFrameAt > 250) animate();
+}, 250);
+
+// ===========================================================================
+// 17. HUD 统计
+// ===========================================================================
+function updateStats() {
+  const el = document.getElementById('stats');
+  if (!el) return;
+  const f = (n) => (Number.isFinite(n) ? n.toFixed(2) : '—');
+  el.innerHTML =
+    `<span>${measured.meshes}</span> 个网格（实体 ${solid.length} / 发光 ${glow.length}，阶段 II 专属 ${phase2Meshes.length}）<br>` +
+    `<span>${measured.tris}</span> 三角面 · 凿面 flatShading<br>` +
+    `阶段 I 包围盒 x ${f(stage1Box.min.x)}～${f(stage1Box.max.x)} · y ${f(stage1Box.min.y)}～${f(stage1Box.max.y)} · z ${f(stage1Box.min.z)}～${f(stage1Box.max.z)}<br>` +
+    `实测全高 <span>${f(H)}</span> m · x 跨度 <span>${f(W)}</span> m · 弱点 <span>${weakPoints.length}</span> 个`;
+}
+
+// ===========================================================================
+// 18. 自适应
+// ===========================================================================
+window.addEventListener('resize', () => {
+  const w = window.innerWidth;
+  const h = Math.max(1, window.innerHeight);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+  bloom.setSize(w, h);
+  hazePass.uniforms.uAspect.value = w / h;
+});
+
+// ===========================================================================
+// 19. 调试句柄（截图工具依赖）
+// ===========================================================================
+window.__SURTR__ = {
+  build,
+  camera,
+  renderer,
+  scene,
+  setPhase,
+  applyView,
+  ready: false,
+  // 额外便利字段（不影响契约，截图脚本可选用）
+  get phase() { return phaseT; },
+  get height() { return H; },
+  get width() { return W; },
+  get box() { return stage1Box; },
+  THREE,
+};
+
+// 首帧开始渲染（之后由 scheduleFrame / 看门狗自行续帧）
+animate();
+</script>
+
+<script>
+// 若 CDN 加载失败，给出可读提示
+setTimeout(function () {
+  var el = document.getElementById('loading');
+  if (el && !el.classList.contains('hide')) {
+    var err = document.getElementById('loadErr');
+    if (err) {
+      err.textContent = '模型模块仍在加载。本页需要联网从 jsDelivr 获取 three.js（r170）；若长时间无画面，请检查网络后刷新。';
+    }
+  }
+}, 10000);
+</script>
+</body>
+</html>
