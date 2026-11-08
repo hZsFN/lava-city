@@ -6,16 +6,28 @@
       "name": "岩甲形态",
       "hp": 1400,
       "height": 9,
-      "resist": { "physical": 0.7, "arcane": 0 },
-      "weakness": { "part": "core", "attr": "arcane" }
+      "resist": {
+        "physical": 0,
+        "arcane": 0.7
+      },
+      "weakness": {
+        "part": "core",
+        "attr": "physical"
+      }
     },
     {
       "phase": 2,
       "name": "熔火形态",
       "hp": 1400,
       "height": 11,
-      "resist": { "physical": 0, "arcane": 0.7 },
-      "weakness": { "part": "back", "attr": "physical" }
+      "resist": {
+        "physical": 0.7,
+        "arcane": 0
+      },
+      "weakness": {
+        "part": "back",
+        "attr": "arcane"
+      }
     }
   ],
   "execution": {
@@ -28,13 +40,14 @@
   "phaseTransitionSec": 15,
   "rageStartSec": 245,
   "matchLengthSec": 270,
-
   "seed": 8701,
-
   "brain": {
     "evalIntervalMs": 500,
     "leapMinDistance": 14,
-    "closeRange": [3, 12],
+    "closeRange": [
+      3,
+      12
+    ],
     "coreNear": 8,
     "nearPlayer": 6,
     "idleTurnDegPerSec": 70,
@@ -61,7 +74,6 @@
       "selfIgnite"
     ]
   },
-
   "skills": {
     "rockSweep": {
       "windupMs": 900,
@@ -153,16 +165,18 @@
       "damage": 60,
       "radiusM": 10,
       "freezeStunMs": 2500,
-      "clearDebuffs": ["sunder", "scorch"]
+      "clearDebuffs": [
+        "sunder",
+        "scorch"
+      ]
     }
   },
-
   "weakness": {
     "parts": {
-      "core": "arcane",
-      "back": "physical",
-      "kneeL": "physical",
-      "kneeR": "physical"
+      "core": "physical",
+      "back": "arcane",
+      "kneeL": "arcane",
+      "kneeR": "arcane"
     },
     "triggerMs": {
       "interrupt": 5000,
@@ -176,7 +190,6 @@
       "scorch": "arcane"
     }
   },
-
   "director": {
     "noWeaknessWindowMs": 25000,
     "guaranteeWindowMs": 30000,
@@ -188,15 +201,20 @@
       "2": "fireRain"
     },
     "weaknessSkills": {
-      "1": ["leapSlam", "rockSweep", "coreDrain"],
-      "2": ["lavaCharge", "magmaBreath"]
+      "1": [
+        "leapSlam",
+        "rockSweep",
+        "coreDrain"
+      ],
+      "2": [
+        "lavaCharge",
+        "magmaBreath"
+      ]
     }
   },
-
   "rage": {
     "cooldownScale": 0.6
   },
-
   "transition": {
     "shardCount": 48,
     "shardMs": 700,
@@ -208,20 +226,25 @@
     "shardLifetimeMs": 2200,
     "swapAtMs": 1900
   },
-
   "arena": {
     "boundaryRadiusM": 19,
     "towerRadiusM": 7,
-    "spawn": [0, 0, 12],
-    "corePos": [0, 0, 0],
+    "spawn": [
+      0,
+      0,
+      12
+    ],
+    "corePos": [
+      0,
+      0,
+      0
+    ],
     "tauntAnchorM": 12
   },
-
   "debug": {
     "damageTestHp": 300,
     "tauntDurationMs": 600000
   },
-
   "visual": {
     "shellOpenMs": 250,
     "shellOpenDeg": 70,

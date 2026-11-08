@@ -34,10 +34,10 @@ const WEAKNESS_R: Record<BodyPart, number> = {
 };
 
 const WEAKNESS_ATTR: Record<BodyPart, Attr> = {
-  core: 'arcane',
-  back: 'physical',
-  kneeL: 'physical',
-  kneeR: 'physical',
+  core: 'physical',
+  back: 'arcane',
+  kneeL: 'arcane',
+  kneeR: 'arcane',
 };
 
 type SkillId = 'rockSweep' | 'leapSlam' | 'coreDrain' | 'stonePillars' | 'magmaBreath' | 'lavaCharge';
@@ -215,9 +215,11 @@ export class IgnisBoss {
 
     const isWeak = this.weakness !== null && hitPart === this.weakness;
     const factor = isWeak && WEAKNESS_ATTR[hitPart as BodyPart] === attr ? 2.5 : isWeak ? 1.2 : 1.0;
+    // 阶段 I：物理抗性 0、法术抗性 70%（用物理形态打）
+    // 阶段 II：法术抗性 0、物理抗性 70%（切法术形态打）
     const resist = this.phase === 1
-      ? (attr === 'physical' ? 0.70 : 0.0)
-      : (attr === 'arcane' ? 0.70 : 0.0);
+      ? (attr === 'arcane' ? 0.70 : 0.0)
+      : (attr === 'physical' ? 0.70 : 0.0);
     const dealt = Math.max(1, Math.round(amount * factor * (1 - resist)));
 
     this.hp = Math.max(0, this.hp - dealt);
