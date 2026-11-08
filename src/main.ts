@@ -745,6 +745,23 @@ async function boot(): Promise<void> {
   refreshBuildPanel();
   document.body.appendChild(buildPanel);
 
+  // 跳过开场剧情 → Boss 立刻登场
+  const skipBtn = document.createElement('button');
+  skipBtn.textContent = '跳过开场 ▶ 直接开打';
+  Object.assign(skipBtn.style, {
+    position: 'fixed', right: '18px', top: '62px', zIndex: '30',
+    padding: '10px 16px', borderRadius: '8px', cursor: 'pointer',
+    border: '1px solid #ffb27a', background: 'rgba(40,16,8,0.88)',
+    color: '#ffd0a0', font: '600 14px/1 system-ui, sans-serif',
+  });
+  const doSkip = (): void => {
+    game.timeline.jumpToBoss1();
+    skipBtn.remove();
+    overlay.setMessage('开场跳过 · 伊格纳斯正在上来');
+  };
+  skipBtn.addEventListener('click', doSkip);
+  document.body.appendChild(skipBtn);
+
   // 俯视时鼠标点击塔位 → 建塔；已被占用的塔位则以"最新点下去的那种塔"为准换塔
   // （旧塔按 sellRefundRatio 折价返还；同种塔不动，免得白吃一次折价）
   app.canvas.addEventListener('mousedown', (event) => {
@@ -796,6 +813,17 @@ async function boot(): Promise<void> {
 
     // 1-5：在最近的一个 open 塔位上建对应塔
     // Tab：切换俯视战术视角（选点建塔）
+    if (event.code === 'Space') {
+      const ph = game.snapshot().phase;
+      if (ph === 'wake' || ph === 'tutorial' || ph === 'prep') {
+        event.preventDefault();
+        game.timeline.jumpToBoss1();
+        skipBtn.remove();
+        overlay.setMessage('开场跳过 · 伊格纳斯正在上来');
+        return;
+      }
+    }
+
     if (event.code === 'KeyB') {
       event.preventDefault();
       setTacticalMode(!view.isTactical());

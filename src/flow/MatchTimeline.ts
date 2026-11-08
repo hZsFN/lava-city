@@ -281,6 +281,19 @@ export function createMatchTimeline(): MatchTimeline {
     updateLava();
   }
 
+  /** 跳过开场：直接把时间推到 boss1 起点，Boss 立刻登场 */
+  function jumpToBoss1(): void {
+    if (ended || !flowCfg || mode !== 'script') return;
+    const cur = currentPhase();
+    if (cur === 'boss1' || cur === 'transition' || cur === 'boss2' || cur === 'rage') return;
+    const idx = phases.findIndex((p) => p.phase === 'boss1');
+    if (idx < 0) return;
+    t = phases[idx]!.startSec;
+    phaseIdx = idx;
+    emitPhase('boss1', t);
+    updateLava();
+  }
+
   function notifyBossDefeated(): void {
     if (ended || !flowCfg || mode !== 'script') return;
     const p = currentPhase();
@@ -319,6 +332,7 @@ export function createMatchTimeline(): MatchTimeline {
     lavaY: lavaHeight,
     notifyBossDefeated,
     jumpToTransition,
+    jumpToBoss1,
     notifyCoreDestroyed,
     notifyPlayerOutOfLives,
     applyCoreDamage,

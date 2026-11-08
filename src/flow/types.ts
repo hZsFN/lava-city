@@ -228,6 +228,8 @@ export interface MatchTimeline {
   applyCoreDamage(amount: number): void;
   /** 阶段 I 血量打空 → 跳到 transition */
   jumpToTransition(): void;
+  /** 跳过开场：直接推进到 boss1，Boss 立刻登场 */
+  jumpToBoss1(): void;
 }
 
 /** 遥测记录：每局一份 JSON */
