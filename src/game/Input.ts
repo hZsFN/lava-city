@@ -48,6 +48,15 @@ export interface InputHandle extends InputSource {
 }
 
 export function createInput(canvas: HTMLCanvasElement): InputHandle {
+  // HMR 保护：改代码时模块会被重新执行，若不先解绑，每热更新一次就多绑
+  // 一套 window 监听，鼠标位移被重复累加进 yaw —— 表现就是视角越转越快、
+  // 忽然跳向别的方向。这里保证全局只有一个活着的 Input。
+  const g = window as unknown as { __lavaInput?: { dispose(): void } };
+  if (g.__lavaInput) {
+    try { g.__lavaInput.dispose(); } catch { /* 旧实例已失效，忽略 */ }
+    g.__lavaInput = undefined;
+  }
+
   const pressed = new Set<string>();
   let yaw = 0;
   let pitch = 0;
@@ -130,7 +139,7 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   window.addEventListener('blur', onBlur);
   document.addEventListener('pointerlockchange', onPointerLockChange);
 
-  return {
+  const handle: InputHandle = {
     look(): { yaw: number; pitch: number } {
       return { yaw, pitch };
     },
@@ -178,4 +187,7 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
       if (document.pointerLockElement === canvas) document.exitPointerLock();
     },
   };
+
+  g.__lavaInput = handle;
+  return handle;
 }
