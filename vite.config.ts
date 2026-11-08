@@ -27,7 +27,14 @@ function restorePlatformScript(): Plugin {
       handler(html) {
         if (html.includes('shared/save-protocol.js')) return html;
         const tag = '<script src="./shared/save-protocol.js"></script>';
-        // 插到 </head> 前，保证 WL 在任何业务脚本之前可用
+
+        // 关键：必须插在业务 module 脚本【之前】。
+        // Vite 会把 module 脚本插到 </head> 前，所以直接插 </head> 前会排到它后面。
+        // 这里改为插到第一个 <script type="module" 之前；找不到就退回 </head> 前。
+        const moduleIdx = html.search(/<script\s+type="module"/i);
+        if (moduleIdx >= 0) {
+          return html.slice(0, moduleIdx) + `  ${tag}\n  ` + html.slice(moduleIdx);
+        }
         return html.replace('</head>', `  ${tag}\n</head>`);
       },
     },

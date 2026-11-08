@@ -1,0 +1,222 @@
+// src/game/GameLoop.ts
+// ============================================================================
+// 整合层 · 由 S0 维护
+// ----------------------------------------------------------------------------
+// 职责：把三路交付物串成一局能跑的游戏。只做接线，不实现任何玩法规则。
+//
+//   事件总线 createBus()               ← src/core/events.ts
+//   时间轴   createMatchTimeline()      ← B3
+//   塔系统   createTowerSystem()        ← B1 + B2
+//   玩家     new PlayerController(...)  ← P2-A
+//
+// 固定步长：逻辑 60 Hz（1/60 s），渲染按 rAF 自然频率。
+// 设计文档 §12.2：「固定步长逻辑与渲染解耦」。
+// ============================================================================
+
+import { createBus } from '../core/events';
+import type { Bus, MatchPhase, Snapshot, Vec3 } from '../core/events';
+import { createRng } from '../core/rng';
+import { createMatchTimeline } from '../flow/MatchTimeline';
+import type { FlowConfig, MatchTimeline } from '../flow/types';
+import { createTowerSystem } from '../towers/TowerSystem';
+import type { ArenaConfig, TowerKind, TowerSystem, TowersConfig } from '../towers/types';
+import { PlayerController } from '../player/PlayerController';
+import type { PlayerConfig, PlayerInput, PlayerWorld } from '../player/PlayerController';
+
+import flowCfgJson from '../core/config/flow.json';
+import towersCfgJson from '../core/config/towers.json';
+import arenaCfgJson from '../core/config/arena.json';
+import playerCfgJson from '../core/config/player.json';
+
+/** 逻辑固定步长：60 Hz */
+export const LOGIC_DT = 1 / 60;
+
+/** 单帧最多补多少逻辑步（防止后台切回来一次性补几千步导致卡死） */
+const MAX_STEPS_PER_FRAME = 5;
+
+const flowCfg = flowCfgJson as unknown as FlowConfig;
+const towersCfg = towersCfgJson as unknown as TowersConfig;
+const arenaCfg = arenaCfgJson as unknown as ArenaConfig;
+
+/**
+ * 把嵌套的 player.json 拍平成 P2-A 的 PlayerController 需要的 PlayerConfig。
+ * 两边字段名不同（P2-A 用扁平键，config 用分组），这里做一次映射，
+ * 不动 config 结构也不改 P2-A 代码。
+ */
+function toPlayerConfig(raw: unknown): PlayerConfig {
+  const c = raw as {
+    physics?: { gravity?: number; snapToGround?: number };
+    movement?: {
+      moveSpeed?: number; sprintSpeed?: number; dashIFramesSec?: number;
+      dashCooldownSec?: number; jumpHeight?: number; radius?: number; height?: number;
+    };
+    hp?: { maxHp?: number; regenDelaySec?: number; regenPerSec?: number };
+    // 兼容旧扁平字段
+    moveSpeed?: number; dashSpeed?: number; dashInvulnerableSec?: number;
+    jumpHeight?: number; regenDelaySec?: number; maxHp?: number; eyeHeight?: number;
+  };
+  return {
+    gravity: c.physics?.gravity ?? -14,
+    snapToGround: c.physics?.snapToGround ?? 0.45,
+    maxHp: c.hp?.maxHp ?? c.maxHp ?? 100,
+    moveSpeed: c.movement?.moveSpeed ?? c.moveSpeed ?? 6.5,
+    dashSpeed: c.movement?.sprintSpeed ?? c.dashSpeed ?? 11,
+    dashInvulnerableSec: c.movement?.dashIFramesSec ?? c.dashInvulnerableSec ?? 0.25,
+    dashCooldownSec: c.movement?.dashCooldownSec ?? 0.8,
+    jumpHeight: c.movement?.jumpHeight ?? c.jumpHeight ?? 1.2,
+    radius: c.movement?.radius ?? 0.35,
+    height: c.movement?.height ?? 1.8,
+    regenDelaySec: c.hp?.regenDelaySec ?? c.regenDelaySec ?? 4,
+    regenPerSec: c.hp?.regenPerSec ?? 12,
+  } as PlayerConfig;
+}
+
+/** 玩家活动世界：塔顶平台（用 arena.json 的尺寸算一个圆形平台的 AABB 包围） */
+function buildPlayerWorld(): PlayerWorld {
+  const ring = arenaCfg.rings.outerRadius;
+  return {
+    colliders: [
+      // 塔顶主平台：一个方形包围盒，玩家站在上面
+      { minX: -ring, maxX: ring, minY: -2, maxY: 0, minZ: -ring, maxZ: ring },
+    ],
+    lavaY: arenaCfg.lava.startY,
+  };
+}
+
+/** 输入源：由 main.ts 提供（键盘/鼠标），或由测试提供（脚本化） */
+export interface InputSource {
+  sample(): PlayerInput;
+}
+
+export interface Game {
+  readonly bus: Bus;
+  readonly timeline: MatchTimeline;
+  readonly towers: TowerSystem;
+  readonly player: PlayerController;
+  /** 固定步长推进；返回实际推进的逻辑步数 */
+  tick(dtSec: number): number;
+  snapshot(): Snapshot;
+  playerPos(): Vec3;
+  playerYaw(): number;
+  isOver(): boolean;
+  seed(): number;
+  /** 调试用：手动建塔 */
+  placeTower(slotId: string, kind: TowerKind): boolean;
+  /** 调试用：设置熔核数 */
+  setMotes(n: number): void;
+}
+
+export interface GameDeps {
+  input: InputSource;
+  /** 可选：覆盖种子（便于复现） */
+  seed?: number;
+}
+
+export function createGame(deps: GameDeps): Game {
+  const seed = deps.seed ?? 0x1a7e4b;
+  const bus = createBus();
+  const rng = createRng(seed);
+
+  // ── B3：时间轴（init 内部会立刻发首个阶段事件）─────────────────────────
+  const timeline = createMatchTimeline();
+  timeline.init({ bus, flowCfg, arenaCfg });
+
+  // ── B1+B2：塔系统（自动订阅 MatchPhaseChanged / LavaLevelChanged）──────
+  const towers = createTowerSystem();
+  towers.init({ bus, rng, towersCfg, arenaCfg });
+
+  // 补发初始塔位状态：B1 在 init 时创建了 11 个 socket，但只在实际变化时
+  // 才发 TowerSlotStateChanged，导致快照的 towerSlots 初值为空（UI/调试取不到）。
+  // 这是整合层的接线职责：把「已存在的初始状态」投影进只读快照。
+  for (const slot of towers.slots()) {
+    bus.emit('TowerSlotStateChanged', { slotId: slot.slotId, state: slot.state });
+  }
+
+  // ── P2-A：玩家 ────────────────────────────────────────────────────────────
+  const player = new PlayerController({
+    bus,
+    config: toPlayerConfig(playerCfgJson),
+    world: buildPlayerWorld(),
+    spawn: [0, 0, 12],
+  });
+
+  // ── 开局熔核 ──────────────────────────────────────────────────────────────
+  // 边界说明：B1 的 place()/upgrade() 接受「当前余额」参数并由它内部记账；
+  // 但开局余额归 config（flow.json 的 motes.start）。整合层持有权威余额，
+  // 订阅 MoteCountChanged 保持同步。这是「谁拥有资源」的明确划分。
+  let motesBalance = flowCfg.motes.start;
+  bus.on('MoteCountChanged', (p) => { motesBalance = p.motes; });
+
+  let accumulator = 0;
+  let over = false;
+  bus.on('MatchEnded', () => { over = true; });
+
+  /** wake / prep / ended 阶段塔不开火 */
+  function canFireNow(phase: MatchPhase): boolean {
+    return phase === 'boss1' || phase === 'transition' || phase === 'boss2' || phase === 'rage';
+  }
+
+  function stepOnce(input: PlayerInput): void {
+    // 1. 玩家（先决定位置，供塔做距离判定）
+    player.update(LOGIC_DT, input);
+
+    // 2. 时间轴（可能切阶段 → 触发 MatchPhaseChanged / LavaLevelChanged）
+    timeline.update(LOGIC_DT);
+
+    // 3. 塔（Boss 未接入前，用塔心原点当占位目标，保证射程/冷却链路可跑）
+    const snap = bus.snapshot();
+    towers.update(LOGIC_DT, {
+      dtSec: LOGIC_DT,
+      canFire: canFireNow(timeline.phase()),
+      boss: {
+        pos: [0, 0, 0],
+        weakness: snap.boss.weakness,
+        weaknessAttr: snap.boss.weakness ? 'arcane' : null,
+        castingSkill: snap.boss.skill,
+        taunted: false,
+      },
+      playerPos: player.pos,
+      corePos: [0, 0, 0],
+    });
+  }
+
+  return {
+    bus,
+    timeline,
+    towers,
+    player,
+
+    tick(dtSec: number): number {
+      if (over) return 0;
+      accumulator += Math.min(dtSec, 0.25);
+      const input = deps.input.sample();
+      let steps = 0;
+
+      while (accumulator >= LOGIC_DT && steps < MAX_STEPS_PER_FRAME) {
+        stepOnce(input);
+        accumulator -= LOGIC_DT;
+        steps += 1;
+      }
+
+      // 补步上限触发时丢弃积压，避免雪崩
+      if (steps >= MAX_STEPS_PER_FRAME) accumulator = 0;
+      return steps;
+    },
+
+    snapshot: () => bus.snapshot(),
+    playerPos: () => player.pos,
+    // yaw 在 P2-A 里是 private，从只读快照取（快照是唯一对外通道）
+    playerYaw: () => bus.snapshot().player.yaw,
+    isOver: () => over,
+    seed: () => seed,
+    placeTower: (slotId, kind) => {
+      const ok = towers.place(slotId, kind, motesBalance);
+      if (ok) motesBalance = towers.motes();
+      return ok;
+    },
+    setMotes: (n) => {
+      motesBalance = n;
+      bus.emit('MoteCountChanged', { motes: n });
+    },
+  };
+}

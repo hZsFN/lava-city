@@ -12,10 +12,22 @@ export type BackendName = 'WebGPU' | 'WebGL2';
 export class App {
   backendName: BackendName = 'WebGPU';
   onFrame: ((fps: number) => void) | null = null;
+  /** 每渲染帧回调，参数是真实 dt（秒）。整合层在这里驱动逻辑。 */
+  onTick: ((dtSec: number) => void) | null = null;
+  /** 每帧结束后回调，用于把逻辑状态同步到渲染对象 */
+  onSync: (() => void) | null = null;
+
+  /** 供整合层使用的只读句柄 */
+  get scene(): THREE.Scene { return this.sceneRef; }
+  get camera(): THREE.PerspectiveCamera { return this.cameraRef; }
+  get canvas(): HTMLCanvasElement {
+    if (!this.renderer) throw new Error('渲染器尚未初始化');
+    return this.renderer.domElement;
+  }
 
   private readonly host: HTMLElement;
-  private readonly scene = new THREE.Scene();
-  private readonly camera: THREE.PerspectiveCamera;
+  private readonly sceneRef = new THREE.Scene();
+  private readonly cameraRef: THREE.PerspectiveCamera;
   private readonly flowTime = uniform(0);
   private renderer: THREE.WebGPURenderer | null = null;
   private lastFrameTime = 0;
@@ -25,9 +37,9 @@ export class App {
 
   constructor(host: HTMLElement) {
     this.host = host;
-    this.camera = new THREE.PerspectiveCamera(visual.camera.fov, 1, 0.1, 400);
-    this.camera.position.set(...(visual.camera.position as [number, number, number]));
-    this.camera.lookAt(...(visual.camera.target as [number, number, number]));
+    this.cameraRef = new THREE.PerspectiveCamera(visual.camera.fov, 1, 0.1, 400);
+    this.cameraRef.position.set(...(visual.camera.position as [number, number, number]));
+    this.cameraRef.lookAt(...(visual.camera.target as [number, number, number]));
   }
 
   async init(): Promise<void> {
@@ -62,8 +74,8 @@ export class App {
   }
 
   private buildScene(): void {
-    this.scene.background = new THREE.Color(visual.scene.background);
-    this.scene.fog = new THREE.FogExp2(visual.scene.fog, visual.scene.fogDensity);
+    this.sceneRef.background = new THREE.Color(visual.scene.background);
+    this.sceneRef.fog = new THREE.FogExp2(visual.scene.fog, visual.scene.fogDensity);
 
     const ground = new THREE.Mesh(
       new THREE.BoxGeometry(40, 1.4, 40),
@@ -74,7 +86,7 @@ export class App {
       }),
     );
     ground.position.y = -0.7;
-    this.scene.add(ground);
+    this.sceneRef.add(ground);
 
     const lavaTexture = createLavaTexture();
     const baseUv = uv().mul(6);
@@ -94,26 +106,26 @@ export class App {
     const lava = new THREE.Mesh(new THREE.PlaneGeometry(visual.lava.size, visual.lava.size), lavaMaterial);
     lava.rotation.x = -Math.PI / 2;
     lava.position.y = visual.lava.y;
-    this.scene.add(lava);
+    this.sceneRef.add(lava);
 
     // 冷暖对比：暖色主光 + 熔岩点光，补一盏冷色轮廓光
-    this.scene.add(new THREE.HemisphereLight(0x6a7fa8, 0x2a0a04, 0.9));
+    this.sceneRef.add(new THREE.HemisphereLight(0x6a7fa8, 0x2a0a04, 0.9));
     const key = new THREE.DirectionalLight(0xffd7b8, 2.4);
     key.position.set(14, 20, 10);
-    this.scene.add(key);
+    this.sceneRef.add(key);
     const rim = new THREE.DirectionalLight(0x4b7fff, 0.7);
     rim.position.set(-12, 8, -16);
-    this.scene.add(rim);
+    this.sceneRef.add(rim);
     const lavaLight = new THREE.PointLight(0xff5a12, 420, 120, 2);
     lavaLight.position.set(0, 1.6, 0);
-    this.scene.add(lavaLight);
+    this.sceneRef.add(lavaLight);
   }
 
   private readonly handleResize = (): void => {
     const width = this.host.clientWidth || window.innerWidth;
     const height = this.host.clientHeight || window.innerHeight;
-    this.camera.aspect = width / Math.max(1, height);
-    this.camera.updateProjectionMatrix();
+    this.cameraRef.aspect = width / Math.max(1, height);
+    this.cameraRef.updateProjectionMatrix();
     this.renderer?.setSize(width, height, false);
   };
 
@@ -125,6 +137,13 @@ export class App {
     const dt = this.lastFrameTime === 0 ? 0 : Math.min((time - this.lastFrameTime) / 1000, 0.1);
     this.lastFrameTime = time;
     this.flowTime.value += dt * visual.lava.flowSpeed;
+
+    // 逻辑推进（固定步长在整合层内部处理，这里只给真实 dt）
+    this.onTick?.(dt);
+
+    // 逻辑 → 渲染同步
+    this.onSync?.();
+
     renderer.render(this.scene, this.camera);
 
     this.frames += 1;
