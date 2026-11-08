@@ -147,6 +147,7 @@ export class Hud {
     moteLabel.style.cssText =
       'font-size:10px;letter-spacing:0.28em;color:rgba(239,231,218,0.42);margin-left:2px';
 
+    // 经济系统已移除，熔核不显示（元素仍构建但不入 DOM）
     moteRow.append(diamond, this.moteCount, moteLabel);
 
     // ── 顶部中央：倒计时 ────────────────────────────────────────────────────
@@ -263,7 +264,6 @@ export class Hud {
 
     root.append(
       this.hpBlock,
-      moteRow,
       clockWrap,
       this.bossWrap,
       this.formPanel,
