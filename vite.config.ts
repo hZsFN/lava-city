@@ -39,6 +39,13 @@ export default defineConfig({
   base: './',
   publicDir: 'public',
   plugins: [platformScript(), restorePlatformScript()],
+  server: {
+    watch: {
+      // 打包产物（release/*.zip、out/、dist/）被打包脚本占用时会让 chokidar 抛 EBUSY，
+      // 进而把整个 dev server 带崩。这些目录本来也不需要热更新，一律不监视。
+      ignored: ['**/release/**', '**/out/**', '**/dist/**', '**/*.zip'],
+    },
+  },
   build: {
     outDir: 'out',
     emptyOutDir: true,
