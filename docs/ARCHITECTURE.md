@@ -195,7 +195,7 @@ app.dispose(): void
 7. DebugOverlay
 8. 订阅 MatchPhaseChanged → 更新浮层
 9. 订阅 MatchEnded → WL 协议交接（胜利 completeLevel / 失败 failLevel）
-10. 调试快捷键：1-5 建塔、R 重生、M 加熔核、Enter 手动通关
+10. 调试快捷键：1-5 建塔、N 熔核补给、R 重生、K 锁血（屏幕左上角标 K）、Enter 手动通关；`?debug=1` 另有 B 俯视、G 击杀 Boss、J 自杀、M 静音
 11. 暴露 window.__game（QA/Playwright 用）
 12. app.start()
 ```

@@ -58,6 +58,8 @@ declare global {
       tSec: () => number;
       /** QA：直接扣玩家血（0 血走失败演出） */
       damagePlayer: (n: number) => number;
+      /** QA：锁血开关；不传参 = 切换，返回切换后的状态 */
+      hpLock: (on?: boolean) => boolean;
       /** QA/演示：直接击杀 Boss（会走 victory 演出） */
       killBoss: () => void;
       /** 演出快照：阶段 / 教程书 / 失败状态 */
@@ -390,6 +392,27 @@ async function boot(): Promise<void> {
   overlay.root.style.bottom = 'auto';
   overlay.setHp(game.snapshot().player.hp);
   overlay.setMessage('熔心孤塔 · 点击画面锁定鼠标，WASD 移动');
+
+  // 锁血角标（K 切换）：只在锁血时露出一枚 K，免得平时挡画面
+  const hpLockBadge = document.createElement('div');
+  hpLockBadge.textContent = 'K';
+  hpLockBadge.title = '锁血中（K 关闭）';
+  Object.assign(hpLockBadge.style, {
+    position: 'fixed', left: '18px', top: '16px', zIndex: '9999',
+    width: '28px', height: '28px', display: 'none',
+    alignItems: 'center', justifyContent: 'center',
+    borderRadius: '6px', border: '1px solid #ffb27a',
+    background: 'rgba(40,16,8,0.86)', color: '#ffd0a0',
+    font: '700 15px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+    pointerEvents: 'none', userSelect: 'none',
+    boxShadow: '0 0 12px rgba(255,138,76,0.35)',
+  });
+  document.body.appendChild(hpLockBadge);
+  const setHpLock = (locked: boolean): void => {
+    game.player.setHpLock(locked);
+    hpLockBadge.style.display = locked ? 'flex' : 'none';
+    overlay.setMessage(locked ? '锁血：开（K 关闭）' : '锁血：关');
+  };
 
   // ── 4.9 剧情层：表里双世界 + 五幕（迷惘·成长·舍弃·决绝·新生）─────────────
   // 纯订阅者：只听 bus 已有事件，不新增契约、不改 events.ts。
@@ -879,7 +902,10 @@ async function boot(): Promise<void> {
     } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
       completeToPlatform();
       overlay.setMessage('WL.completeLevel() 已提交交接');
-    } else if (event.code === 'KeyK' && debug) {
+    } else if (event.code === 'KeyK') {
+      // QA：锁血开关，屏幕上角标一枚 K（与 ?debug= 无关，测试随时可用）
+      setHpLock(!game.player.isHpLocked);
+    } else if (event.code === 'KeyG' && debug) {
       bossRef?.takeDamage(1_000_000, 'arcane');
       overlay.setMessage('调试：Boss 击杀');
     } else if (event.code === 'KeyJ' && debug) {
@@ -904,6 +930,10 @@ async function boot(): Promise<void> {
     phase: () => game.timeline.phase(),
     tSec: () => game.timeline.tSec(),
     damagePlayer: (n) => game.player.takeDamage(n, 'debug'),
+    hpLock: (on?: boolean) => {
+      setHpLock(on ?? !game.player.isHpLocked);
+      return game.player.isHpLocked;
+    },
     killBoss: () => bossRef?.takeDamage(1_000_000, 'arcane'),
     flow: () => show.flowSnapshot(),
     handoff: () => ({ done: handoffDone, result: handoffResult }),

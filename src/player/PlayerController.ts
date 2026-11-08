@@ -112,6 +112,8 @@ export class PlayerController {
 
   private prevJump = false;
   private prevDash = false;
+  /** QA 作弊：锁血。开启后受击不再扣血（K 键切换，见 main.ts 调试快捷键） */
+  private hpLock = false;
 
   constructor(opts: {
     bus: Bus;
@@ -172,12 +174,26 @@ export class PlayerController {
     return this.deaths;
   }
 
+  /** 锁血开关（QA）：开→受击不扣血；关→恢复原规则 */
+  setHpLock(locked: boolean): void {
+    this.hpLock = locked;
+  }
+
+  get isHpLocked(): boolean {
+    return this.hpLock;
+  }
+
   /** 推进一个逻辑帧。dt 为已乘时间缩放的秒数 */
   update(dt: number, input: PlayerInput = IDLE_INPUT): void {
-    // 入口血量为 0：按血量接力规则直接判死，由外层 failLevel
+    // 入口血量为 0：按血量接力规则直接判死，由外层 failLevel（锁血时补满，方便 QA 连续试）
     if (!this.dead && this.hp <= 0) {
-      this.die('entry_hp_zero');
-      return;
+      if (this.hpLock) {
+        this.hp = this.maxHp;
+        this.syncSnapshot();
+      } else {
+        this.die('entry_hp_zero');
+        return;
+      }
     }
     if (this.dead) return;
     // 注：对象被冻结（战术视图）时由调用方传 dt=0
@@ -207,9 +223,9 @@ export class PlayerController {
     this.prevDash = input.dash;
   }
 
-  /** 受击。无敌帧内或已死亡时返回 0 */
+  /** 受击。无敌帧内、已死亡或锁血时返回 0 */
   takeDamage(amount: number, source: string): number {
-    if (this.dead || this.isInvulnerable || amount <= 0) return 0;
+    if (this.dead || this.isInvulnerable || this.hpLock || amount <= 0) return 0;
     const applied = Math.min(amount, this.hp);
     this.hp -= applied;
     this.hurtTimer = this.cfg.hp.hitInvulnerableSec;

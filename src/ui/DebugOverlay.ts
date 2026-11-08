@@ -58,7 +58,7 @@ export class DebugOverlay {
     backendRow.appendChild(backendEl);
 
     const hintRow = document.createElement('div');
-    hintRow.textContent = 'R 重生 · Enter 通关';
+    hintRow.textContent = 'R 重生 · Enter 通关 · K 锁血';
     hintRow.style.cssText = 'margin-top:4px;color:#7f7468';
 
     this.messageEl = document.createElement('div');
