@@ -230,6 +230,8 @@ export interface MatchTimeline {
   jumpToTransition(): void;
   /** 跳过开场：直接推进到 boss1，Boss 立刻登场 */
   jumpToBoss1(): void;
+  /** QA 锁血：为 true 时拒绝一切 lose 结算（胜利不受影响） */
+  setInvincible(on: boolean): void;
 }
 
 /** 遥测记录：每局一份 JSON */

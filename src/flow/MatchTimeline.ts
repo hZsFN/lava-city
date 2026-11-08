@@ -72,6 +72,8 @@ export function createMatchTimeline(): MatchTimeline {
   let rageAt = -1;
 
   let ended: MatchResult | null = null;
+  /** QA 锁血：开启后拒绝一切 lose 结算（胜利照常） */
+  let invincible = false;
 
   function emitPhase(phase: MatchPhase, atSec: number): void {
     bus?.emit('MatchPhaseChanged', { phase, tSec: atSec });
@@ -92,6 +94,8 @@ export function createMatchTimeline(): MatchTimeline {
   /** 结算：一局只发一次 MatchEnded；之后所有 notify / update 全部忽略 */
   function finish(result: 'win' | 'lose', reason: EndReason): void {
     if (ended || !bus) return;
+    // 锁血（QA 硬锁）：game over 的失败分支一律不结算，Boss 照打、玩家照站着
+    if (invincible && result === 'lose') return;
     const prevPhase = currentPhase();
     ended = { result, reason, tSec: t };
     if (prevPhase !== 'ended') emitPhase('ended', t);
@@ -207,6 +211,8 @@ export function createMatchTimeline(): MatchTimeline {
       updateLava();
       if (t >= rageAt + flowCfg.rage.swallowAfterSec) {
         t = rageAt + flowCfg.rage.swallowAfterSec;
+        // 锁血：时间停住，不结算（finish 自己也会挡 lose，这里再兜一层避免每帧判一次）
+        if (invincible) return false;
         finish('lose', 'lava_swallowed');
         return true;
       }
@@ -221,6 +227,11 @@ export function createMatchTimeline(): MatchTimeline {
       t = cur.endSec;
 
       if (cur.phase === 'boss2') {
+        if (invincible) {
+          // QA 锁血：不进入狂暴，停在 4:30（熔岩不涨、不结算），想打多久打多久
+          t = cur.endSec;
+          return false;
+        }
         // 4:30 未击杀 → 狂暴（Boss 进 rage、熔岩上涨由本状态机驱动）
         mode = 'rage';
         rageAt = t;
@@ -294,6 +305,10 @@ export function createMatchTimeline(): MatchTimeline {
     updateLava();
   }
 
+  function setInvincible(on: boolean): void {
+    invincible = on;
+  }
+
   function notifyBossDefeated(): void {
     if (ended || !flowCfg || mode !== 'script') return;
     const p = currentPhase();
@@ -336,5 +351,6 @@ export function createMatchTimeline(): MatchTimeline {
     notifyCoreDestroyed,
     notifyPlayerOutOfLives,
     applyCoreDamage,
+    setInvincible,
   };
 }

@@ -174,9 +174,17 @@ export class PlayerController {
     return this.deaths;
   }
 
-  /** 锁血开关（QA）：开→受击不扣血；关→恢复原规则 */
+  /**
+   * 锁血开关（QA，硬锁）：开→血补满、受击不扣血、脚本/熔岩/调试击杀一律无效；
+   * 关→恢复原规则（不会把已经掉掉的血补回来）。
+   */
   setHpLock(locked: boolean): void {
     this.hpLock = locked;
+    if (locked) {
+      this.dead = false;
+      this.hp = this.maxHp;
+      this.syncSnapshot();
+    }
   }
 
   get isHpLocked(): boolean {
@@ -241,25 +249,37 @@ export class PlayerController {
   }
 
   /**
-   * Boss 直接命中：塔心抗性，一次只削 0.1 点血。
-   * 原规则是「固定扣 1 点」（docs/plan/02-血量接力规则.md），3 血挨三下就死，
-   * 2026-11-08 改为 0.1（f97e8e2）：HUD 取整显示所以视觉上几乎不动，
-   * 连挨十几下（每次间隔 1.2 s 无敌）才会掉一格。
+   * Boss 直接命中：塔心抗性，一次只削 0.01 点血。
+   * 原规则是「固定扣 1 点」（docs/plan/02-血量接力规则.md），3 血挨三下就死；
+   * 2026-11-08 先后改成 0.1（f97e8e2）、0.01：HUD 取整显示所以视觉上看不出来，
+   * 满血 3 点要挨 300 下才会掉光，QA 长时间试玩不再被耗死。
    */
   takeHit(source: string): number {
     // 与上面注释同源：这里是唯一的受击扣血常量，改数值只改这一处。
-    return this.takeDamage(0.1, source);
+    return this.takeDamage(0.01, source);
   }
 
   /** 就地死亡（熔岩 / 脚本），hp 归零 */
   kill(cause: string): void {
     if (this.dead) return;
+    if (this.hpLock) {
+      // 锁血是硬锁：脚本/熔岩/调试击杀一律无效，只把血补满
+      this.hp = this.maxHp;
+      this.syncSnapshot();
+      return;
+    }
     this.hp = 0;
     this.die(cause);
     this.syncSnapshot();
   }
 
   private die(cause: string): void {
+    if (this.hpLock) {
+      // 兜底：任何路径走到判死都放行不了，血补满继续站着
+      this.hp = this.maxHp;
+      this.syncSnapshot();
+      return;
+    }
     this.dead = true;
     this.hp = 0;
     this.vy = 0;

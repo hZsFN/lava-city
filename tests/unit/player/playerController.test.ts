@@ -283,25 +283,25 @@ describe('PlayerController · HP / 死亡 / 复活', () => {
   it('入口血量取自注入值，不写死 100', () => {
     const { player } = make({ hp: { current: 1, max: 150 } });
     expect(player.currentHp).toBe(1);
-    // 塔心抗性（0.1/次）：1 血不会被一发命中带走
-    expect(player.takeHit('boss')).toBeCloseTo(0.1, 10);
-    expect(player.currentHp).toBeCloseTo(0.9, 10);
+    // 塔心抗性（0.01/次）：1 血不会被一发命中带走
+    expect(player.takeHit('boss')).toBeCloseTo(0.01, 10);
+    expect(player.currentHp).toBeCloseTo(0.99, 10);
     expect(player.isDead).toBe(false);
   });
 
-  it('Boss 命中扣 0.1 点（塔心抗性），受击后 1.2 s 内不能再次受击', () => {
+  it('Boss 命中扣 0.01 点（塔心抗性），受击后 1.2 s 内不能再次受击', () => {
     const { player, events } = make({ hp: { current: 10, max: 10 } });
-    expect(player.takeHit('boss')).toBeCloseTo(0.1, 10);
-    expect(player.currentHp).toBeCloseTo(9.9, 10);
+    expect(player.takeHit('boss')).toBeCloseTo(0.01, 10);
+    expect(player.currentHp).toBeCloseTo(9.99, 10);
     expect(player.isInvulnerable).toBe(true);
     // 无敌期内再来一次应被忽略
     expect(player.takeHit('boss')).toBe(0);
-    expect(player.currentHp).toBeCloseTo(9.9, 10);
+    expect(player.currentHp).toBeCloseTo(9.99, 10);
     // 1.2 s 后恢复可受击
     run(player, 72, idle());
     expect(player.isInvulnerable).toBe(false);
-    expect(player.takeHit('boss')).toBeCloseTo(0.1, 10);
-    expect(player.currentHp).toBeCloseTo(9.8, 10);
+    expect(player.takeHit('boss')).toBeCloseTo(0.01, 10);
+    expect(player.currentHp).toBeCloseTo(9.98, 10);
     expect(countOf(events, 'PlayerDamaged')).toBe(2);
   });
 
