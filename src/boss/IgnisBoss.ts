@@ -10,28 +10,16 @@
 // ============================================================================
 
 import * as THREE from 'three/webgpu';
-import { createIgnisRig } from './IgnisRig';
-import type { IgnisBuild } from './IgnisRig';
+import { createSurtrBuild } from './SurtrAdapter';
+import type { SurtrAsIgnisBuild } from './SurtrAdapter';
 import type { Bus, Vec3, BodyPart, Attr } from '../core/events';
 
 // ── 常量 ────────────────────────────────────────────────────────────────────
 
 const DEG = Math.PI / 180;
 
-/** 四个弱点在世界坐标里的位置（阶段 I 局部坐标，root 未缩放时） */
-const WEAKNESS_POS: Record<BodyPart, Vec3> = {
-  core: [0, 5.6, 1.5],
-  back: [0, 7.0, -2.1],
-  kneeL: [-0.95, 2.2, 0.7],
-  kneeR: [0.95, 2.2, 0.7],
-};
-
-const WEAKNESS_R: Record<BodyPart, number> = {
-  core: 0.95,
-  back: 0.95,
-  kneeL: 0.44,
-  kneeR: 0.44,
-};
+// 弱点位置与半径不再写死：由 SurtrRig 的 meta.weakPoints 提供，
+// 构造时按模型缩放换算（见 constructor 里的 weakPos / weakR）。
 
 const WEAKNESS_ATTR: Record<BodyPart, Attr> = {
   core: 'physical',
@@ -82,7 +70,7 @@ function easeInOut(t: number): number {
 
 export class IgnisBoss {
   readonly root = new THREE.Group();
-  readonly build: IgnisBuild;
+  readonly build: SurtrAsIgnisBuild;
 
   private readonly bus: Bus;
   private readonly fxRoot = new THREE.Group();
@@ -117,6 +105,11 @@ export class IgnisBoss {
   private weaknessLeftMs = 0;
   private markers = new Map<BodyPart, THREE.Mesh>();
   private coreLight: THREE.PointLight;
+  /** 弱点位置/半径（已按模型缩放换算到本地空间） */
+  private weakPos = {} as Record<BodyPart, Vec3>;
+  private weakR = {} as Record<BodyPart, number>;
+  /** 模型的关节基准高度（换模型后用于待机动画，避免写死数值） */
+  private torsoBaseY = 0;
 
   private readonly approachTarget: [number, number, number] = [0, 0, 18];
   /** 熔岩环带巡游角度（弧度） */
@@ -138,8 +131,17 @@ export class IgnisBoss {
     this.root.name = 'boss:ignis';
     this.fxRoot.name = 'boss:ignis-fx';
 
-    this.build = createIgnisRig();
+    this.build = createSurtrBuild();
     this.root.add(this.build.rig.root);
+
+    // 弱点坐标随模型一起缩放：Surtr 的 meta 给的是原始 14.76 m 模型的坐标，
+    // 这里换算到 IgnisBoss 的本地空间（root 未经缩放，模型内层已乘 modelScale）。
+    const s = this.build.modelScale;
+    for (const wp of this.build.meta.weakPoints) {
+      this.weakPos[wp.key] = [wp.pos[0] * s, wp.pos[1] * s, wp.pos[2] * s];
+      this.weakR[wp.key] = wp.r * s;
+    }
+    this.torsoBaseY = this.build.rig.torso.position.y;
 
     // 阶段 II 专属网格先藏起来
     for (const m of this.build.phase2Meshes) m.visible = false;
@@ -153,15 +155,15 @@ export class IgnisBoss {
     mats.emberHot.emissiveIntensity = Math.min(mats.emberHot.emissiveIntensity ?? 1, 2.0);
 
     // 弱点指示器：四颗自发光球，默认不可见
-    for (const part of Object.keys(WEAKNESS_POS) as BodyPart[]) {
-      const r = WEAKNESS_R[part];
+    for (const part of Object.keys(this.weakPos) as BodyPart[]) {
+      const r = this.weakR[part];
       const mat = new THREE.MeshBasicMaterial({
         color: WEAKNESS_ATTR[part] === 'arcane' ? 0x4aa8ff : 0xf0e6cf,
         transparent: true,
         opacity: 0.92,
       });
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(r * 1.25, 14, 10), mat);
-      const p = WEAKNESS_POS[part];
+      const p = this.weakPos[part];
       mesh.position.set(p[0], p[1], p[2]);
       mesh.visible = false;
       this.root.add(mesh);
@@ -169,7 +171,7 @@ export class IgnisBoss {
     }
 
     this.coreLight = new THREE.PointLight(0x4aa8ff, 120, 26, 2);
-    this.coreLight.position.set(...WEAKNESS_POS.core);
+    this.coreLight.position.set(...this.weakPos.core);
     this.root.add(this.coreLight);
 
     // 熔岩底部照明：熔岩是唯一光源
@@ -211,12 +213,12 @@ export class IgnisBoss {
     if (this.dead || this.showMode !== 'active') return false;
     let hitPart: BodyPart | null = null;
     if (worldPoint) {
-      for (const part of Object.keys(WEAKNESS_POS) as BodyPart[]) {
-        const p = WEAKNESS_POS[part];
+      for (const part of Object.keys(this.weakPos) as BodyPart[]) {
+        const p = this.weakPos[part];
         const dx = worldPoint[0] - p[0];
         const dy = worldPoint[1] - p[1];
         const dz = worldPoint[2] - p[2];
-        if (dx * dx + dy * dy + dz * dz <= WEAKNESS_R[part] * WEAKNESS_R[part] * 2.25) {
+        if (dx * dx + dy * dy + dz * dz <= this.weakR[part] * this.weakR[part] * 2.25) {
           hitPart = part;
           break;
         }
@@ -360,7 +362,7 @@ export class IgnisBoss {
 
   /** 弱点在世界坐标里的位置（UI 方向脉冲用） */
   weaknessWorld(part: BodyPart): Vec3 {
-    const local = new THREE.Vector3(...WEAKNESS_POS[part]);
+    const local = new THREE.Vector3(...this.weakPos[part]);
     this.root.updateMatrixWorld(true);
     this.root.localToWorld(local);
     return [local.x, local.y, local.z];
@@ -476,7 +478,7 @@ export class IgnisBoss {
     const t = this.tMs * 0.001;
     const rig = this.build.rig;
     // 呼吸：躯干轻微起伏
-    rig.torso.position.y = 4.5 + Math.sin(t * 1.1) * 0.08;
+    rig.torso.position.y = this.torsoBaseY + Math.sin(t * 1.1) * 0.08;
     // 头部缓慢左右看
     rig.head.rotation.y = Math.sin(t * 0.37) * 0.18;
     // 双臂自然下垂微摆
