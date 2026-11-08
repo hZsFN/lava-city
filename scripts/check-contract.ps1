@@ -4,7 +4,7 @@
 
 # ============================================================================
 # 契约红线检查（四路会话共用的「不许违反」清单）
-#   ① src/core/events.ts 的哈希必须等于 docs/plan/CONTRACT.lock
+#   ① src/core/events.ts 的哈希必须等于 scripts/CONTRACT.lock
 #   ② 逻辑层（towers/flow/player/combat/boss）不得 import three
 #   ③ 不得出现禁用 API：alert / confirm / window.top.location / parent.location
 #   ④ 不得出现 IP 词汇（版权红线）
@@ -19,10 +19,10 @@ $violations = @()
 function Fail([string]$msg) { $script:violations += $msg }
 
 # ---------- ① 契约文件哈希 ----------
-$lockPath = Join-Path $root 'docs\plan\CONTRACT.lock'
+$lockPath = Join-Path $root 'scripts\CONTRACT.lock'
 $eventsPath = Join-Path $root 'src\core\events.ts'
 if (-not (Test-Path $lockPath)) {
-  Fail "缺少 docs/plan/CONTRACT.lock —— 无法校验契约完整性"
+  Fail "缺少 scripts/CONTRACT.lock —— 无法校验契约完整性"
 } elseif (-not (Test-Path $eventsPath)) {
   Fail "缺少 src/core/events.ts"
 } else {
