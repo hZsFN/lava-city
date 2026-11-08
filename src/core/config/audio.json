@@ -9,5 +9,218 @@
   "spatial": {
     "reverbZone": "tower-top",
     "rolloff": 1.6
+  },
+  "sfx": {
+    "sfx-hit": {
+      "src": "audio/sfx-hit.ogg",
+      "bus": "sfx",
+      "gain": 1,
+      "cooldownMs": 100,
+      "maxVoices": 2
+    },
+    "sfx-player-death": {
+      "src": "audio/sfx-player-death.ogg",
+      "bus": "sfx",
+      "gain": 1,
+      "cooldownMs": 0,
+      "maxVoices": 1
+    },
+    "sfx-lava-fall": {
+      "src": "audio/sfx-lava-fall.ogg",
+      "bus": "sfx",
+      "gain": 1,
+      "cooldownMs": 0,
+      "maxVoices": 1
+    },
+    "sfx-player-low-health": {
+      "src": "audio/sfx-player-low-health.ogg",
+      "bus": "sfx",
+      "gain": 0.891,
+      "cooldownMs": 5000,
+      "maxVoices": 1
+    },
+    "sfx-dash": {
+      "src": "audio/sfx-dash.ogg",
+      "bus": "sfx",
+      "gain": 1,
+      "cooldownMs": 120,
+      "maxVoices": 2
+    },
+    "sfx-jump": {
+      "src": "audio/sfx-jump.ogg",
+      "bus": "sfx",
+      "gain": 0.562,
+      "cooldownMs": 150,
+      "maxVoices": 1
+    },
+    "sfx-land-light": {
+      "src": "audio/sfx-land-light.ogg",
+      "bus": "sfx",
+      "gain": 0.562,
+      "cooldownMs": 150,
+      "maxVoices": 1
+    },
+    "sfx-land-heavy": {
+      "src": "audio/sfx-land-heavy.ogg",
+      "bus": "sfx",
+      "gain": 0.794,
+      "cooldownMs": 150,
+      "maxVoices": 1
+    },
+    "sfx-footstep-stone-01": {
+      "src": "audio/sfx-footstep-stone-01.ogg",
+      "bus": "sfx",
+      "gain": 0.447,
+      "cooldownMs": 80,
+      "maxVoices": 2
+    },
+    "sfx-footstep-stone-02": {
+      "src": "audio/sfx-footstep-stone-02.ogg",
+      "bus": "sfx",
+      "gain": 0.447,
+      "cooldownMs": 80,
+      "maxVoices": 2
+    },
+    "sfx-footstep-stone-03": {
+      "src": "audio/sfx-footstep-stone-03.ogg",
+      "bus": "sfx",
+      "gain": 0.447,
+      "cooldownMs": 80,
+      "maxVoices": 2
+    },
+    "sfx-footstep-stone-04": {
+      "src": "audio/sfx-footstep-stone-04.ogg",
+      "bus": "sfx",
+      "gain": 0.447,
+      "cooldownMs": 80,
+      "maxVoices": 2
+    },
+    "sfx-form-switch": {
+      "src": "audio/sfx-form-switch.ogg",
+      "bus": "sfx",
+      "gain": 1,
+      "cooldownMs": 200,
+      "maxVoices": 1
+    },
+    "sfx-overheat": {
+      "src": "audio/sfx-overheat.ogg",
+      "bus": "sfx",
+      "gain": 0.9,
+      "cooldownMs": 500,
+      "maxVoices": 1
+    },
+    "sfx-physical-shot-a": {
+      "src": "audio/sfx-physical-shot-a.ogg",
+      "bus": "sfx",
+      "gain": 0.9,
+      "cooldownMs": 60,
+      "maxVoices": 3
+    },
+    "sfx-physical-shot-b": {
+      "src": "audio/sfx-physical-shot-b.ogg",
+      "bus": "sfx",
+      "gain": 0.9,
+      "cooldownMs": 60,
+      "maxVoices": 3
+    },
+    "sfx-arcane-shot-a": {
+      "src": "audio/sfx-arcane-shot-a.ogg",
+      "bus": "sfx",
+      "gain": 0.9,
+      "cooldownMs": 60,
+      "maxVoices": 3
+    },
+    "sfx-arcane-shot-b": {
+      "src": "audio/sfx-arcane-shot-b.ogg",
+      "bus": "sfx",
+      "gain": 0.9,
+      "cooldownMs": 60,
+      "maxVoices": 3
+    },
+    "sfx-execution": {
+      "src": "audio/sfx-execution.ogg",
+      "bus": "sfx",
+      "gain": 0.9,
+      "cooldownMs": 200,
+      "maxVoices": 1
+    },
+    "sfx-execution-ready": {
+      "src": "audio/sfx-execution-ready.ogg",
+      "bus": "sfx",
+      "gain": 1,
+      "cooldownMs": 500,
+      "maxVoices": 1
+    },
+    "sfx-execution-windup": {
+      "src": "audio/sfx-execution-windup.ogg",
+      "bus": "sfx",
+      "gain": 0.794,
+      "cooldownMs": 500,
+      "maxVoices": 1
+    },
+    "sfx-weakness-open": {
+      "src": "audio/sfx-weakness-open.ogg",
+      "bus": "sfx",
+      "gain": 0.9,
+      "cooldownMs": 300,
+      "maxVoices": 1
+    },
+    "sfx-weakness-close": {
+      "src": "audio/sfx-weakness-close.ogg",
+      "bus": "sfx",
+      "gain": 0.9,
+      "cooldownMs": 300,
+      "maxVoices": 1
+    },
+    "sfx-tactical-open": {
+      "src": "audio/sfx-tactical-open.ogg",
+      "bus": "ui",
+      "gain": 0.708,
+      "cooldownMs": 200,
+      "maxVoices": 1
+    },
+    "sfx-tactical-close": {
+      "src": "audio/sfx-tactical-close.ogg",
+      "bus": "ui",
+      "gain": 0.708,
+      "cooldownMs": 200,
+      "maxVoices": 1
+    }
+  },
+  "shots": {
+    "physical": ["sfx-physical-shot-a", "sfx-physical-shot-b"],
+    "arcane": ["sfx-arcane-shot-a", "sfx-arcane-shot-b"]
+  },
+  "playerMotion": {
+    "stepLengthM": 2.2,
+    "heavyLandDropM": 1.6,
+    "footsteps": [
+      "sfx-footstep-stone-01",
+      "sfx-footstep-stone-02",
+      "sfx-footstep-stone-03",
+      "sfx-footstep-stone-04"
+    ],
+    "jump": "sfx-jump",
+    "landLight": "sfx-land-light",
+    "landHeavy": "sfx-land-heavy"
+  },
+  "lowHealth": {
+    "thresholdRatio": 0.25
+  },
+  "triggers": {
+    "PlayerDamaged": "sfx-hit",
+    "PlayerDied": "sfx-player-death",
+    "PlayerDiedLava": "sfx-lava-fall",
+    "PlayerLowHealth": "sfx-player-low-health",
+    "PlayerDashed": "sfx-dash",
+    "FormSwitched": "sfx-form-switch",
+    "OverheatChanged": "sfx-overheat",
+    "ExecutionStarted": "sfx-execution-windup",
+    "ExecutionEnded": "sfx-execution",
+    "WeaknessExposed": "sfx-weakness-open",
+    "WeaknessClosed": "sfx-weakness-close",
+    "WeaknessExecutable": "sfx-execution-ready",
+    "TacticalViewOpened": "sfx-tactical-open",
+    "TacticalViewClosed": "sfx-tactical-close"
   }
 }

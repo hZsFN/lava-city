@@ -4,6 +4,7 @@ import { createGame } from './game/GameLoop';
 import { createGameView } from './game/GameView';
 import { IgnisBoss } from './boss/IgnisBoss';
 import { createInput } from './game/Input';
+import { createAudioManager } from './audio/AudioManager';
 import type { TowerKind } from './towers/types';
 
 interface WlSave {
@@ -80,7 +81,18 @@ async function boot(): Promise<void> {
     game,
   });
 
-  // ── 4. 接线：渲染帧 → 逻辑推进 → 表现同步 ──────────────────────────────
+  // ── 3.5 音频：P2-A 事件音效（首次用户手势后解锁）──────────────────────
+  const audio = createAudioManager({ bus: game.bus, motion: game.player });
+  const unlockAudio = (): void => {
+    void audio.unlock().then((ok) => {
+      if (!ok) return;
+      window.removeEventListener('pointerdown', unlockAudio, true);
+      window.removeEventListener('keydown', unlockAudio, true);
+    });
+  };
+  window.addEventListener('pointerdown', unlockAudio, true);
+  window.addEventListener('keydown', unlockAudio, true);
+
   // ── Boss：进阶段 I 时登场，之后每逻辑帧更新 ───────────────────────────────
   const boss = new IgnisBoss(game.bus);
   let bossAttached = false;
@@ -101,6 +113,7 @@ async function boot(): Promise<void> {
   app.onTick = (dt) => {
     game.tick(dt);
     boss.update(dt * 1000);
+    audio.update();
   };
   app.onSync = () => { view.sync(); };
 
@@ -238,6 +251,9 @@ async function boot(): Promise<void> {
   document.getElementById('boot-tip')?.classList.add('hidden');
 
   window.addEventListener('pagehide', () => {
+    window.removeEventListener('pointerdown', unlockAudio, true);
+    window.removeEventListener('keydown', unlockAudio, true);
+    audio.dispose();
     input.dispose();
     view.dispose();
     app.dispose();

@@ -1,25 +1,27 @@
 # 音频资产
 
-全部由 `tools/gen-audio.py` 程序化合成，**零第三方素材**，不涉及任何版权或署名要求。
+`public/audio` 下分两批：
 
-| 文件 | 用途 | 时长 | 大小 |
-|---|---|---|---|
-| `bgm-molten-heart.ogg` | 主背景音乐《渊底》，93 秒无缝循环 | 93 s | 241 KB |
-| `sfx-execution.ogg` | 击破命中：低频冲击 + 金属炸裂 | 2.6 s | 24 KB |
-| `sfx-weakness-open.ogg` | 弱点暴露：上扬的金属共鸣 | 1.5 s | 7 KB |
-| `sfx-hit.wav→ogg` | 受击：短促钝响 | 0.4 s | 7 KB |
-| `sfx-lava-rise.ogg` | 熔岩上涨：可循环的低频涌动 | 7.4 s | 19 KB |
+- `bgm-molten-heart.ogg`、`sfx-lava-rise.ogg`：由 `tools/gen-audio.py` 程序化合成，零第三方素材。
+- P2-A 事件音效：来自 `熔心孤塔-音频V2/web`，已接入 `src/audio/AudioManager.ts`，映射见 `src/core/config/audio.json`。
 
-重新生成：`python tools/gen-audio.py`（会输出 wav，再 `ffmpeg -c:a libvorbis -q:a 4` 转 ogg）。
-
-## 《渊底》的构成
-
-五层叠加，全部是正弦与滤波噪声，没有一个采样：
-
-1. **低频 drone** —— D2(73.42 Hz) + A2(110 Hz)，各两路微失谐（±3 音分）制造缓慢拍频，像远处岩层在挤压。
-2. **熔岩轰鸣** —— brown noise 经 150 Hz 低通 + 18.7 秒周期的极慢振幅调制。
-3. **心跳** —— 52 BPM 起，随进度加速到 64 BPM，S1 强 S2 弱。这是唯一"有生命"的元素。
-4. **熔岩咕嘟** —— 26 个随机气泡爆裂，频率从 70–190 Hz 快速上滑后衰减。
-5. **高频紧张** —— 9 处稀疏的玻璃摩擦音，用不和谐音程（D6/Eb6/G6）制造不安。
-
-混响是多抽头反馈延迟，首尾 3 秒交叉淡化保证无缝循环。
+| 文件 | 用途 | 触发 |
+|---|---|---|
+| `sfx-hit.ogg` | 玩家受击 | `PlayerDamaged`（`amount > 0`，同帧死亡让位给死亡音） |
+| `sfx-player-low-health.ogg` | 低血警告 | `PlayerDamaged` 下穿 25% 阈值，5 s 冷却 |
+| `sfx-player-death.ogg` | 玩家死亡 | `PlayerDied`（按 `deaths` 去重） |
+| `sfx-lava-fall.ogg` | 坠入熔岩 | `PlayerDied.cause = lava`（替代通用死亡音） |
+| `sfx-dash.ogg` | 冲刺 | `PlayerDashed` |
+| `sfx-jump.ogg` | 起跳 | `AudioManager.update()`：离地边沿 |
+| `sfx-land-light.ogg` / `sfx-land-heavy.ogg` | 轻/重落地 | `AudioManager.update()`：按下落高度互斥 |
+| `sfx-footstep-stone-01…04.ogg` | 石地脚步 | `AudioManager.update()`：落地且水平累计距离达步幅，四变体轮换 |
+| `sfx-form-switch.ogg` | 双形态切换 | `FormSwitched`（形态真变化时） |
+| `sfx-overheat.ogg` | 过热泄压 | `OverheatChanged`（`false → true`） |
+| `sfx-physical-shot-a/b.ogg` | 物理射击 A/B | `AudioManager.playShot('physical')`，待 CombatController 接入主循环 |
+| `sfx-arcane-shot-a/b.ogg` | 法术射击 A/B | `AudioManager.playShot('arcane')`，待 CombatController 接入主循环 |
+| `sfx-execution-ready.ogg` | 可击破信号 | `WeaknessProgress.executable` `false → true` |
+| `sfx-execution-windup.ogg` | 击破凝力 | `ExecutionStarted` |
+| `sfx-execution.ogg` | 击破主冲击 | `ExecutionEnded`（`damage > 0`） |
+| `sfx-weakness-open.ogg` | 弱点显露 | `WeaknessExposed`（同一部位不重播） |
+| `sfx-weakness-close.ogg` | 弱点收束 | `WeaknessClosed`（仅已记录为打开的部位） |
+| `sfx-tactical-open.ogg` / `sfx-tactical-close.ogg` | 战术视图开关 | `TacticalViewChanged` 边沿 |
