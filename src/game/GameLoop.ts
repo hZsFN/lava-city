@@ -22,6 +22,10 @@ import { createTowerSystem } from '../towers/TowerSystem';
 import type { ArenaConfig, TowerKind, TowerSystem, TowersConfig } from '../towers/types';
 import { PlayerController } from '../player/PlayerController';
 import type { PlayerConfig, PlayerInput, PlayerWorld } from '../player/PlayerController';
+import { Execution } from '../player/Execution';
+import type { ExecutionConfig } from '../player/Execution';
+import { WeaknessMeter } from '../combat/WeaknessMeter';
+import type { WeaknessConfig } from '../combat/WeaknessMeter';
 
 import flowCfgJson from '../core/config/flow.json';
 import towersCfgJson from '../core/config/towers.json';
@@ -62,6 +66,8 @@ function buildPlayerWorld(): PlayerWorld {
 /** 输入源：由 main.ts 提供（键盘/鼠标），或由测试提供（脚本化） */
 export interface InputSource {
   sample(): PlayerInput;
+  /** 可选：本帧是否按了 F（击破边沿） */
+  consumeExecute?(): boolean;
 }
 
 export interface Game {
@@ -69,6 +75,8 @@ export interface Game {
   readonly timeline: MatchTimeline;
   readonly towers: TowerSystem;
   readonly player: PlayerController;
+  readonly weakness: WeaknessMeter;
+  readonly execution: Execution;
   /** 固定步长推进；返回实际推进的逻辑步数 */
   tick(dtSec: number): number;
   snapshot(): Snapshot;
@@ -130,6 +138,19 @@ export function createGame(deps: GameDeps): Game {
       : undefined,
   });
 
+  // ── 破绽 / 击破：玩家侧资源与状态机 ─────────────────────────────────────
+  const weaknessCfg = (playerCfgJson as { weakness?: WeaknessConfig }).weakness
+    ?? { max: 100, executableWindowSec: 3 };
+  const weakness = new WeaknessMeter({ bus, config: weaknessCfg });
+
+  const executionCfg = (playerCfgJson as { execution?: ExecutionConfig }).execution
+    ?? { windowSec: 3, durationSec: 1.2 };
+  const execution = new Execution({
+    bus,
+    config: executionCfg,
+    getBossMaxHp: () => Math.max(1, bus.snapshot().boss.maxHp),
+  });
+
   // ── 开局熔核 ──────────────────────────────────────────────────────────────
   // 边界说明：B1 的 place()/upgrade() 接受「当前余额」参数并由它内部记账；
   // 但开局余额归 config（flow.json 的 motes.start）。整合层持有权威余额，
@@ -153,6 +174,10 @@ export function createGame(deps: GameDeps): Game {
     // 2. 时间轴（可能切阶段 → 触发 MatchPhaseChanged / LavaLevelChanged）
     timeline.update(LOGIC_DT);
 
+    // 2.5 破绽累积 + 击破（F 为边沿输入）
+    weakness.update(LOGIC_DT);
+    execution.update(LOGIC_DT, deps.input.consumeExecute?.() ?? false);
+
     // 3. 塔（Boss 未接入前，用塔心原点当占位目标，保证射程/冷却链路可跑）
     const snap = bus.snapshot();
     towers.update(LOGIC_DT, {
@@ -175,6 +200,8 @@ export function createGame(deps: GameDeps): Game {
     timeline,
     towers,
     player,
+    weakness,
+    execution,
 
     tick(dtSec: number): number {
       if (over) return 0;

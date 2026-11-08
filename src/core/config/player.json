@@ -48,6 +48,10 @@
     "windowSec": 3.0,
     "durationSec": 1.2
   },
+  "weakness": {
+    "max": 100,
+    "executableWindowSec": 3.0
+  },
   "overheat": {
     "fillSec": 4.0,
     "cooldownSec": 2.0

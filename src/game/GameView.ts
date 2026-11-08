@@ -14,6 +14,7 @@
 import * as THREE from 'three/webgpu';
 import type { Bus, SlotState, Vec3 } from '../core/events';
 import type { Game } from './GameLoop';
+import { createViewModel } from '../render/ViewModel';
 
 /** 属性色：与 config/visual.json 的约定一致（法术蓝 / 物理白金） */
 const ATTR_COLOR = {
@@ -43,6 +44,9 @@ export function createGameView(deps: {
   game: Game;
 }): GameView {
   const { scene, camera, bus, game } = deps;
+
+  // 第一人称武器外观：长剑 / 法伤枪，跟随相机
+  const viewModel = createViewModel({ camera, scene, bus });
 
   // ── 塔位标记 ──────────────────────────────────────────────────────────────
   const slotMeshes = new Map<string, THREE.Mesh>();
@@ -109,6 +113,8 @@ export function createGameView(deps: {
   const eyeHeight = 1.7;
 
   function sync(): void {
+    viewModel.update();
+
     // 1. 塔位状态色
     for (const slot of game.towers.slots()) {
       const mesh = slotMeshes.get(slot.slotId);
@@ -146,6 +152,7 @@ export function createGameView(deps: {
   return {
     sync,
     dispose(): void {
+      viewModel.dispose();
       for (const unsub of unsubs) unsub();
       for (const id of [...towerMeshes.keys()]) removeTowerMesh(id);
       for (const mesh of slotMeshes.values()) {
