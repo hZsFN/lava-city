@@ -1,0 +1,246 @@
+{
+  "$schema": "草案 · M3-04b 逐件几何参数（供渲染实现直接消费）",
+  "version": "1.0.0",
+  "ticket": "M3-04b",
+  "parent": "M3-04-arena-props.config.json",
+  "note": "尺寸必须与父票 footprint 一致；M3-04b-validate.mjs 会跨文件比对。改这里要同时改父票，否则校验失败。",
+
+  "batches": {
+    "_comment": "静态几何合并进这些批次，每批 1 个 draw call。",
+    "rock": { "material": "rockMaterial", "reuseFrom": "src/render/Spire.ts" },
+    "obsidian": { "material": "obsidianMaterial", "reuseFrom": "src/render/Spire.ts" },
+    "rune": { "material": "runeMaterial", "reuseFrom": "src/render/Spire.ts" },
+    "wardRune": {
+      "material": "wardRuneMaterial",
+      "isNew": true,
+      "params": {
+        "color": "#0a0706",
+        "roughness": 0.78,
+        "metalness": 0.15,
+        "emissive": "#9fe9ff",
+        "emissiveIntensity": 0.9,
+        "flatShading": true
+      },
+      "reason": "护壁符文是冷青（防御物语义），但必须压到 0.9，远低于灯塔的 2.2+，避免抢地脉灯塔的视觉锚点地位。"
+    },
+    "debris": {
+      "material": "rockMaterial",
+      "isInstanced": true,
+      "maxInstances": 64,
+      "reason": "碎片池，1 个 draw call。"
+    }
+  },
+
+  "visualGrammar": {
+    "principle": "光只从下面来（M1-03），可读性不能靠表面明度，只能靠 轮廓 + 底部反光 + 符文。",
+    "silhouetteTable": {
+      "slagBulwark": "三块错位岩板，最高一块偏左，锯齿状不平整",
+      "obsidianPillar": "六棱柱，顶端斜切 15°，细高尖，有镜面棱线",
+      "brokenParapet": "两块矮石，中间 0.3 m 缺口，低、断",
+      "coreWard": "弧形墙，顶部内倾 10°，包住塔心",
+      "frostAnchor": "矮圆台 + 中央细铁针，地面有光环",
+      "platform": "正八边形平板，边缘倒角，规整几何"
+    },
+    "runePolicy": {
+      "cover": "橙色符文（#ff9a3c，比熔岩 #ff5a12 更黄，外圈加 1px 暗边）",
+      "defense": "冷青符文（#9fe9ff，emissiveIntensity 0.9）",
+      "platform": "无符文（面），只有边缘描边（边）—— 面会让人误以为有魔法效果"
+    }
+  },
+
+  "kinds": {
+    "slagBulwark": {
+      "dims": { "w": 3.6, "d": 0.8, "h": 2.2 },
+      "parts": [
+        { "name": "base", "geo": "box", "size": [3.6, 0.9, 0.8], "at": [0, 0.45, 0], "batch": "rock" },
+        { "name": "mid", "geo": "box", "size": [2.8, 0.8, 0.75], "at": [-0.3, 1.25, 0.02], "batch": "rock" },
+        { "name": "top", "geo": "box", "size": [1.9, 0.5, 0.7], "at": [-0.6, 1.85, -0.02], "batch": "rock" },
+        { "name": "glowBase", "geo": "box", "size": [3.7, 0.1, 0.85], "at": [0, 0.02, 0], "batch": "obsidian" },
+        { "name": "rune", "geo": "box", "size": [2.2, 0.04, 0.02], "at": [0, 1.25, 0.4], "batch": "rune" }
+      ],
+      "tris": 60,
+      "destroyable": true,
+      "debris": { "count": 10, "durationMs": 900 }
+    },
+    "obsidianPillar": {
+      "dims": { "r": 0.6, "h": 4.6 },
+      "parts": [
+        { "name": "shaft", "geo": "cylinder", "params": [0.6, 0.72, 4.6, 6], "at": [0, 2.3, 0], "batch": "obsidian" },
+        { "name": "cap", "geo": "cylinder", "params": [0.55, 0.6, 0.25, 6], "at": [0, 4.6, 0], "rotZ": 0.2618, "batch": "obsidian" },
+        { "name": "skirt", "geo": "cylinder", "params": [0.9, 1.0, 0.3, 6], "at": [0, 0.15, 0], "batch": "obsidian" }
+      ],
+      "tris": 72,
+      "destroyable": false,
+      "destroyableReason": "阶段 II 制造膝弱点的唯一工具，能被打掉等于随机剥夺玩家解法。"
+    },
+    "brokenParapet": {
+      "dims": { "w": 2.4, "d": 0.6, "h": 1.1 },
+      "parts": [
+        { "name": "left", "geo": "box", "size": [1.0, 1.1, 0.6], "at": [-0.7, 0.55, 0], "batch": "rock" },
+        { "name": "right", "geo": "box", "size": [1.0, 0.9, 0.6], "at": [0.7, 0.45, 0], "batch": "rock" },
+        { "name": "glowBase", "geo": "box", "size": [2.5, 0.1, 0.65], "at": [0, 0.02, 0], "batch": "obsidian" }
+      ],
+      "tris": 36,
+      "destroyable": true,
+      "debris": { "count": 6, "durationMs": 600 },
+      "gapM": 0.3,
+      "gapRule": {
+        "playerPassable": false,
+        "losPassable": true,
+        "reason": "缺口 0.3 m < 玩家直径 0.7 m，钻不过去；但视线与吐息能从缺口穿过 —— 站在缺口正后方反而挡不住。这是刻意的空间逻辑。",
+        "status": "待实测"
+      }
+    },
+    "coreWard": {
+      "dims": { "arcLen": 5.0, "d": 0.5, "h": 2.4, "radius": 9.6 },
+      "segments": 8,
+      "parts": [
+        { "name": "segBody", "geo": "box", "size": [0.625, 2.4, 0.5], "layout": "arc", "batch": "rock" },
+        { "name": "segCap", "geo": "box", "size": [0.625, 0.3, 0.55], "layout": "arc", "inwardTiltRad": 0.1745, "batch": "rock" },
+        { "name": "segGlowBase", "geo": "box", "size": [0.64, 0.1, 0.55], "layout": "arc", "batch": "obsidian" },
+        { "name": "segRune", "geo": "box", "size": [0.04, 1.6, 0.02], "layout": "arc", "batch": "wardRune" }
+      ],
+      "tris": 384,
+      "destroyable": true,
+      "debris": { "count": 16, "durationMs": 1400 },
+      "losRule": "逐段判定：某段 HP 归零则该段不再阻挡。父票 §3 的整体矩形判定必须修正为分段。"
+    },
+    "frostAnchor": {
+      "dims": { "r": 0.8, "h": 0.5 },
+      "parts": [
+        { "name": "dais", "geo": "cylinder", "params": [0.8, 0.9, 0.35, 12], "at": [0, 0.175, 0], "batch": "rock" },
+        { "name": "plate", "geo": "cylinder", "params": [0.7, 0.7, 0.06, 12], "at": [0, 0.38, 0], "batch": "rock" },
+        { "name": "pin", "geo": "cylinder", "params": [0.04, 0.06, 0.5, 6], "at": [0, 0.66, 0], "batch": "obsidian" },
+        { "name": "auraRing", "geo": "ring", "params": [2.85, 3.0, 48], "at": [0, 0.02, 0], "batch": "wardRune" }
+      ],
+      "tris": 216,
+      "destroyable": true,
+      "debris": { "count": 5, "durationMs": 800 },
+      "aura": {
+        "radiusM": 3.0,
+        "mustMatchParentField": "kinds.frostAnchor.aura.radiusM",
+        "reason": "光环是判定的可视化，半径必须与实际减伤半径完全一致，否则是骗玩家。实现时从同一 config 字段读。"
+      }
+    },
+    "platform": {
+      "dims": { "w": 1.8, "d": 1.8 },
+      "shape": "octagon",
+      "shapeReason": "八边形是本项目几何母题（塔身 sides:8、塔位底座 CylinderGeometry(...,8)），正方形会像临时加的方块。",
+      "parts": [
+        { "name": "top", "geo": "cylinder", "params": [0.95, 0.95, 0.18, 8], "layout": "platformTop", "batch": "rock" },
+        { "name": "side", "geo": "cylinder", "params": [0.95, 0.82, "h-0.18", 8], "layout": "platformSide", "batch": "rock" },
+        { "name": "rim", "geo": "ring", "params": [0.85, 0.95, 8], "at": [0, "h+0.005", 0], "batch": "rune", "emissiveIntensity": 0.5 }
+      ],
+      "tris": 80,
+      "destroyable": false,
+      "destroyableReason": "地形。破坏会让玩家突然掉进熔岩，属不可接受的随机死亡。",
+      "heights": { "jumpLedge": 0.8, "jumpHigh": 1.6, "bridgePier": 2.4 },
+      "sameGeometry": true,
+      "sameGeometryReason": "三种高度共用同一几何生成函数，只改参数。渲染侧只有一份代码。"
+    }
+  },
+
+  "materials": {
+    "reused": ["rockMaterial", "obsidianMaterial", "runeMaterial"],
+    "new": ["wardRuneMaterial"],
+    "newCount": 1,
+    "forbidden": [
+      "给石头加自发光来照亮（M1-03 的教训）",
+      "给平台加符文面（会让人误以为有魔法效果）",
+      "改 rockMaterial 的 bumpScale（会影响整座塔的观感）"
+    ]
+  },
+
+  "debris": {
+    "pool": { "instancedMesh": true, "maxInstances": 64 },
+    "geometry": "box",
+    "physics": {
+      "gravity": -14.0,
+      "speedRangeMps": [3, 7],
+      "upwardMps": [2, 4],
+      "angularRadPerSec": 4,
+      "sinkY": -1.8,
+      "lifetimeMs": 2200
+    },
+    "reuseFrom": "boss.json transition 段（shardCount 48 / shardSpeedMps 9 / shardLifetimeMs 2200）",
+    "reuseReason": "阶段转换的岩甲崩裂已有成熟碎片手感，道具破碎沿用同一套参数，玩家感知一致，省一套调参。"
+  },
+
+  "damageStates": {
+    "_comment": "破坏前兆：道具不会突然消失。",
+    "tiers": [
+      { "hpPctRange": [1.0, 0.5], "visual": "无" },
+      { "hpPctRange": [0.5, 0.25], "visual": "裂缝透橙光，emissiveIntensity 0 → 0.4" },
+      { "hpPctRange": [0.25, 0.0], "visual": "微光 0.8 + 0.15 s 一次闪烁" }
+    ],
+    "implementation": "不改材质，在裂缝位置叠加薄的发光条（rune 材质），按 HP 比例调 opacity。避免为每件道具克隆材质。"
+  },
+
+  "fx": {
+    "chargeImpactSparks": { "count": 12, "lifetimeMs": 600, "color": "#ffb060", "pool": "Atmosphere ember" },
+    "wardDust": { "count": 8, "lifetimeMs": 1200, "color": "grey", "pool": "Atmosphere ember" },
+    "auraPulse": { "opacityRange": [0.15, 0.45], "durationMs": 400 },
+    "explicitlyNotDoing": ["屏幕震动（撞柱已有 Boss 眩晕震屏，叠加会过载）", "镜头特效（干扰玩家读 Boss 前摇）"]
+  },
+
+  "audio": {
+    "_comment": "全部复用 molten-heart-audio 现有素材，不新增音频资产。",
+    "mappings": [
+      { "trigger": "lavaCharge 撞到棱柱", "asset": "sfx-boss-slam", "volume": 0.9, "pitch": 0.85, "reason": "已是巨掌砸落，与撞柱物理感一致" },
+      { "trigger": "壁垒/矮墙被撞碎", "asset": "sfx-tower-destroy", "volume": 0.8, "pitch": 1.05, "reason": "已是石塔崩解，语义完全匹配" },
+      { "trigger": "护壁逐段碎裂", "asset": "sfx-tower-destroy", "volume": 0.55, "pitch": 1.2, "throttleMs": 120, "reason": "避免 8 段同时响成噪音" },
+      { "trigger": "镇石被摧毁", "asset": "sfx-freeze", "volume": 0.7, "pitch": 0.9, "reason": "寒晶冻结音，与寒铁语义一致" },
+      { "trigger": "镇石光环生效", "asset": "sfx-tower-frost", "volume": 0.35, "throttleMs": 400, "reason": "寒晶蓄能音，短促不打扰" },
+      { "trigger": "火雨砸中护壁", "asset": "sfx-boss-fire", "volume": 0.6 },
+      { "trigger": "玩家踏上平台", "asset": null, "reason": "刻意不加：平台是地形，加音效会让玩家以为触发了什么" }
+    ],
+    "rules": [
+      "同一帧最多 2 个道具音（与 INTEGRATION.md 的同帧多塔限制一致）",
+      "撞柱音必须压过破碎音（0.9 vs 0.8）：前者是玩家主动创造，后者是被动结果",
+      "平台无音"
+    ]
+  },
+
+  "readability": {
+    "howPlayerLearnsCoverWorks": [
+      "前摇期：magmaBreath 的 1.4 s 前摇里，所有 blocksLos && losTopY≥1.2 的道具边缘高亮（obsidian metalness 0.5→0.8），材质响应而非 UI",
+      "首次被挡：弹 3 s 文字「掩体挡住了它」（复用 M4-01 的 Narration，speaker: narrator），只弹一次",
+      "被击中：屏幕边缘从受击方向泛橙（复用 M4-01 HUD 的弱点方向脉冲）"
+    ],
+    "howPlayerLearnsPlatformWorks": "平台顶部加极细发光描边（RingGeometry 0.85→0.95, 8 段, emissiveIntensity 0.5）。描边是边不是面，只勾轮廓，不给魔法暗示。",
+    "colorBlindCheck": {
+      "concern": "橙符文 #ff8a3c 与熔岩 #ff5a12 同色系，可能混进背景",
+      "mitigation": "符文改 #ff9a3c（更黄）+ 外圈 1px 暗边",
+      "status": "待实测（建议浏览器色盲模拟截图对比）"
+    }
+  },
+
+  "budget": {
+    "staticTris": 3216,
+    "debrisTris": 768,
+    "damageGlowTris": 348,
+    "totalTris": 4332,
+    "trisLimit": 18000,
+    "trisPct": 0.24,
+    "drawCallDelta": 5,
+    "drawCallBreakdown": {
+      "rockProps": 1,
+      "obsidianProps": 1,
+      "runeProps": 1,
+      "wardRuneProps": 1,
+      "debrisInstanced": 1
+    },
+    "drawCallLimit": 400,
+    "parentTicketCorrection": "父票 §5 写『新增 draw call 0』是错的，应为 +5；父票『静态三角 ≈468』粗算偏低，实际 3216（含护壁 3×384=1152 与平台 12×80=960）。"
+  },
+
+  "edgeCases": [
+    { "case": "道具与塔重叠", "spec": "父票保证 2.2 m 净空；塔位固定 11 个，道具不占塔位，不会重叠" },
+    { "case": "道具被熔岩淹没", "spec": "所有道具底在 y=0，狂暴期熔岩到 -0.6，不会被淹。bridgePier 2.4 m 成为最后高地" },
+    { "case": "Boss 站在道具里", "spec": "Boss 移动不做道具碰撞（只做撞柱检测），会穿过去。可接受：巨兽撞碎掩体是设计意图" },
+    { "case": "玩家在平台被跃击", "spec": "跃击按 2D 位置判定，1.6 m 高台上仍被砸。父票 §2 的明确设计" },
+    { "case": "玩家卡在平台侧面", "spec": "moveAxis 单轴推出会推出，不卡。快速斜撞角落可能抖动，属 AABB 已知局限，本票不修" },
+    { "case": "道具碎片挡视线", "spec": "碎片不参与 LOS 判定。否则一次破碎会临时创造掩体，产生不可预期判定" },
+    { "case": "护壁碎一半", "spec": "逐段破坏，LOS 按剩余段数判定。父票 §3 需扩展为逐段射线测试" }
+  ]
+}

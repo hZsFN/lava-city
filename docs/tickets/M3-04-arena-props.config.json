@@ -1,0 +1,266 @@
+{
+  "$schema": "草案 · 供 S0 裁决后拆进 src/core/config/arena-props.json",
+  "version": "1.0.0",
+  "ticket": "M3-04",
+  "draftedBy": "Lead（草案，未落库；按 00-作战协议 §5，config 结构归 S0）",
+  "note": "本文件是设计票的数值真源。M3-04-validate.mjs 读取本文件做几何/可达性校验。落库前不要改坐标，改了就重跑校验。",
+
+  "frame": {
+    "unit": "m",
+    "origin": "塔心（arena 原点，Boss 场地中心）",
+    "angleDeg": "0° = +X 轴，逆时针为正；与 src/render/Spire.ts 的 addSlotPedestal 一致：x = r·cos(a)，z = r·sin(a)",
+    "up": "+Y",
+    "playerFeetY": 0,
+    "playerHeight": 1.8,
+    "playerEyeHeight": 1.7
+  },
+
+  "budget": {
+    "maxInstances": 32,
+    "maxDrawCallsAdded": 3,
+    "maxTrianglesAdded": 18000,
+    "reason": "M1-03 硬指标是 draw call < 400、三角 < 1.2M。道具必须合并成静态几何，不能一件一 mesh。"
+  },
+
+  "reach": {
+    "_comment": "由 player.json 真实值反解，validate.mjs 会重算并断言。",
+    "gravity": -14.0,
+    "jumpHeight": 1.2,
+    "jumpVelocity": 5.7966,
+    "airTimeSec": 0.8281,
+    "walkSpeed": 6.5,
+    "dashSpeed": 11.0,
+    "dashSec": 0.25,
+    "snapToGround": 0.45,
+    "playerRadius": 0.35,
+    "safeStepUp": 0.9,
+    "safeWalkGap": 3.0,
+    "safeDashGap": 5.0,
+    "hardMaxStepUp": 1.2,
+    "hardMaxWalkGap": 5.383,
+    "hardMaxDashGap": 6.508,
+    "dashGapFormula": "walkSpeed·(airTime − dashSec) + dashSpeed·dashSec = 6.5·0.5784 + 11·0.25 = 6.51 m（冲刺替换该窗口内的走速，不是叠加）"
+  },
+
+  "kinds": {
+    "slagBulwark": {
+      "name": "熔渣壁垒",
+      "category": "cover",
+      "role": "挡 熔岩吐息 / 岩拳横扫 的线；被 熔岩冲撞 撞碎，同时给 Boss 一次眩晕",
+      "footprint": { "shape": "orientedRect", "widthM": 3.6, "depthM": 0.8 },
+      "heightM": 2.2,
+      "blocksLos": true,
+      "losBottomY": 0.0,
+      "losTopY": 2.2,
+      "hp": 240,
+      "destructible": true,
+      "destroyedBy": ["lavaCharge"],
+      "collider": "solid",
+      "cost": 0,
+      "placeReason": "预置而非可建：熔核经济已经很紧（开局 6，每 10% HP 才 +1），再分给道具会挤掉塔。预置还让布局确定、可单测。"
+    },
+    "obsidianPillar": {
+      "name": "黑曜石棱柱",
+      "category": "cover",
+      "role": "挡视线与吐息；熔岩冲撞撞上必眩晕 —— 这是 M3-01 验收第 7 条唯一可撞的『石柱』",
+      "footprint": { "shape": "circle", "radiusM": 0.6 },
+      "heightM": 4.6,
+      "blocksLos": true,
+      "losBottomY": 0.0,
+      "losTopY": 4.6,
+      "hp": 0,
+      "destructible": false,
+      "collider": "solid",
+      "cost": 0,
+      "placeReason": "不可摧毁是故意的：它是阶段 II 制造膝弱点的唯一工具，能被打掉就等于随机剥夺玩家的解法。"
+    },
+    "brokenParapet": {
+      "name": "塌陷矮墙",
+      "category": "cover",
+      "role": "只挡低空攻击（岩拳横扫、岩柱升腾），挡不住视线也挡不住吐息",
+      "footprint": { "shape": "orientedRect", "widthM": 2.4, "depthM": 0.6 },
+      "heightM": 1.1,
+      "blocksLos": false,
+      "losBottomY": 0.0,
+      "losTopY": 1.1,
+      "hp": 120,
+      "destructible": true,
+      "destroyedBy": ["lavaCharge", "fireRain"],
+      "collider": "solid",
+      "cost": 0,
+      "placeReason": "1.1 m < 玩家身高 1.8 m，所以明确不挡视线 —— 这是廉价的『低掩体』，让玩家有便宜选择，同时不给无敌点。"
+    },
+    "coreWard": {
+      "name": "塔心护壁",
+      "category": "defense",
+      "role": "挡在塔基前的弧形护墙，替塔心吃 火雨 / 冲撞 伤害",
+      "footprint": { "shape": "orientedRect", "widthM": 5.0, "depthM": 0.5 },
+      "heightM": 2.4,
+      "blocksLos": true,
+      "losBottomY": 0.0,
+      "losTopY": 2.4,
+      "hp": 600,
+      "destructible": true,
+      "destroyedBy": ["lavaCharge", "fireRain"],
+      "collider": "solid",
+      "absorb": {
+        "protectsCore": true,
+        "fireRainTowerDamage": 80,
+        "note": "火雨落点若落在护壁弧线内侧且护壁仍存活，则 80 点塔伤转由护壁承担；护壁 hp 归零后该保护消失。"
+      },
+      "cost": 0,
+      "placeReason": "hp 600 与 towers.json 的塔 hp 对齐，玩家不需要记第二套耐久语义。"
+    },
+    "frostAnchor": {
+      "name": "寒铁镇石",
+      "category": "defense",
+      "role": "站进 3 m 光环内获得『坚壁』：受到 Boss 伤害 -25%，镇石代为承受",
+      "footprint": { "shape": "circle", "radiusM": 0.8 },
+      "heightM": 0.5,
+      "blocksLos": false,
+      "losBottomY": 0.0,
+      "losTopY": 0.5,
+      "hp": 200,
+      "destructible": true,
+      "destroyedBy": ["selfIgnite", "lavaCharge"],
+      "collider": "walkable",
+      "aura": {
+        "radiusM": 3.0,
+        "damageReduction": 0.25,
+        "maxStacks": 1,
+        "note": "减伤由镇石吸收：玩家受 40 伤时实际扣 30，镇石扣 10。hp 归零则光环消失。"
+      },
+      "cost": 0,
+      "placeReason": "0.5 m 高 = 可走上去（snapToGround 0.45 不够，但 0.5 用跳也能上；实际按 walkable 处理，不加碰撞盒，避免玩家被 0.5 m 台阶卡住）。"
+    },
+    "jumpLedge": {
+      "name": "跳跃平台",
+      "category": "platform",
+      "role": "垫高。横扫贴地判定 → 抬脚就能躲；冲撞掠过 → 抬脚就能躲；狂暴期熔岩上涨 → 多买几秒",
+      "footprint": { "shape": "rect", "widthM": 1.8, "depthM": 1.8 },
+      "heightM": 0.8,
+      "blocksLos": false,
+      "hp": 0,
+      "destructible": false,
+      "collider": "solid",
+      "cost": 0,
+      "placeReason": "1.8×1.8 是玩家半径 0.35 的 5 倍，够站但不够绕，逼玩家决定要不要上去。"
+    },
+    "jumpHigh": {
+      "name": "高台",
+      "category": "platform",
+      "role": "同 jumpLedge，但 1.6 m 从地面跳不上去（跳跃上限 1.2 m），必须经由低台",
+      "footprint": { "shape": "rect", "widthM": 1.8, "depthM": 1.8 },
+      "heightM": 1.6,
+      "blocksLos": false,
+      "hp": 0,
+      "destructible": false,
+      "collider": "solid",
+      "cost": 0,
+      "placeReason": "强制『低台 → 高台』两段跳，让平台有路线而不只是台阶。"
+    },
+    "bridgePier": {
+      "name": "断桥残墩",
+      "category": "platform",
+      "role": "最高点。只从高台可上，狂暴期能多撑 2 s",
+      "footprint": { "shape": "rect", "widthM": 1.8, "depthM": 1.8 },
+      "heightM": 2.4,
+      "blocksLos": false,
+      "hp": 0,
+      "destructible": false,
+      "collider": "solid",
+      "cost": 0,
+      "placeReason": "2.4 / 1.2 m·s⁻¹ = 2.0 s 额外存活时间，是可感知但不破坏节奏的量。"
+    }
+  },
+
+  "instances": [
+    { "id": "W1", "kind": "coreWard", "angleDeg": 30,  "radiusM": 9.6, "rotDeg": 120 },
+    { "id": "W2", "kind": "coreWard", "angleDeg": 150, "radiusM": 9.6, "rotDeg": 240 },
+    { "id": "W3", "kind": "coreWard", "angleDeg": 270, "radiusM": 9.6, "rotDeg": 0 },
+
+    { "id": "A1", "kind": "frostAnchor", "angleDeg": 45,  "radiusM": 13.0, "rotDeg": 0 },
+    { "id": "A2", "kind": "frostAnchor", "angleDeg": 225, "radiusM": 13.0, "rotDeg": 0 },
+
+    { "id": "P1", "kind": "brokenParapet", "angleDeg": 60,  "radiusM": 11.6, "rotDeg": 150 },
+    { "id": "P2", "kind": "brokenParapet", "angleDeg": 120, "radiusM": 11.6, "rotDeg": 210 },
+    { "id": "P3", "kind": "brokenParapet", "angleDeg": 210, "radiusM": 11.6, "rotDeg": 300 },
+    { "id": "P4", "kind": "brokenParapet", "angleDeg": 240, "radiusM": 11.6, "rotDeg": 330 },
+
+    { "id": "B1", "kind": "slagBulwark", "angleDeg": 84.66, "radiusM": 16.12, "rotDeg": 174.66 },
+    { "id": "B2", "kind": "slagBulwark", "angleDeg": 95.34, "radiusM": 16.12, "rotDeg": 185.34 },
+    { "id": "B3", "kind": "slagBulwark", "angleDeg": 264.66, "radiusM": 16.12, "rotDeg": 354.66 },
+    { "id": "B4", "kind": "slagBulwark", "angleDeg": 275.34, "radiusM": 16.12, "rotDeg": 5.34 },
+
+    { "id": "O1", "kind": "obsidianPillar", "angleDeg": 15,  "radiusM": 11.0, "rotDeg": 0 },
+    { "id": "O2", "kind": "obsidianPillar", "angleDeg": 165, "radiusM": 11.0, "rotDeg": 0 },
+    { "id": "O3", "kind": "obsidianPillar", "angleDeg": 195, "radiusM": 11.0, "rotDeg": 0 },
+    { "id": "O4", "kind": "obsidianPillar", "angleDeg": 345, "radiusM": 11.0, "rotDeg": 0 },
+
+    { "id": "L1", "kind": "jumpLedge", "angleDeg": 22.5,  "radiusM": 13.2, "rotDeg": 0 },
+    { "id": "L2", "kind": "jumpHigh",  "angleDeg": 22.5,  "radiusM": 15.4, "rotDeg": 0 },
+    { "id": "L3", "kind": "bridgePier","angleDeg": 22.5,  "radiusM": 17.6, "rotDeg": 0 },
+    { "id": "L4", "kind": "jumpLedge", "angleDeg": 157.5, "radiusM": 13.2, "rotDeg": 0 },
+    { "id": "L5", "kind": "jumpHigh",  "angleDeg": 157.5, "radiusM": 15.4, "rotDeg": 0 },
+    { "id": "L6", "kind": "bridgePier","angleDeg": 157.5, "radiusM": 17.6, "rotDeg": 0 },
+    { "id": "L7", "kind": "jumpLedge", "angleDeg": 202.5, "radiusM": 13.2, "rotDeg": 0 },
+    { "id": "L8", "kind": "jumpHigh",  "angleDeg": 202.5, "radiusM": 15.4, "rotDeg": 0 },
+    { "id": "L9", "kind": "bridgePier","angleDeg": 202.5, "radiusM": 17.6, "rotDeg": 0 },
+    { "id": "L10", "kind": "jumpLedge", "angleDeg": 337.5, "radiusM": 13.2, "rotDeg": 0 },
+    { "id": "L11", "kind": "jumpHigh",  "angleDeg": 337.5, "radiusM": 15.4, "rotDeg": 0 },
+    { "id": "L12", "kind": "bridgePier","angleDeg": 337.5, "radiusM": 17.6, "rotDeg": 0 }
+  ],
+
+  "losScenarios": [
+    {
+      "id": "breath-canonical",
+      "skill": "magmaBreath",
+      "from": [0, 11],
+      "toward": [0, 22],
+      "rangeM": 20,
+      "halfAngleDeg": 25,
+      "mustBeBlockedBy": ["B1", "B2"],
+      "note": "Boss 在出生位朝 +Z 喷吐息，玩家站在出生点。B1/B2 必须落在这个锥里，否则『躲吐息』这条玩法在开局位置就不成立。"
+    },
+    {
+      "id": "breath-flank-unguarded",
+      "skill": "magmaBreath",
+      "from": [0, 11],
+      "toward": [9.5, 17.0],
+      "rangeM": 20,
+      "halfAngleDeg": 25,
+      "mustBeBlockedBy": [],
+      "expectBlocked": false,
+      "note": "侧翼射线必须挡不住 —— 证明掩体是有方向的、不是全场无敌罩。玩家必须走到掩体后面，而不是随便站着。"
+    }
+  ],
+
+  "mustAvoid": {
+    "_comment": "道具不得与这些抢位置。validate.mjs 会逐一断言。",
+    "towerBodyRadiusM": 7.0,
+    "bridges": { "anglesDeg": [0, 90, 180, 270], "innerM": 20, "outerM": 32, "widthM": 2.4 },
+    "midSlotPedestals": { "anglesDeg": [45, 135, 225, 315], "radiusM": 16.75, "sizeM": 1.9 },
+    "outerSlotPedestals": { "anglesDeg": [0, 90, 180, 270], "radiusM": 34, "sizeM": 1.9 },
+    "logicalSlots": [
+      [20, 0, 0], [0, 0, 20], [-20, 0, 0], [0, 0, -20],
+      [7.6, 12, 0], [-3.8, 12, 6.6], [-3.8, 12, -6.6],
+      [24, 0, 24], [-24, 0, 24], [-24, 0, -24], [24, 0, -24]
+    ],
+    "slotClearanceM": 2.2,
+    "playerSpawn": [0, 0, 22],
+    "playerSpawnClearanceM": 1.5,
+    "bossSpawn": [0, 0, 11],
+    "bossBodyRadiusM": 2.6,
+    "bossSpawnClearanceM": 3.2,
+    "bossBoundaryRadiusM": 19,
+    "bossBoundaryReason": "所有道具中心 r ≤ 19，不允许在 Boss 追不到的外圈造『无敌台』。逻辑地面宽到 r=34，这是现存的绕过点，本设计不去扩大它。"
+  },
+
+  "damageModel": {
+    "sweepGroundBandY": [0.6, 1.6],
+    "sweepImmuneFeetYAbove": 0.9,
+    "chargeImmuneFeetYAbove": 0.9,
+    "losRayHeightY": 1.2,
+    "note": "losRayHeightY = 玩家蹲不下，取胸口高度做 2D 射线；遮挡物 losTopY ≥ 1.2 且 losBottomY ≤ 1.2 才挡得住。"
+  }
+}
