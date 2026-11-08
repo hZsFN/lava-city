@@ -53,7 +53,8 @@ interface SkillDef {
   damage: number;
 }
 
-const APPROACH_SPEED = 1.35;   // 米/秒，Boss 常态逼近塔心的速度
+const ORBIT_RADIUS = 26;        // 米，Boss 巡游所在的熔岩环带（中环 24 与外环 32 之间）
+const ORBIT_SPEED = 0.16;       // 弧度/秒，绕塔心一圈约 39 秒
 
 const SKILLS: Record<SkillId, SkillDef> = {
   rockSweep: { windupMs: 900, activeMs: 350, recoveryMs: 1000, cooldownMs: 6000, damage: 35 },
@@ -118,6 +119,8 @@ export class IgnisBoss {
   private coreLight: THREE.PointLight;
 
   private readonly approachTarget: [number, number, number] = [0, 0, 18];
+  /** 熔岩环带巡游角度（弧度） */
+  private patrolAngle = Math.PI * 0.5;
   private targetPos: Vec3 = [0, 0, 18];
   private attackDir = new THREE.Vector3(0, 0, 1);
   /** 最近一次施法瞬间锁定的玩家位置（石柱/吐息判定用） */
@@ -417,29 +420,26 @@ export class IgnisBoss {
   }
 
   /**
-   * 常态逼近：朝"最近的可打目标"走 —— 有塔就砍塔，没塔就去砍玩家。
-   * 之前是死磕塔心，结果走到塔身外缘就卡住不动了（塔本身是实心的）。
+   * 常态巡游：Boss 待在"熔岩环带"里绕塔心转圈，永远不上平台。
+   * 地图结构 = 塔心 → 内圆盘（平台）→ 熔岩环带 → 外环（平台），
+   * 它只在中环(24)与外环(32)之间那条熔岩里活动，靠技能远程打人打塔。
+   * 之前让它直线追目标，结果一路撞进塔身卡住、还会踩上平台。
    */
   private updateApproach(dtMs: number): void {
     if (this.skill !== null) return;
     if (this.showMode !== 'active') return;
 
-    // 目标优先级：最近的塔（由外部注入）> 玩家 > 塔心
-    const tx = this.approachTarget[0];
-    const tz = this.approachTarget[2];
-    const dx = tx - this.root.position.x;
-    const dz = tz - this.root.position.z;
-    const dist = Math.hypot(dx, dz);
-    const STOP = 3.2;                          // 贴到目标近身前就停下开打
-    if (dist <= STOP) return;
-
-    const step = Math.min((APPROACH_SPEED * dtMs) / 1000, dist - STOP);
-    this.root.position.x += (dx / dist) * step;
-    this.root.position.z += (dz / dist) * step;
-    this.root.rotation.y = Math.atan2(dx, dz);
+    this.patrolAngle += (ORBIT_SPEED * dtMs) / 1000;
+    const r = ORBIT_RADIUS;
+    const x = Math.cos(this.patrolAngle) * r;
+    const z = Math.sin(this.patrolAngle) * r;
+    this.root.position.x = x;
+    this.root.position.z = z;
+    // 始终面朝塔心
+    this.root.rotation.y = Math.atan2(-x, -z);
   }
 
-  /** 外部（main/FlowDirector）每帧喂一次"该打谁"的世界坐标 */
+  /** 外部保留：现在只用于技能选目标，不驱动位移 */
   setApproachTarget(pos: [number, number, number]): void {
     this.approachTarget[0] = pos[0];
     this.approachTarget[1] = pos[1];
