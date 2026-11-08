@@ -1,38 +1,166 @@
 {
   "matchLengthSec": 270,
-  "playerSpawn": [0, 0, 17.2],
-  "phases": [
-    { "phase": "wake", "beat": "dark", "startSec": 0, "endSec": 8 },
-    { "phase": "wake", "beat": "blur", "startSec": 8, "endSec": 16 },
-    { "phase": "tutorial", "startSec": 16, "endSec": 40 },
-    { "phase": "prep", "startSec": 40, "endSec": 50 },
-    { "phase": "boss1", "startSec": 50, "endSec": 140 },
-    { "phase": "transition", "startSec": 140, "endSec": 155 },
-    { "phase": "boss2", "startSec": 155, "endSec": 270 }
+  "playerSpawn": [
+    0,
+    0,
+    17.2
   ],
-  "victory": { "durationSec": 15, "escapeDurationSec": 15 },
-  "rage": { "atSec": 270, "risePerSec": 1, "swallowAfterSec": 5 },
-  "core": { "maxHp": 1000 },
-  "motes": { "start": 6, "perBossHpPct": 10, "perExecution": 2 },
+  "phases": [
+    {
+      "phase": "wake",
+      "beat": "dark",
+      "startSec": 0,
+      "endSec": 8
+    },
+    {
+      "phase": "wake",
+      "beat": "blur",
+      "startSec": 8,
+      "endSec": 16
+    },
+    {
+      "phase": "tutorial",
+      "startSec": 16,
+      "endSec": 40
+    },
+    {
+      "phase": "prep",
+      "startSec": 40,
+      "endSec": 50
+    },
+    {
+      "phase": "boss1",
+      "startSec": 50,
+      "endSec": 140
+    },
+    {
+      "phase": "transition",
+      "startSec": 140,
+      "endSec": 155
+    },
+    {
+      "phase": "boss2",
+      "startSec": 155,
+      "endSec": 270
+    }
+  ],
+  "victory": {
+    "durationSec": 15,
+    "escapeDurationSec": 15
+  },
+  "rage": {
+    "atSec": 270,
+    "risePerSec": 1,
+    "swallowAfterSec": 5
+  },
+  "core": {
+    "maxHp": 1000
+  },
+  "motes": {
+    "start": 99999,
+    "perBossHpPct": 0,
+    "perExecution": 0
+  },
   "score": {
     "grades": [
-      { "grade": "S", "maxSec": 210, "minExecutions": 3, "minCorePct": 60 },
-      { "grade": "A", "maxSec": 240, "minExecutions": 2, "minCorePct": 30 },
-      { "grade": "B", "maxSec": 270, "minExecutions": 1, "minCorePct": 1 },
-      { "grade": "C", "maxSec": 999999, "minExecutions": 0, "minCorePct": 0 }
+      {
+        "grade": "S",
+        "maxSec": 210,
+        "minExecutions": 3,
+        "minCorePct": 60
+      },
+      {
+        "grade": "A",
+        "maxSec": 240,
+        "minExecutions": 2,
+        "minCorePct": 30
+      },
+      {
+        "grade": "B",
+        "maxSec": 270,
+        "minExecutions": 1,
+        "minCorePct": 1
+      },
+      {
+        "grade": "C",
+        "maxSec": 999999,
+        "minExecutions": 0,
+        "minCorePct": 0
+      }
     ]
   },
   "narration": [
-    { "phase": "wake", "atSec": 3, "text": "……又来了。", "fadeMs": 1200, "holdMs": 2500 },
-    { "phase": "wake", "atSec": 11, "text": "这次，比上一次更热。", "fadeMs": 1200, "holdMs": 2200 },
-    { "phase": "transition", "atSec": 0.5, "text": "……你居然还站着。", "speaker": "boss", "fadeMs": 600, "holdMs": 3200 },
-    { "phase": "transition", "atSec": 5.0, "text": "那就站起来打死我。", "speaker": "boss", "fadeMs": 600, "holdMs": 3200 },
-    { "phase": "transition", "atSec": 10.0, "text": "（塔在震。熔岩在涨。）", "speaker": "narrator", "fadeMs": 800, "holdMs": 3000 },
-    { "phase": "victory", "atSec": 1.0, "text": "它碎了。", "fadeMs": 800, "holdMs": 2000 },
-    { "phase": "victory", "atSec": 6.0, "text": "塔心还在。", "fadeMs": 800, "holdMs": 2500 },
-    { "phase": "escape", "atSec": 2.0, "text": "下一座城，在下面等你。", "fadeMs": 1000, "holdMs": 3000 }
+    {
+      "phase": "wake",
+      "atSec": 1.5,
+      "text": "你醒来，在一座高塔旁。",
+      "fadeMs": 900,
+      "holdMs": 2500
+    },
+    {
+      "phase": "wake",
+      "atSec": 4.2,
+      "text": "高塔蕴含的能量足以撕裂空间，但还未充能完毕。",
+      "fadeMs": 900,
+      "holdMs": 3000
+    },
+    {
+      "phase": "wake",
+      "atSec": 7.4,
+      "text": "击败魔王，留存前往新世界的希望。",
+      "fadeMs": 900,
+      "holdMs": 3200
+    },
+    {
+      "phase": "transition",
+      "atSec": 0.5,
+      "text": "……你居然还站着。",
+      "speaker": "boss",
+      "fadeMs": 600,
+      "holdMs": 3200
+    },
+    {
+      "phase": "transition",
+      "atSec": 5.0,
+      "text": "那就站起来打死我。",
+      "speaker": "boss",
+      "fadeMs": 600,
+      "holdMs": 3200
+    },
+    {
+      "phase": "transition",
+      "atSec": 10.0,
+      "text": "（塔在震。熔岩在涨。）",
+      "speaker": "narrator",
+      "fadeMs": 800,
+      "holdMs": 3000
+    },
+    {
+      "phase": "victory",
+      "atSec": 1.0,
+      "text": "它碎了。",
+      "fadeMs": 800,
+      "holdMs": 2000
+    },
+    {
+      "phase": "victory",
+      "atSec": 6.0,
+      "text": "塔心还在。",
+      "fadeMs": 800,
+      "holdMs": 2500
+    },
+    {
+      "phase": "escape",
+      "atSec": 2.0,
+      "text": "下一座城，在下面等你。",
+      "fadeMs": 1000,
+      "holdMs": 3000
+    }
   ],
-  "speakers": { "boss": "熔渊之主", "narrator": "" },
+  "speakers": {
+    "boss": "熔渊之主",
+    "narrator": ""
+  },
   "wake": {
     "darkEndSec": 8,
     "blurEndSec": 16,
@@ -51,7 +179,11 @@
     "leaveRadiusM": 3.5,
     "readingFov": 52,
     "cameraBlendSec": 0.45,
-    "light": { "color": "#ffb070", "intensity": 12, "distance": 3 },
+    "light": {
+      "color": "#ffb070",
+      "intensity": 12,
+      "distance": 3
+    },
     "geometry": {
       "widthM": 0.34,
       "coverThicknessM": 0.045,
@@ -59,7 +191,11 @@
       "pagesInsetM": 0.02,
       "pagesThicknessM": 0.03
     },
-    "colors": { "cover": "#6b1a12", "pages": "#e6d9bd", "edge": "#d8b46a" },
+    "colors": {
+      "cover": "#6b1a12",
+      "pages": "#e6d9bd",
+      "edge": "#d8b46a"
+    },
     "sparkCount": 20,
     "sparkMs": 900,
     "lastPageHoldSec": 1.6,
@@ -73,7 +209,11 @@
     ]
   },
   "bossSpawn": {
-    "mouthPos": [0, 0, 11],
+    "mouthPos": [
+      0,
+      0,
+      11
+    ],
     "mouthRadiusM": 3.0,
     "rippleSec": 0.6,
     "riseSec": 1.5,
