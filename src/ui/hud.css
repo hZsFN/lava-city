@@ -1,0 +1,740 @@
+/* src/ui/hud.css
+ * HUD 的所有颜色 / 字号 / 动效时长都由 hud.ts 从 config/ui.json 写入 CSS 变量，
+ * 本文件只负责布局与状态类，不出现任何写死的颜色、字号或毫秒数。
+ */
+
+.hud-root {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  font-family: var(--hud-font-family);
+  color: var(--hud-c-text);
+  text-shadow: 0 1px 2px var(--hud-c-ink);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.hud-root * {
+  box-sizing: border-box;
+}
+
+/* ── 1. 左下角 · 玩家状态 ───────────────────────────────────────────────── */
+
+.hud-player {
+  position: absolute;
+  left: 24px;
+  bottom: 22px;
+  width: calc(var(--hud-l-hp-width) + 24px);
+  padding: 10px 12px;
+  border: 1px solid var(--hud-c-panel-border);
+  border-radius: 10px;
+  background: var(--hud-c-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-hp-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--hud-fs-micro);
+  letter-spacing: 0.06em;
+  color: var(--hud-c-muted);
+}
+
+.hud-hp-value {
+  color: var(--hud-c-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-hp-track {
+  width: var(--hud-l-hp-width);
+  height: var(--hud-l-hp-height);
+  border: 1px solid var(--hud-c-panel-border);
+  border-radius: 2px;
+  background: var(--hud-c-track);
+  overflow: hidden;
+}
+
+.hud-hp-track.low {
+  animation: hud-pulse var(--hud-dur-hp-pulse) ease-in-out infinite;
+}
+
+.hud-hp-fill {
+  height: 100%;
+  width: 0;
+  background: var(--hud-c-hp);
+}
+
+.hud-hp-track.low .hud-hp-fill {
+  background: var(--hud-c-hp-low);
+}
+
+.hud-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hud-form-icon {
+  width: var(--hud-l-form-icon);
+  height: var(--hud-l-form-icon);
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  background: var(--hud-c-panel);
+  color: var(--hud-attr-physical);
+  transition: color var(--hud-dur-form-pop) ease, border-color var(--hud-dur-form-pop) ease;
+}
+
+.hud-form-icon.pop {
+  animation: hud-form-pop var(--hud-dur-form-pop) ease-out;
+}
+
+.hud-form-icon svg {
+  width: 60%;
+  height: 60%;
+}
+
+.hud-form-name {
+  font-size: var(--hud-fs-label);
+  letter-spacing: 0.14em;
+  color: var(--hud-c-text);
+}
+
+.hud-overheat {
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hud-overheat.active {
+  display: flex;
+}
+
+.hud-overheat-track {
+  width: var(--hud-l-overheat-width);
+  height: var(--hud-l-overheat-height);
+  border-radius: 2px;
+  background: var(--hud-c-track);
+  overflow: hidden;
+}
+
+.hud-overheat-fill {
+  height: 100%;
+  width: 0;
+  background: var(--hud-c-overheat);
+}
+
+.hud-overheat-fill.full {
+  background: var(--hud-c-overheat-full);
+  animation: hud-pulse var(--hud-dur-hp-pulse) ease-in-out infinite;
+}
+
+/* ── 2. 顶部中央 · 倒计时 ───────────────────────────────────────────────── */
+
+.hud-timer {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.hud-clock {
+  font-size: var(--hud-fs-countdown);
+  line-height: 1;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: var(--hud-c-text);
+  text-shadow: 0 2px 12px var(--hud-c-ink);
+}
+
+.hud-clock.warn {
+  color: var(--hud-c-warning);
+}
+
+.hud-clock.danger {
+  color: var(--hud-c-danger);
+  animation: hud-pulse var(--hud-dur-count-pulse) ease-in-out infinite;
+}
+
+.hud-phase {
+  margin-top: 4px;
+  font-size: var(--hud-fs-micro);
+  letter-spacing: 0.2em;
+  color: var(--hud-c-muted);
+}
+
+/* ── 3. 顶部 · Boss 双段血条 ───────────────────────────────────────────── */
+
+.hud-boss {
+  position: absolute;
+  top: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(var(--hud-l-boss-width) + 96px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-boss-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: var(--hud-fs-micro);
+  letter-spacing: 0.08em;
+  color: var(--hud-c-muted);
+}
+
+.hud-boss-name {
+  color: var(--hud-c-text);
+}
+
+.hud-boss-phase {
+  color: var(--hud-c-text);
+  letter-spacing: 0.16em;
+}
+
+.hud-boss-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-boss-bars {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.hud-boss-bar {
+  position: relative;
+  width: 100%;
+  height: var(--hud-l-boss-height);
+  border: 1px solid var(--hud-c-panel-border);
+  background: var(--hud-c-track);
+  overflow: hidden;
+}
+
+.hud-boss-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--hud-c-boss), var(--hud-c-warning));
+}
+
+.hud-boss-next {
+  height: 100%;
+  width: 100%;
+  background: var(--hud-c-boss-next);
+}
+
+.hud-boss-bars.flash::after,
+.hud-boss-bars.flash-demo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, var(--hud-c-platinum), transparent);
+  pointer-events: none;
+}
+
+.hud-boss-bars.flash::after {
+  animation: hud-sweep var(--hud-dur-phase-flash) ease-out;
+}
+
+.hud-boss-bars.flash-demo::after {
+  opacity: 0.8;
+}
+
+.hud-resist {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--hud-c-panel-border);
+  border-radius: 50%;
+  background: var(--hud-c-panel);
+  font-size: var(--hud-fs-micro);
+  color: var(--hud-c-muted);
+  opacity: 0.38;
+}
+
+.hud-resist.lit {
+  opacity: 1;
+  color: currentColor;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.hud-resist.physical {
+  color: var(--hud-attr-physical);
+}
+
+.hud-resist.arcane {
+  color: var(--hud-attr-arcane);
+}
+
+.hud-debuffs {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 14px;
+  padding-left: 40px;
+  font-size: var(--hud-fs-micro);
+  letter-spacing: 0.06em;
+  color: var(--hud-c-muted);
+}
+
+.hud-debuff {
+  display: none;
+  align-items: center;
+  gap: 5px;
+}
+
+.hud-debuff.show {
+  display: inline-flex;
+}
+
+.hud-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.hud-debuff.sunder {
+  color: var(--hud-attr-physical);
+}
+
+.hud-debuff.scorch {
+  color: var(--hud-attr-arcane);
+}
+
+.hud-debuff.freeze {
+  color: var(--hud-attr-arcane);
+}
+
+.hud-debuff .num {
+  color: var(--hud-c-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 4. 屏幕中央 · 准星与破绽环 ─────────────────────────────────────────── */
+
+.hud-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+}
+
+.hud-crosshair {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  color: var(--hud-c-crosshair);
+}
+
+.hud-crosshair.matched {
+  color: var(--hud-attr-current);
+}
+
+.hud-crosshair.hit {
+  animation: hud-cross-hit var(--hud-dur-phase-flash) ease-out;
+}
+
+.hud-crosshair i {
+  position: absolute;
+  display: block;
+  background: currentColor;
+  box-shadow: 0 0 2px var(--hud-c-ink);
+}
+
+.hud-crosshair .top,
+.hud-crosshair .bottom {
+  left: 0;
+  width: 1px;
+  height: var(--hud-l-crosshair-line);
+}
+
+.hud-crosshair .top {
+  top: calc(-1 * (var(--hud-l-crosshair-gap) + var(--hud-l-crosshair-line)));
+}
+
+.hud-crosshair .bottom {
+  top: var(--hud-l-crosshair-gap);
+}
+
+.hud-crosshair .left,
+.hud-crosshair .right {
+  top: 0;
+  height: 1px;
+  width: var(--hud-l-crosshair-line);
+}
+
+.hud-crosshair .left {
+  left: calc(-1 * (var(--hud-l-crosshair-gap) + var(--hud-l-crosshair-line)));
+}
+
+.hud-crosshair .right {
+  left: var(--hud-l-crosshair-gap);
+}
+
+.hud-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--hud-l-weakness-ring);
+  height: var(--hud-l-weakness-ring);
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: conic-gradient(var(--hud-ring-color) var(--hud-ring-deg), var(--hud-c-ring-track) 0);
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 6px),
+    var(--hud-c-ink) calc(100% - 5px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 6px),
+    var(--hud-c-ink) calc(100% - 5px)
+  );
+  opacity: 0;
+  transition: opacity var(--hud-dur-form-pop) ease;
+  filter: drop-shadow(0 0 2px var(--hud-c-ink));
+}
+
+.hud-ring.show {
+  opacity: 1;
+}
+
+.hud-ring.full {
+  animation: hud-pulse var(--hud-dur-hp-pulse) ease-in-out infinite;
+}
+
+.hud-exec {
+  position: absolute;
+  left: 0;
+  top: calc(var(--hud-l-weakness-ring) / 2 + 14px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: var(--hud-fs-label);
+  letter-spacing: 0.16em;
+  color: var(--hud-c-platinum);
+  opacity: 0;
+}
+
+.hud-exec.show {
+  opacity: 1;
+  animation: hud-pulse var(--hud-dur-count-pulse) ease-in-out infinite;
+}
+
+/* ── 5. 屏幕边缘 · 弱点方向箭头 ─────────────────────────────────────────── */
+
+.hud-arrow {
+  position: absolute;
+  display: none;
+  width: 22px;
+  height: 26px;
+  background: var(--hud-arrow-color);
+  clip-path: polygon(50% 0, 100% 100%, 50% 76%, 0 100%);
+  filter: drop-shadow(0 0 6px var(--hud-arrow-color)) drop-shadow(0 0 2px var(--hud-c-ink));
+  transform-origin: 50% 50%;
+}
+
+.hud-arrow.show {
+  display: block;
+}
+
+.hud-arrow.dim {
+  opacity: var(--hud-op-unmatched);
+}
+
+.hud-arrow.pulse {
+  animation: hud-arrow-pulse var(--hud-dur-arrow-pulse) ease-in-out 1;
+}
+
+/* ── 6. 右下角 · 资源 ───────────────────────────────────────────────────── */
+
+.hud-res {
+  position: absolute;
+  right: 24px;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border: 1px solid var(--hud-c-panel-border);
+  border-radius: 8px;
+  background: var(--hud-c-panel);
+  font-size: var(--hud-fs-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-pill svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.hud-mote {
+  color: var(--hud-c-warning);
+}
+
+.hud-mote-num {
+  display: inline-block;
+  color: var(--hud-c-text);
+}
+
+.hud-mote-num.pop {
+  animation: hud-mote-pop var(--hud-dur-mote-pop) ease-out;
+}
+
+.hud-tact {
+  display: none;
+  color: var(--hud-attr-arcane);
+}
+
+.hud-tact.show {
+  display: flex;
+}
+
+.hud-diamond {
+  width: 10px;
+  height: 10px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.hud-tact-num {
+  color: var(--hud-c-text);
+}
+
+/* ── 7. 结算页 ──────────────────────────────────────────────────────────── */
+
+.hud-end {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hud-c-scrim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--hud-dur-fade-in) ease;
+}
+
+.hud-end.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hud-end-panel {
+  width: var(--hud-l-end-width);
+  max-width: 86vw;
+  padding: 26px 32px 24px;
+  border: 1px solid var(--hud-c-panel-border);
+  border-radius: 14px;
+  background: var(--hud-c-panel);
+  text-align: center;
+  box-shadow: 0 18px 60px var(--hud-c-ink);
+}
+
+.hud-end-title {
+  margin: 0 0 8px;
+  font-size: var(--hud-fs-verdict);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  color: var(--hud-c-platinum);
+}
+
+.hud-end-title.lose {
+  color: var(--hud-c-danger);
+}
+
+.hud-end-sub {
+  margin: 0;
+  font-size: var(--hud-fs-body);
+  letter-spacing: 0.08em;
+  color: var(--hud-c-muted);
+}
+
+.hud-end-grade {
+  margin: 12px 0 4px;
+  font-size: var(--hud-fs-grade);
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.hud-end-grade.grade-S {
+  color: var(--hud-c-grade-s);
+}
+
+.hud-end-grade.grade-A {
+  color: var(--hud-c-grade-a);
+}
+
+.hud-end-grade.grade-B {
+  color: var(--hud-c-grade-b);
+}
+
+.hud-end-grade.grade-C {
+  color: var(--hud-c-grade-c);
+}
+
+.hud-end-reason {
+  min-height: 1.2em;
+  margin: 0;
+  font-size: var(--hud-fs-label);
+  letter-spacing: 0.06em;
+  color: var(--hud-c-warning);
+}
+
+.hud-damage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 18px 0 6px;
+  text-align: left;
+}
+
+.hud-damage-row {
+  display: grid;
+  grid-template-columns: 44px 1fr 54px;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--hud-fs-micro);
+  color: var(--hud-c-muted);
+}
+
+.hud-damage-track {
+  height: 8px;
+  border-radius: 2px;
+  background: var(--hud-c-track);
+  overflow: hidden;
+}
+
+.hud-damage-fill {
+  height: 100%;
+  width: 0;
+}
+
+.hud-damage-fill.tower {
+  background: var(--hud-c-bar-tower);
+}
+
+.hud-damage-fill.player {
+  background: var(--hud-c-bar-player);
+}
+
+.hud-damage-fill.execution {
+  background: var(--hud-c-bar-execution);
+}
+
+.hud-end-btn {
+  margin-top: 16px;
+  padding: 10px 30px;
+  border: 1px solid var(--hud-c-panel-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--hud-c-text);
+  font: inherit;
+  font-size: var(--hud-fs-label);
+  letter-spacing: 0.18em;
+  cursor: pointer;
+}
+
+.hud-end-btn:hover,
+.hud-end-btn:focus-visible {
+  border-color: var(--hud-c-platinum);
+  color: var(--hud-c-platinum);
+  outline: none;
+}
+
+/* ── 动画 ───────────────────────────────────────────────────────────────── */
+
+@keyframes hud-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes hud-form-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes hud-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes hud-cross-hit {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes hud-arrow-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes hud-mote-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 截图演示态：隐藏调试浮层，避免遮挡 HUD */
+body.hud-demo .debug-overlay {
+  display: none !important;
+}

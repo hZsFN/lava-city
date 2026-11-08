@@ -9,6 +9,7 @@ export class DebugOverlay {
 
   constructor(backend: BackendName) {
     const root = document.createElement('div');
+    root.className = 'debug-overlay';
     this.root = root;
     root.style.cssText = [
       'position:fixed',

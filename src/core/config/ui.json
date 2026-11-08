@@ -14,10 +14,83 @@
   },
   "weaknessIndicator": {
     "edgePulse": true,
-    "worldArrow": true
+    "worldArrow": true,
+    "facingDeg": 25,
+    "remindSec": 3
   },
   "settlement": {
-    "grades": ["S", "A", "B", "C"],
+    "grades": [
+      "S",
+      "A",
+      "B",
+      "C"
+    ],
     "restartSec": 2
+  },
+  "theme": {
+    "colors": {
+      "text": "#efe7da",
+      "muted": "#bdb2a3",
+      "panel": "rgba(10, 6, 8, 0.82)",
+      "panelBorder": "rgba(255, 138, 76, 0.26)",
+      "hp": "#d24a3a",
+      "hpLow": "#ff5a48",
+      "track": "rgba(255, 255, 255, 0.14)",
+      "ringTrack": "rgba(6, 4, 5, 0.62)",
+      "overheat": "#ff8a3c",
+      "overheatFull": "#ff3b2f",
+      "boss": "#d8462f",
+      "bossNext": "#3d2f2b",
+      "warning": "#ffb066",
+      "danger": "#ff4234",
+      "platinum": "#f0e6cf",
+      "crosshair": "rgba(255, 255, 255, 0.55)",
+      "scrim": "rgba(6, 4, 5, 0.84)",
+      "barTower": "#c8a06a",
+      "barPlayer": "#efe7da",
+      "barExecution": "#4aa8ff",
+      "gradeS": "#f0e6cf",
+      "gradeA": "#ffd28a",
+      "gradeB": "#bdb2a3",
+      "gradeC": "#ff6b5a",
+      "ink": "#000000"
+    },
+    "font": {
+      "family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "sizes": {
+        "micro": 12,
+        "label": 13,
+        "body": 13,
+        "countdown": 34,
+        "verdict": 44,
+        "grade": 64
+      }
+    },
+    "durations": {
+      "fadeInMs": 400,
+      "hpPulseMs": 800,
+      "formPopMs": 250,
+      "phaseFlashMs": 260,
+      "arrowPulseMs": 900,
+      "countPulseMs": 1000,
+      "motePopMs": 220
+    },
+    "layout": {
+      "hpWidth": 260,
+      "hpHeight": 10,
+      "formIcon": 44,
+      "overheatWidth": 180,
+      "overheatHeight": 6,
+      "bossWidth": 620,
+      "bossHeight": 14,
+      "weaknessRing": 64,
+      "crosshairGap": 6,
+      "crosshairLine": 8,
+      "edgeMargin": 64,
+      "endWidth": 520
+    },
+    "opacity": {
+      "unmatchedWeakness": 0.45
+    }
   }
 }

@@ -1,7 +1,7 @@
 import * as THREE from 'three/webgpu';
 import { App } from './render/App';
 import { DebugOverlay } from './ui/DebugOverlay';
-import { Hud } from './ui/Hud';
+import { M5Hud } from './ui/M5Hud';
 import { createGame, LOGIC_DT } from './game/GameLoop';
 import type { InputSource } from './game/GameLoop';
 import { createGameView } from './game/GameView';
@@ -348,7 +348,20 @@ async function boot(): Promise<void> {
     audio,
   });
 
-  const hud = new Hud();
+  const hud = new M5Hud({ bus: game.bus });
+  const weakScreen = new THREE.Vector3();
+  const resolveWeaknessDirection = (): { x: number; y: number; behind: boolean } | null => {
+    const snap = game.snapshot();
+    if (!snap.boss.weakness) return null;
+    const height = snap.boss.phase === 2 ? 7 : 6;
+    weakScreen.set(boss.root.position.x, boss.root.position.y + height, boss.root.position.z);
+    weakScreen.project(app.camera);
+    return { x: weakScreen.x, y: weakScreen.y, behind: weakScreen.z > 1 };
+  };
+  app.onSync = () => {
+    hud.setWeaknessDirection(resolveWeaknessDirection());
+    hud.flush();
+  };
   const overlay = new DebugOverlay(app.backendName);
   overlay.root.style.display = debug ? 'block' : 'none';
   overlay.root.style.right = '18px';
@@ -493,7 +506,8 @@ async function boot(): Promise<void> {
     if (!show.isFailing() && !game.isOver()) {
       game.tick(dt);
       boss.update(dt * 1000);
-      combat.update(dt, { weapon: pendingWeapon ?? NO_WEAPON, toggleForm: pendingToggle });
+      const outcomes = combat.update(dt, { weapon: pendingWeapon ?? NO_WEAPON, toggleForm: pendingToggle });
+      for (const outcome of outcomes) view.onAttack(outcome);
       pendingWeapon = null;
       pendingToggle = false;
       demoStep(dt);
@@ -525,7 +539,6 @@ async function boot(): Promise<void> {
     }
     if (steps >= budget) acc = 0;
 
-    hud.update(show.hudView(fps));
     overlay.setHp(game.snapshot().player.hp);
   };
 
@@ -687,11 +700,11 @@ async function boot(): Promise<void> {
     const cap = Math.min(flowCfg.matchLengthSec + flowCfg.rage.swallowAfterSec, jumpTo);
     const frames = Math.floor(cap * 60);
     for (let i = 0; i < frames; i += 1) stepLogic(LOGIC_DT);
-    hud.update(show.hudView(fps));
+    hud.flush();
   }
 
   // ── 11. 启动 ──────────────────────────────────────────────────────────────
-  hud.update(show.hudView(fps));
+  hud.flush();
   app.start();
   document.getElementById('boot-tip')?.classList.add('hidden');
 
