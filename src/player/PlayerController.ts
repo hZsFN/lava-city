@@ -99,6 +99,9 @@ export class PlayerController {
   private readonly maxHp: number;
   private hp: number;
   private grounded = false;
+  /** 最后一次站在地面上的位置：掉进熔岩时把人送回这里，而不是写死的 y=0 */
+  private safeX = 0;
+  private safeZ = 0;
   private dead = false;
   private deaths = 0;
 
@@ -188,10 +191,14 @@ export class PlayerController {
     this.integrateHorizontal(dt, input);
     this.integrateVertical(dt);
 
-    // 熔岩不再致死：掉到熔岩面就托回平台，避免任何一次走位失误直接结束这一局
+    // 熔岩不再致死：掉到熔岩面就送回最后一次站稳的地方，避免一次走位失误结束整局。
+    // 注意不能写死 y=0 —— 平台外那个位置脚下没有地面，会无限"掉下去又被托回"。
     if (this.y < this.world.lavaY) {
+      this.x = this.safeX;
+      this.z = this.safeZ;
       this.y = 0;
       this.vy = 0;
+      this.grounded = true;
     }
 
     this.bus.emit('PlayerMoved', { pos: this.pos, yaw: this.yaw });
@@ -320,6 +327,11 @@ export class PlayerController {
 
   private integrateVertical(dt: number): void {
     const wasGrounded = this.grounded;
+    // 记住站得稳的地方，掉下去时托回这里
+    if (wasGrounded) {
+      this.safeX = this.x;
+      this.safeZ = this.z;
+    }
     const oldY = this.y;
     this.vy += this.cfg.physics.gravity * dt;
     let newY = oldY + this.vy * dt;
