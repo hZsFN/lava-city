@@ -35,6 +35,8 @@ const SLOT_COLOR: Record<SlotState, number> = {
 export interface GameView {
   /** 每帧调用：同步逻辑状态到场景对象 */
   sync(): void;
+  /** 仅同步镜头，用于逻辑步内的射线原点；不推进武器或塔动画。 */
+  syncCamera(): void;
   /** 每次武器产生攻击结果（含空挥/空枪）时调用，驱动第一人称攻击表现 */
   onAttack(outcome: AttackOutcome): void;
   /** 释放 */
@@ -170,13 +172,8 @@ export function createGameView(deps: {
       if (!alive.has(id)) removeTowerMesh(id);
     }
 
-    // 3. 相机：第一人称 / 俯视战术视角
     if (tactical) {
-      // 俯视：从正上方 95 米看下来（塔顶平台在 y=24，必须高于它才能看穿）
-      camera.position.set(0, 95, tacticalTarget.z);
-      camera.lookAt(tacticalTarget.x, 0, tacticalTarget.z);
-      // 塔位做成发光环，俯视时一眼看清哪个能建
-      const pulse = 0.6 + Math.sin(performance.now() * 0.004) * 0.35;
+      const pulse = 0.6 + Math.sin(now * 4) * 0.35;
       for (const slot of snap.towerSlots) {
         const mesh = slotMeshes.get(slot.slotId);
         if (!mesh) continue;
@@ -185,10 +182,20 @@ export function createGameView(deps: {
         mat.emissive.setHex(open ? 0x66ffcc : 0x442222);
         mat.emissiveIntensity = open ? pulse : 0.1;
       }
+    }
+    syncCamera();
+  }
+
+  function syncCamera(): void {
+    // 3. 相机：第一人称 / 俯视战术视角
+    if (tactical) {
+      // 俯视：从正上方 95 米看下来（塔顶平台在 y=24，必须高于它才能看穿）
+      camera.position.set(0, 95, tacticalTarget.z);
+      camera.lookAt(tacticalTarget.x, 0, tacticalTarget.z);
     } else {
       const pos = game.playerPos();
       const view = aim();
-      // 位置做一阶平滑：逻辑帧 60Hz、渲染帧率浮动，直接贴会让画面抖
+      // 转向读取本帧输入；位置仍使用权威逻辑位置，避免镜头穿过碰撞边界。
       camera.position.set(pos[0], pos[1] + eyeHeight, pos[2]);
       const cp = Math.cos(view.pitch);
       camDir.set(
@@ -202,6 +209,7 @@ export function createGameView(deps: {
         camera.position.z + camDir.z,
       );
     }
+    camera.updateWorldMatrix(true, false);
   }
 
   let tactical = false;
@@ -230,6 +238,7 @@ export function createGameView(deps: {
       return null;
     },
     sync,
+    syncCamera,
     onAttack: (outcome) => viewModel.onAttack(outcome),
     dispose(): void {
       viewModel.dispose();
@@ -272,9 +281,10 @@ interface TowerVisual {
 /** Dark Rock 02 · Amal Kumar / Poly Haven · CC0 · https://polyhaven.com/a/dark_rock_02 */
 function loadStoneTextures(): StoneTextures {
   const loader = new THREE.TextureLoader();
-  const diffuse = loader.load('/textures/dark-rock-02/diffuse.jpg');
-  const normal = loader.load('/textures/dark-rock-02/normal.jpg');
-  const roughness = loader.load('/textures/dark-rock-02/roughness.jpg');
+  const base = `${import.meta.env.BASE_URL}textures/dark-rock-02/`;
+  const diffuse = loader.load(`${base}diffuse.jpg`);
+  const normal = loader.load(`${base}normal.jpg`);
+  const roughness = loader.load(`${base}roughness.jpg`);
   diffuse.colorSpace = THREE.SRGBColorSpace;
   for (const texture of [diffuse, normal, roughness]) {
     texture.wrapS = THREE.RepeatWrapping;

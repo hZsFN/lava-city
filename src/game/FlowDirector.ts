@@ -80,6 +80,13 @@ export class FlowDirector {
   private readonly avatar: PlayerAvatar;
   private readonly dummy = new THREE.Object3D();
   private readonly baseFov: number;
+  private readonly cameraEye = new THREE.Vector3();
+  private readonly cameraForward = new THREE.Vector3();
+  private readonly cameraPosition = new THREE.Vector3();
+  private readonly cameraTarget = new THREE.Vector3();
+  private readonly cameraFocus = new THREE.Vector3();
+  private readonly cameraDirection = new THREE.Vector3();
+  private readonly cameraNear = new THREE.Vector3();
 
   private readonly mouth = new THREE.Group();
   private readonly ripple: THREE.Mesh;
@@ -293,6 +300,13 @@ export class FlowDirector {
     this.updateBookDom();
     this.updateFail(dtSec);
     this.updateWeaknessPulse();
+  }
+
+  /** 渲染帧恢复演出镜头；不再次推进粒子、教程书或 Boss 演出时序。 */
+  presentCamera(): void {
+    if (this.disposed) return;
+    this.updateCamera(0, this.game.snapshot(), 0);
+    this.camera.updateWorldMatrix(true, false);
   }
 
   interact(): boolean {
@@ -710,9 +724,9 @@ export class FlowDirector {
     void fps;
     const eye = playerCfg.movement.eyeHeight;
     const p = snap.player.pos;
-    const eyePos = new THREE.Vector3(p[0], p[1] + eye, p[2]);
+    const eyePos = this.cameraEye.set(p[0], p[1] + eye, p[2]);
     const yaw = snap.player.yaw;
-    const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const forward = this.cameraForward.set(-Math.sin(yaw), 0, -Math.cos(yaw));
 
     let fov = this.baseFov;
     let pos: THREE.Vector3 | null = null;
@@ -723,20 +737,20 @@ export class FlowDirector {
       const span = Math.max(1e-6, w.blurEndSec - w.darkEndSec);
       const k = clamp01((this.t - w.darkEndSec) / span);
       const pitch = THREE.MathUtils.degToRad(w.pitchStartDeg + (w.pitchEndDeg - w.pitchStartDeg) * k);
-      const dir = new THREE.Vector3(0, Math.sin(pitch), -Math.cos(pitch));
-      pos = eyePos.clone();
-      target = eyePos.clone().add(dir.multiplyScalar(12));
+      const dir = this.cameraDirection.set(0, Math.sin(pitch), -Math.cos(pitch));
+      pos = this.cameraPosition.copy(eyePos);
+      target = this.cameraTarget.copy(eyePos).addScaledVector(dir, 12);
     } else if (this.phase === 'transition') {
       // 玩家不能动，镜头小幅跟随 Boss
       const bp = this.boss.root.position;
-      const bossTarget = new THREE.Vector3(bp.x, bp.y + 4.5, bp.z);
-      pos = eyePos.clone();
-      target = eyePos.clone().add(forward.clone().multiplyScalar(12)).lerp(bossTarget, 0.5);
+      const bossTarget = this.cameraFocus.set(bp.x, bp.y + 4.5, bp.z);
+      pos = this.cameraPosition.copy(eyePos);
+      target = this.cameraTarget.copy(eyePos).addScaledVector(forward, 12).lerp(bossTarget, 0.5);
     } else if (this.phase === 'victory') {
       // 镜头上抬，让塔顶与冲天光柱进入画面
       const k = clamp01(this.phaseT / 8);
-      pos = eyePos.clone();
-      target = new THREE.Vector3(0, 18 + k * 12, 0);
+      pos = this.cameraPosition.copy(eyePos);
+      target = this.cameraTarget.set(0, 18 + k * 12, 0);
       fov = this.baseFov - 2 * k;
     } else if (this.phase === 'escape') {
       const esc = this.cfg.escape;
@@ -748,17 +762,16 @@ export class FlowDirector {
       const px = this.escapePlayer[0] * (1 - rise);
       const pz = this.escapePlayer[2] * (1 - rise);
       const py = esc.avatarRiseToM * rise;
-      const avatarPos = new THREE.Vector3(px, py, pz);
       this.avatar.setVisible(true);
       this.avatar.setPose(
         [px, py, pz],
         snap.player.yaw,
         avatarOpacity(k, esc.avatarFadeStartSec, esc.avatarFadeEndSec),
       );
-      target = avatarPos.clone().add(new THREE.Vector3(0, 1.2, 0));
+      target = this.cameraTarget.set(px, py + 1.2, pz);
       const radius = esc.orbitRadiusM + (esc.orbitEndRadiusM - esc.orbitRadiusM) * rise;
-      pos = target.clone().add(
-        new THREE.Vector3(
+      pos = this.cameraPosition.copy(target).add(
+        this.cameraDirection.set(
           Math.sin(angle) * radius,
           esc.orbitHeightM,
           Math.cos(angle) * radius,
@@ -769,13 +782,13 @@ export class FlowDirector {
       // 教程书阅读态：镜头轻推近（不暂停游戏）
       const view = this.book.view();
       if (view.cameraBlend > 0.01) {
-        const focus = new THREE.Vector3(...view.focus);
-        const dirToBook = focus.clone().sub(eyePos);
+        const focus = this.cameraFocus.set(...view.focus);
+        const dirToBook = this.cameraDirection.subVectors(focus, eyePos);
         const dist = dirToBook.length();
-        const nearPos = focus.clone().sub(dirToBook.normalize().multiplyScalar(Math.min(1.5, dist * 0.55)));
+        const nearPos = this.cameraNear.copy(focus).addScaledVector(dirToBook.normalize(), -Math.min(1.5, dist * 0.55));
         nearPos.y += 0.18;
-        pos = eyePos.clone().lerp(nearPos, view.cameraBlend);
-        target = eyePos.clone().add(forward.clone().multiplyScalar(12)).lerp(focus, view.cameraBlend);
+        pos = this.cameraPosition.copy(eyePos).lerp(nearPos, view.cameraBlend);
+        target = this.cameraTarget.copy(eyePos).addScaledVector(forward, 12).lerp(focus, view.cameraBlend);
         fov = this.baseFov + (this.cfg.tutorial.readingFov - this.baseFov) * view.cameraBlend;
       }
     }

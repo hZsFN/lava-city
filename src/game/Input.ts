@@ -28,7 +28,7 @@ const MOUSE_SENSITIVITY = 0.0022;
 /** 单个 mousemove 事件允许的最大位移（CSS 像素）。超过它一定是浏览器的
  *  累积尖峰（pointer lock 刚获得、主线程卡顿后补发），直接用会把视角甩飞。 */
 const MAX_MOVE_STEP = 90;
-/** 两个事件间隔超过这个毫秒数，说明中间卡过帧，这一发的位移不可信 */
+/** 长间隔且位移异常时丢弃尖峰；正常停手后的第一下小幅转向仍应响应。 */
 const MOVE_GAP_MS = 100;
 
 export interface InputHandle extends InputSource {
@@ -114,11 +114,12 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
       lastMoveTs = e.timeStamp;
       return;
     }
-    // ② 卡过帧：这一发带着整段延迟期间的总位移，同样丢掉
+    // ② 长间隔并不等于卡顿，也可能只是停手；仅丢弃同时出现的大位移。
     const prevTs = lastMoveTs;
     const nowTs = e.timeStamp;
     lastMoveTs = nowTs;
-    if (prevTs > 0 && nowTs - prevTs > MOVE_GAP_MS) return;
+    if (prevTs > 0 && nowTs - prevTs > MOVE_GAP_MS &&
+        (Math.abs(e.movementX) > MAX_MOVE_STEP || Math.abs(e.movementY) > MAX_MOVE_STEP)) return;
 
     // ③ 单步钳制：剩下的正常事件里也不允许出现跳变
     const dx = Math.max(-MAX_MOVE_STEP, Math.min(MAX_MOVE_STEP, e.movementX));
@@ -136,6 +137,7 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
       lockGrace = 2;
       lastMoveTs = 0;
     }
+    if (!nowLocked) onBlur();
     locked = nowLocked;
   };
 
@@ -147,6 +149,12 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   const onBlur = (): void => {
     pressed.clear();
     edgeDash = edgeJump = edgeFormSwitch = edgeExecute = false;
+    lightHeld = heavyHeld = edgeLight = edgeHeavy = false;
+    lastMoveTs = 0;
+  };
+
+  const onVisibilityChange = (): void => {
+    if (document.hidden) onBlur();
   };
 
   // 鼠标左右键：左键轻击、右键重击。只在指针锁定时生效。
@@ -179,6 +187,7 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   canvas.addEventListener('contextmenu', onContextMenu);
   window.addEventListener('blur', onBlur);
   document.addEventListener('pointerlockchange', onPointerLockChange);
+  document.addEventListener('visibilitychange', onVisibilityChange);
 
   const handle: InputHandle = {
     aim(): { yaw: number; pitch: number } {
@@ -208,6 +217,7 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
 
     setLockAllowed(on: boolean): void {
       lockAllowed = on;
+      if (!on) onBlur();
       if (!on && document.pointerLockElement === canvas) document.exitPointerLock();
     },
 
@@ -240,11 +250,12 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mousedown', onMouseDown);
-    window.removeEventListener('mouseup', onMouseUp);
-    canvas.removeEventListener('contextmenu', onContextMenu);
+      window.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mouseup', onMouseUp);
+      canvas.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('blur', onBlur);
       document.removeEventListener('pointerlockchange', onPointerLockChange);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       if (document.pointerLockElement === canvas) document.exitPointerLock();
     },
   };

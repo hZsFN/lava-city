@@ -7,6 +7,7 @@ import type { InputSource } from './game/GameLoop';
 import { createGameView } from './game/GameView';
 import { IgnisBoss } from './boss/IgnisBoss';
 import { createInput } from './game/Input';
+import { FrameInput } from './game/FrameInput';
 import { FlowDirector } from './game/FlowDirector';
 import { CombatController } from './game/CombatController';
 import { AudioPlayer } from './audio/AudioPlayer';
@@ -15,7 +16,7 @@ import type { TowerKind } from './towers/types';
 import type { Attr, BodyPart, MatchPhase } from './core/events';
 import type { FlowConfig } from './flow/types';
 import type { FormSwitchConfig } from './player/FormSwitch';
-import type { MagicWeaponConfig, PhysicalWeaponConfig, WeaponHit, WeaponInput } from './player/weaponTypes';
+import type { MagicWeaponConfig, PhysicalWeaponConfig, WeaponHit } from './player/weaponTypes';
 import { createStoryDirector } from './story/StoryDirector';
 import { StoryPresenter } from './ui/StoryPresenter';
 import type { StoryConfig } from './story/types';
@@ -321,7 +322,6 @@ async function boot(): Promise<void> {
   // 而 events.ts 的快照默认是 arcane —— 不对齐会让 HUD 显示"法术形态"却拿着物理武器。
   game.bus.emit('FormSwitched', { form: pc.formSwitch.initial });
 
-  const NO_WEAPON = { lightPressed: false, lightHeld: false, heavyPressed: false, heavyHeld: false };
 
   // ── 4. 演出 / HUD ────────────────────────────────────────────────────────
   let handoffDone = false;
@@ -576,8 +576,21 @@ async function boot(): Promise<void> {
   let acc = 0;
 
   // 每帧只取一次武器输入；一帧补多步时，边沿事件只喂给第一步
-  let pendingWeapon: WeaponInput | null = null;
-  let pendingToggle = false;
+  const frameInput = new FrameInput();
+
+  // 逻辑步尚未消费的边沿也必须失效，避免切回窗口后补打一枪/补切形态。
+  const clearPendingInput = (): void => {
+    frameInput.reset();
+  };
+  const clearHiddenInput = (): void => {
+    if (document.hidden) clearPendingInput();
+  };
+  const clearUnlockedInput = (): void => {
+    if (document.pointerLockElement !== app.canvas) clearPendingInput();
+  };
+  window.addEventListener('blur', clearPendingInput);
+  document.addEventListener('visibilitychange', clearHiddenInput);
+  document.addEventListener('pointerlockchange', clearUnlockedInput);
 
   function stepLogic(dt: number): void {
     gated.locked = show.locksPlayer();
@@ -607,13 +620,13 @@ async function boot(): Promise<void> {
       }
 
       boss.update(dt * 1000);
-      const outcomes = combat.update(dt, { weapon: pendingWeapon ?? NO_WEAPON, toggleForm: pendingToggle });
+      // 射线使用本步移动后的眼位；这里只同步镜头，不重复推进表现动画。
+      view.syncCamera();
+      const outcomes = combat.update(dt, { weapon: frameInput.weapon, toggleForm: frameInput.toggle });
       for (const outcome of outcomes) view.onAttack(outcome);
-      pendingWeapon = null;
-      pendingToggle = false;
+      frameInput.consumeEdges();
       demoStep(dt);
     }
-    view.sync();
     show.update(dt, fps);
   }
 
@@ -622,13 +635,7 @@ async function boot(): Promise<void> {
     // 按下边沿只该喂给第一步逻辑，但前提是这一帧真的有逻辑步。渲染帧快于 60 Hz 时
     // （高刷屏、或卡顿后补帧不足一格）有些帧一个逻辑步都不跑，无条件覆盖会把边沿吞掉，
     // 表现就是"点了没反应"。所以这里改成累积，等某一步真正消费掉再清。
-    pendingWeapon = {
-      lightPressed: (pendingWeapon?.lightPressed ?? false) || w.lightPressed,
-      lightHeld: w.lightHeld,
-      heavyPressed: (pendingWeapon?.heavyPressed ?? false) || w.heavyPressed,
-      heavyHeld: w.heavyHeld,
-    };
-    pendingToggle = pendingToggle || input.consumeFormSwitch();
+    frameInput.queue(w, input.consumeFormSwitch());
     const real = Math.min(0.1, dt);
     acc += real * speed;
     const budget = Math.max(3, Math.min(160, Math.ceil(real * speed * 60) + 2));
@@ -639,6 +646,11 @@ async function boot(): Promise<void> {
       steps += 1;
     }
     if (steps >= budget) acc = 0;
+
+    // 每个渲染帧同步一次，包括高刷屏没有逻辑步的帧。
+    // 演出镜头最后覆盖，避免苏醒/转阶段/阅读/传送时被第一人称相机抢回。
+    view.sync();
+    show.presentCamera();
 
     overlay.setHp(game.snapshot().player.hp);
 
@@ -961,6 +973,9 @@ async function boot(): Promise<void> {
   document.getElementById('boot-tip')?.classList.add('hidden');
 
   window.addEventListener('pagehide', () => {
+    window.removeEventListener('blur', clearPendingInput);
+    document.removeEventListener('visibilitychange', clearHiddenInput);
+    document.removeEventListener('pointerlockchange', clearUnlockedInput);
     input.dispose();
     show.dispose();
     audio?.dispose();

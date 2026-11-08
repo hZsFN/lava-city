@@ -3,11 +3,32 @@ import * as THREE from 'three/webgpu';
 import { createGame } from '../../../src/game/GameLoop';
 import { createGameView } from '../../../src/game/GameView';
 
+const updateWeapon = vi.hoisted(() => vi.fn());
+
 vi.mock('../../../src/render/ViewModel', () => ({
-  createViewModel: () => ({ update() {}, onAttack() {}, dispose() {} }),
+  createViewModel: () => ({ update: updateWeapon, onAttack() {}, dispose() {} }),
 }));
 
 describe('tower rendering hot path', () => {
+  it('updates aim on frames without logic steps and avoids animating weapons during catch-up camera sync', () => {
+    const game = createGame({ input: { sample: () => ({ moveX: 0, moveZ: 0, yaw: 0, jump: false, dash: false }) } });
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera();
+    let yaw = 0;
+    const view = createGameView({ scene, camera, bus: game.bus, game, aim: () => ({ yaw, pitch: 0 }) });
+    updateWeapon.mockClear();
+    view.sync();
+    const first = camera.quaternion.clone();
+    yaw = 0.4;
+    view.sync(); // no game.tick between these render frames
+    expect(camera.quaternion.angleTo(first)).toBeCloseTo(0.4);
+    expect(updateWeapon).toHaveBeenCalledTimes(2);
+    for (let step = 0; step < 5; step += 1) view.syncCamera();
+    expect(updateWeapon).toHaveBeenCalledTimes(2);
+    const position = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
+    expect(position.distanceTo(camera.position)).toBeLessThan(1e-10);
+    view.dispose();
+  });
   it('reuses material colors and reads slot snapshots without allocating slot views', () => {
     const game = createGame({ input: { sample: () => ({ moveX: 0, moveZ: 0, yaw: 0, jump: false, dash: false }) } });
     const scene = new THREE.Scene();
