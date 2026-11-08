@@ -1,4 +1,5 @@
 {
+  "maxHp": 1400,
   "phases": [
     {
       "phase": 1,
@@ -26,5 +27,212 @@
   },
   "phaseTransitionSec": 15,
   "rageStartSec": 245,
-  "matchLengthSec": 270
+  "matchLengthSec": 270,
+
+  "seed": 8701,
+
+  "brain": {
+    "evalIntervalMs": 500,
+    "leapMinDistance": 14,
+    "closeRange": [3, 12],
+    "coreNear": 8,
+    "nearPlayer": 6,
+    "idleTurnDegPerSec": 70,
+    "staggerMs": 500,
+    "utilityScaleNearCore": 0.4,
+    "utility": {
+      "rockSweep": 0.75,
+      "leapSlam": 0.8,
+      "coreDrain": 0.9,
+      "stonePillars": 0.3,
+      "magmaBreath": 0.72,
+      "lavaCharge": 0.68,
+      "fireRain": 0.58,
+      "selfIgnite": 0.7
+    },
+    "order": [
+      "coreDrain",
+      "leapSlam",
+      "rockSweep",
+      "stonePillars",
+      "magmaBreath",
+      "lavaCharge",
+      "fireRain",
+      "selfIgnite"
+    ]
+  },
+
+  "skills": {
+    "rockSweep": {
+      "windupMs": 900,
+      "activeMs": 350,
+      "recoveryMs": 1000,
+      "cooldownMs": 6000,
+      "damage": 35,
+      "arcDeg": 120,
+      "rangeM": 11,
+      "hitAtProgress": 0.5,
+      "exposeMs": 1000
+    },
+    "leapSlam": {
+      "windupMs": 1600,
+      "activeMs": 250,
+      "recoveryMs": 800,
+      "cooldownMs": 9000,
+      "damage": 50,
+      "openMs": 3000,
+      "travelMs": 700,
+      "arcHeightM": 7,
+      "landRadiusM": 6,
+      "minDistanceM": 14
+    },
+    "coreDrain": {
+      "windupMs": 2500,
+      "activeMs": 2500,
+      "recoveryMs": 600,
+      "cooldownMs": 20000,
+      "healPctPerTick": 2.5,
+      "tickMs": 1000,
+      "rangeM": 8
+    },
+    "stonePillars": {
+      "windupMs": 1200,
+      "activeMs": 400,
+      "recoveryMs": 600,
+      "cooldownMs": 8000,
+      "damage": 20,
+      "count": 3,
+      "spreadM": 3,
+      "radiusM": 1.6,
+      "heightM": 1.2
+    },
+    "magmaBreath": {
+      "windupMs": 1400,
+      "activeMs": 2500,
+      "recoveryMs": 900,
+      "cooldownMs": 9000,
+      "damagePerTick": 8,
+      "tickMs": 250,
+      "rangeM": 20,
+      "halfAngleDeg": 25,
+      "backExposeMs": 6000,
+      "backMinAngleDeg": 120
+    },
+    "lavaCharge": {
+      "windupMs": 1100,
+      "activeMs": 1800,
+      "recoveryMs": 700,
+      "cooldownMs": 11000,
+      "speedMps": 22,
+      "damage": 45,
+      "stunMs": 3000,
+      "kneeExposeMs": 4000,
+      "bodyRadiusM": 2.6,
+      "playerRadiusM": 0.7
+    },
+    "fireRain": {
+      "windupMs": 2000,
+      "activeMs": 6000,
+      "recoveryMs": 500,
+      "cooldownMs": 15000,
+      "dropCount": 10,
+      "rageDropCount": 16,
+      "radiusM": 3.5,
+      "damage": 30,
+      "towerDamage": 80,
+      "avoidPlayerM": 2,
+      "intervalMs": 600,
+      "spawnRadiusM": 17,
+      "minSpawnRadiusM": 9
+    },
+    "selfIgnite": {
+      "windupMs": 1200,
+      "activeMs": 400,
+      "recoveryMs": 1500,
+      "cooldownMs": 13000,
+      "damage": 60,
+      "radiusM": 10,
+      "freezeStunMs": 2500,
+      "clearDebuffs": ["sunder", "scorch"]
+    }
+  },
+
+  "weakness": {
+    "parts": {
+      "core": "arcane",
+      "back": "physical",
+      "kneeL": "physical",
+      "kneeR": "physical"
+    },
+    "triggerMs": {
+      "interrupt": 5000,
+      "kneeBroken": 4000,
+      "freezeFull": 2500,
+      "phaseSwitch": 6000
+    },
+    "freezeDurationMs": 4000,
+    "debuffAttr": {
+      "sunder": "physical",
+      "scorch": "arcane"
+    }
+  },
+
+  "director": {
+    "noWeaknessWindowMs": 25000,
+    "guaranteeWindowMs": 30000,
+    "greedyPunishCount": 3,
+    "greedyUtility": 0.9,
+    "greedyCooldownScale": 0.5,
+    "greedySkill": {
+      "1": "stonePillars",
+      "2": "fireRain"
+    },
+    "weaknessSkills": {
+      "1": ["leapSlam", "rockSweep", "coreDrain"],
+      "2": ["lavaCharge", "magmaBreath"]
+    }
+  },
+
+  "rage": {
+    "cooldownScale": 0.6
+  },
+
+  "transition": {
+    "shardCount": 48,
+    "shardMs": 700,
+    "sinkMs": 900,
+    "holdMs": 300,
+    "riseMs": 1200,
+    "sinkDepthM": 8,
+    "shardSpeedMps": 9,
+    "shardLifetimeMs": 2200,
+    "swapAtMs": 1900
+  },
+
+  "arena": {
+    "boundaryRadiusM": 19,
+    "towerRadiusM": 7,
+    "spawn": [0, 0, 12],
+    "corePos": [0, 0, 0],
+    "tauntAnchorM": 12
+  },
+
+  "debug": {
+    "damageTestHp": 300,
+    "tauntDurationMs": 600000
+  },
+
+  "visual": {
+    "shellOpenMs": 250,
+    "shellOpenDeg": 70,
+    "shellSmallMaxMs": 1500,
+    "scaleEaseMs": 260,
+    "coreLightIntensity": 200,
+    "coreLightIdleScale": 0.3,
+    "fireRainRockFallMs": 420,
+    "pillarRiseMs": 220,
+    "pillarLifetimeMs": 3500,
+    "ringLifeMs": 600,
+    "telegraphOpacity": 0.32
+  }
 }
