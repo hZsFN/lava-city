@@ -272,12 +272,12 @@
     },
     {
       "id": "a4_last",
-      "trigger": { "kind": "afterCue", "id": "a4_hp30", "delayMs": 500 },
+      "trigger": { "kind": "afterCue", "id": "a4_endgame", "delayMs": 500 },
       "priority": 14,
       "durationMs": 3400,
       "world": "surface",
       "letterbox": true,
-      "text": "熔岩漫过塔沿了。\n你还有最后一次机会。"
+      "text": "熔岩漫过塔檐了。\n你还有最后一次机会。"
     },
 
     {

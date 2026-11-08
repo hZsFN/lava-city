@@ -646,7 +646,13 @@ async function boot(): Promise<void> {
 
     // 剧情推进：必须在逻辑推进之后（阶段/血量/熔岩都已更新），
     // 再交给表现层按帧同步（打字机、滤镜过渡都靠 dt）。
-    story.update(real);
+    //
+    // **时钟必须跟着 speed 缩放**：逻辑用 `acc += real * speed` 跑固定步长，
+    // 若剧情只吃 real，`?speed=4` 时游戏进程 4 倍速而剧情 1 倍速，
+    // phaseProgress 全部错位（该在 25% 说的话会拖到 100% 才说）。
+    // 表现层则用未缩放的 real —— 打字机与滤镜过渡属于「给人看的时间」，
+    // 不该因为调试加速而变成一闪而过。
+    story.update(real * speed);
     storyView.present(story.state(), real);
   };
 
@@ -966,6 +972,11 @@ async function boot(): Promise<void> {
     input.dispose();
     show.dispose();
     audio?.dispose();
+    // 剧情层也要清理：StoryPresenter 会写 canvas 的 filter/transition、
+    // 留下 9 个 DOM 层与 matchMedia 监听；StoryDirector 会留下 22 个 bus 订阅。
+    // 本仓库此前因 HMR 重复绑定吃过亏（commit f04ff87），这里是同类隐患。
+    storyView.dispose();
+    story.dispose();
     view.dispose();
     app.dispose();
   }, { once: true });

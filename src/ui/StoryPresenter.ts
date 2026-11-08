@@ -11,10 +11,22 @@
 //   · dispose() 会把 canvas.style.filter 还原成构造时保存的原值。
 //
 // 层次（全部 position:fixed + pointer-events:none）：
-//   z-index 11  里世界冷青暗角 + 结晶化静态渐变层
-//   z-index 12  上下黑边 letterbox
-//   z-index 13  字幕 / 进入里世界的冷白闪
-//   （DebugOverlay 在 20，始终压在最上层）
+//   z-index 41  里世界冷青暗角 + 结晶化静态渐变层
+//   z-index 42  上下黑边 letterbox
+//   z-index 43  字幕 / 进入里世界的冷白闪
+//
+// **为什么必须是 41+ 而不是 11+**（这是踩过的坑）：
+// 全站层级现状 —— HUD 15、DebugOverlay 20、PostFX 提示 30、主 HUD 35、
+// FlowOverlay（wake 黑屏 / 失败黑层）40。剧情层最初用 11/12/13，
+// 结果：
+//   · 第一幕 a1_run 落在 wake 的 dark 期，被 z-index 40 的不透明黑层整段盖住，
+//     玩家一个字都看不见；
+//   · 结局 a5_win 被结算面板（z-index 15、0.84 不透明遮罩）压到几乎不可见；
+//   · a4_death 被失败黑层盖住。
+// 也就是"台词写了却看不见"——比引擎 bug 更致命。
+// 剧情字幕是**叙事唯一出口**，必须压在演出层之上；同时保持
+// pointer-events:none，不会挡住任何交互。
+// （若日后新增更高的演出层，请同步抬高这三个值。）
 //
 // ----------------------------------------------------------------------------
 // 时长来源说明
@@ -185,7 +197,7 @@ export class StoryPresenter implements StoryPresenterContract {
     // ① 里世界冷青暗角 + 极轻 blur。opacity 由 world 驱动，过渡时长 = enterFadeMs。
     this.tintEl = div(
       layer +
-        'inset:0;z-index:11;opacity:0;transition:opacity ' +
+        'inset:0;z-index:41;opacity:0;transition:opacity ' +
         this.timing.enterFadeMs +
         'ms ease;' +
         'background:radial-gradient(ellipse at 50% 46%,rgba(120,208,232,0) 32%,' +
@@ -196,13 +208,13 @@ export class StoryPresenter implements StoryPresenterContract {
     // ② 结晶化：3~4 个静态渐变层，只改 opacity，绝不每帧重绘 canvas。
     this.crystalEdge = div(
       layer +
-        'inset:0;z-index:11;opacity:0;transition:opacity 520ms ease;' +
+        'inset:0;z-index:41;opacity:0;transition:opacity 520ms ease;' +
         'background:radial-gradient(ellipse at 50% 50%,rgba(150,220,245,0) 46%,' +
         'rgba(168,232,252,0.22) 74%,rgba(214,246,255,0.52) 100%);',
     );
     this.crystalCorners = div(
       layer +
-        'inset:0;z-index:11;opacity:0;transition:opacity 520ms ease;' +
+        'inset:0;z-index:41;opacity:0;transition:opacity 520ms ease;' +
         'background:' +
         'radial-gradient(circle at 0% 0%,rgba(206,246,255,0.44),rgba(206,246,255,0) 30%),' +
         'radial-gradient(circle at 100% 0%,rgba(206,246,255,0.40),rgba(206,246,255,0) 28%),' +
@@ -211,7 +223,7 @@ export class StoryPresenter implements StoryPresenterContract {
     );
     this.crystalSheen = div(
       layer +
-        'inset:0;z-index:11;opacity:0;transition:opacity 520ms ease;' +
+        'inset:0;z-index:41;opacity:0;transition:opacity 520ms ease;' +
         'background:linear-gradient(116deg,rgba(214,248,255,0) 40%,rgba(214,248,255,0.13) 46%,' +
         'rgba(214,248,255,0) 52%,rgba(214,248,255,0) 60%,rgba(214,248,255,0.09) 66%,' +
         'rgba(214,248,255,0) 72%);',
@@ -219,7 +231,7 @@ export class StoryPresenter implements StoryPresenterContract {
     // 边缘「玻璃化」：细碎亮边 + inset 阴影，强度随 intensity 增长。
     this.crystalFrame = div(
       layer +
-        'inset:0;z-index:11;opacity:0;transition:opacity 520ms ease;' +
+        'inset:0;z-index:41;opacity:0;transition:opacity 520ms ease;' +
         'border:1px solid rgba(206,246,255,0.14);' +
         'box-shadow:inset 0 0 0 rgba(0,0,0,0);' +
         'background:repeating-linear-gradient(90deg,rgba(226,250,255,0.20) 0 1px,' +
@@ -230,13 +242,13 @@ export class StoryPresenter implements StoryPresenterContract {
 
     // ③ 黑边 letterbox。
     this.letterboxTop = div(
-      'position:fixed;left:0;right:0;top:0;height:0;z-index:12;background:#000;' +
+      'position:fixed;left:0;right:0;top:0;height:0;z-index:42;background:#000;' +
         'pointer-events:none;transition:height ' +
         LETTERBOX_TRANSITION_MS +
         'ms ease;',
     );
     this.letterboxBottom = div(
-      'position:fixed;left:0;right:0;bottom:0;height:0;z-index:12;background:#000;' +
+      'position:fixed;left:0;right:0;bottom:0;height:0;z-index:42;background:#000;' +
         'pointer-events:none;transition:height ' +
         LETTERBOX_TRANSITION_MS +
         'ms ease;',
@@ -244,7 +256,7 @@ export class StoryPresenter implements StoryPresenterContract {
 
     // ④ 字幕：屏幕下方居中、黑边上方。
     this.subtitleEl = div(
-      'position:fixed;left:50%;transform:translateX(-50%);bottom:4.6vh;z-index:13;' +
+      'position:fixed;left:50%;transform:translateX(-50%);bottom:4.6vh;z-index:43;' +
         'width:min(720px,calc(100vw - 96px));max-width:720px;text-align:center;' +
         'pointer-events:none;opacity:0;' +
         'transition:opacity ' +
@@ -273,7 +285,7 @@ export class StoryPresenter implements StoryPresenterContract {
     // ⑤ 进入里世界时的一次冷白闪（opacity 动画，120ms）。
     this.flashEl = div(
       layer +
-        'inset:0;z-index:13;opacity:0;' +
+        'inset:0;z-index:43;opacity:0;' +
         'background:radial-gradient(circle at 50% 50%,rgba(232,250,255,0.92),' +
         'rgba(186,230,255,0.44) 58%,rgba(150,208,240,0) 100%);',
     );
