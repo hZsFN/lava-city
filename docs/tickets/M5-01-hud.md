@@ -32,7 +32,7 @@
 
 大号数字 `M:SS`，从 `flow.json` 的 `matchLengthSec`（270）倒计到 0。
 - 剩余 < 60 s 变橙、< 30 s 变红并每秒脉动一次。
-- 下方一行小字显示当前阶段中文名：醒来 / 阅读 / 准备 / 岩甲形态 / 转变 / 熔火形态 / 熔岩吞没。
+- 下方一行小字显示当前阶段中文名：醒来 wake / 阅读 tutorial / 准备 prep / 岩甲形态 boss1 / 转变 transition / 熔火形态 boss2 / 熔岩吞没 rage / 守护成功 victory / 传送 escape。
 - 数据来源：`snapshot().phase` + `phaseRemainSec`。
 
 ### 3. 顶部 · Boss 双段血条
