@@ -1,10 +1,10 @@
 {
-  "maxHp": 1400,
+  "maxHp": 700,
   "phases": [
     {
       "phase": 1,
       "name": "岩甲形态",
-      "hp": 1400,
+      "hp": 700,
       "height": 9,
       "resist": {
         "physical": 0,
@@ -18,7 +18,7 @@
     {
       "phase": 2,
       "name": "熔火形态",
-      "hp": 1400,
+      "hp": 700,
       "height": 11,
       "resist": {
         "physical": 0.7,

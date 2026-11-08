@@ -53,8 +53,9 @@ const SKILLS: Record<SkillId, SkillDef> = {
   lavaCharge: { windupMs: 1100, activeMs: 1800, recoveryMs: 700, cooldownMs: 14000, damage: 45 },
 };
 
-const PHASE1_HP = 1400;
-const PHASE2_HP = 1400;
+// 2026-11-08：两阶段血量各砍半（1400 → 700），配合 270 秒通关上限
+const PHASE1_HP = 700;
+const PHASE2_HP = 700;
 const HEIGHT_1 = 9;
 const HEIGHT_2 = 11;
 
