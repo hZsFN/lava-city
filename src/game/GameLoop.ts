@@ -113,6 +113,12 @@ export function createGame(deps: GameDeps): Game {
     bus.emit('TowerSlotStateChanged', { slotId: slot.slotId, state: slot.state });
   }
 
+  // Boss 弱点属性：由 Boss 自己通过事件公布，逻辑层只记录不猜测。
+  // 之前这里写死 'arcane'，阶段 I 改成物理弱点后就成了错的。
+  let weaknessAttr: 'arcane' | 'physical' | null = null;
+  bus.on('WeaknessExposed', (p) => { weaknessAttr = p.attr; });
+  bus.on('WeaknessClosed', () => { weaknessAttr = null; });
+
   // ── P2-A：玩家 ────────────────────────────────────────────────────────────
   const player = new PlayerController({
     bus,
@@ -155,7 +161,7 @@ export function createGame(deps: GameDeps): Game {
       boss: {
         pos: [0, 0, 0],
         weakness: snap.boss.weakness,
-        weaknessAttr: snap.boss.weakness ? 'arcane' : null,
+        weaknessAttr: snap.boss.weakness ? weaknessAttr : null,
         castingSkill: snap.boss.skill,
         taunted: false,
       },
