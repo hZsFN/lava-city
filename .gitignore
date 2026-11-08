@@ -1,9 +1,7 @@
 node_modules/
 out/
-release/
 dist/
 .vite/
-*.zip
 .DS_Store
 Thumbs.db
 
@@ -29,3 +27,12 @@ test-results/
 # 工作协议与交接文件：只在本地保留，不入库（2026-11-08）
 docs/plan/
 handoff/
+
+# ── 交付包：release/lava-city.zip 入库（评审可直接下载）──────────────────
+release/*
+!release/lava-city.zip
+
+# P2-B 派票（S0 上传的工作文件，本地保留）
+docs/tickets/M2-01-towers.md
+docs/tickets/M2-02-kinds.md
+docs/tickets/M2-03-flow.md

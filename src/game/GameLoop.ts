@@ -39,36 +39,12 @@ const towersCfg = towersCfgJson as unknown as TowersConfig;
 const arenaCfg = arenaCfgJson as unknown as ArenaConfig;
 
 /**
- * 把嵌套的 player.json 拍平成 P2-A 的 PlayerController 需要的 PlayerConfig。
- * 两边字段名不同（P2-A 用扁平键，config 用分组），这里做一次映射，
- * 不动 config 结构也不改 P2-A 代码。
+ * 玩家配置：直接使用 config/player.json。
+ * P2-A 已把 PlayerConfig 统一成嵌套结构（physics / movement / hp），
+ * 与 config 的字段完全对齐，因此这里不需要再做字段映射。
  */
 function toPlayerConfig(raw: unknown): PlayerConfig {
-  const c = raw as {
-    physics?: { gravity?: number; snapToGround?: number };
-    movement?: {
-      moveSpeed?: number; sprintSpeed?: number; dashIFramesSec?: number;
-      dashCooldownSec?: number; jumpHeight?: number; radius?: number; height?: number;
-    };
-    hp?: { maxHp?: number; regenDelaySec?: number; regenPerSec?: number };
-    // 兼容旧扁平字段
-    moveSpeed?: number; dashSpeed?: number; dashInvulnerableSec?: number;
-    jumpHeight?: number; regenDelaySec?: number; maxHp?: number; eyeHeight?: number;
-  };
-  return {
-    gravity: c.physics?.gravity ?? -14,
-    snapToGround: c.physics?.snapToGround ?? 0.45,
-    maxHp: c.hp?.maxHp ?? c.maxHp ?? 100,
-    moveSpeed: c.movement?.moveSpeed ?? c.moveSpeed ?? 6.5,
-    dashSpeed: c.movement?.sprintSpeed ?? c.dashSpeed ?? 11,
-    dashInvulnerableSec: c.movement?.dashIFramesSec ?? c.dashInvulnerableSec ?? 0.25,
-    dashCooldownSec: c.movement?.dashCooldownSec ?? 0.8,
-    jumpHeight: c.movement?.jumpHeight ?? c.jumpHeight ?? 1.2,
-    radius: c.movement?.radius ?? 0.35,
-    height: c.movement?.height ?? 1.8,
-    regenDelaySec: c.hp?.regenDelaySec ?? c.regenDelaySec ?? 4,
-    regenPerSec: c.hp?.regenPerSec ?? 12,
-  } as PlayerConfig;
+  return raw as PlayerConfig;
 }
 
 /** 玩家活动世界：塔顶平台（用 arena.json 的尺寸算一个圆形平台的 AABB 包围） */

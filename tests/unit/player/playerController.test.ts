@@ -11,19 +11,20 @@ import {
 
 const DT = 1 / 60;
 
+// 注意：PlayerConfig 已由 P2-A 统一为嵌套结构（physics / movement / hp），
+// 与 config/player.json 完全一致。原测试用的扁平字段已不匹配，此处同步更新。
 const cfg: PlayerConfig = {
-  gravity: -14,
-  snapToGround: 0.45,
-  maxHp: 100,
-  moveSpeed: 6.5,
-  dashSpeed: 11,
-  dashInvulnerableSec: 0.25,
-  dashCooldownSec: 0.8,
-  jumpHeight: 1.2,
-  radius: 0.35,
-  height: 1.8,
-  regenDelaySec: 4,
-  regenPerSec: 12,
+  physics: { gravity: -14, snapToGround: 0.45 },
+  movement: {
+    moveSpeed: 6.5,
+    sprintSpeed: 11,
+    dashIFramesSec: 0.25,
+    dashCooldownSec: 0.8,
+    jumpHeight: 1.2,
+    radius: 0.35,
+    height: 1.8,
+  },
+  hp: { maxHp: 100, regenDelaySec: 4, regenPerSec: 12 },
 };
 
 const floor = (minZ = -20, maxZ = 20, top = 0): Aabb => ({
