@@ -27,10 +27,14 @@ import type { ExecutionConfig } from '../player/Execution';
 import { WeaknessMeter } from '../combat/WeaknessMeter';
 import type { WeaknessConfig } from '../combat/WeaknessMeter';
 
+import { platformColliders } from './ArenaProps';
+import type { ArenaPropsConfig } from './ArenaProps';
+
 import flowCfgJson from '../core/config/flow.json';
 import towersCfgJson from '../core/config/towers.json';
 import arenaCfgJson from '../core/config/arena.json';
 import playerCfgJson from '../core/config/player.json';
+import arenaPropsCfgJson from '../core/config/arena-props.json';
 
 /** 逻辑固定步长：60 Hz */
 export const LOGIC_DT = 1 / 60;
@@ -41,6 +45,7 @@ const MAX_STEPS_PER_FRAME = 5;
 const flowCfg = flowCfgJson as unknown as FlowConfig;
 const towersCfg = towersCfgJson as unknown as TowersConfig;
 const arenaCfg = arenaCfgJson as unknown as ArenaConfig;
+const arenaPropsCfg = arenaPropsCfgJson as unknown as ArenaPropsConfig;
 
 /**
  * 玩家配置：直接使用 config/player.json。
@@ -51,7 +56,10 @@ function toPlayerConfig(raw: unknown): PlayerConfig {
   return raw as PlayerConfig;
 }
 
-/** 玩家活动世界：塔顶平台（用 arena.json 的尺寸算一个圆形平台的 AABB 包围） */
+/**
+ * 玩家活动世界：塔顶平台（用 arena.json 的尺寸算一个圆形平台的 AABB 包围）
+ * + 票 M3-04 的 12 件跳跃平台碰撞箱。
+ */
 function buildPlayerWorld(): PlayerWorld {
   // 玩家活动范围跟中环石台对齐（visual.json 的 spire.midRing.outer），
   // 否则会走出石台边缘、悬空站在虚空上。
@@ -60,6 +68,10 @@ function buildPlayerWorld(): PlayerWorld {
     colliders: [
       // 塔顶主平台：一个方形包围盒，玩家站在上面
       { minX: -ring, maxX: ring, minY: -2, maxY: 0, minZ: -ring, maxZ: ring },
+      // M3-04 场地道具：只追加 platform 类（12 件跳跃平台，0.8 / 1.6 / 2.4 三级链）。
+      // 遮挡物（cover）与防御物（defense）故意不加：它们还没有渲染件，
+      // 现在塞进世界会让玩家撞到看不见的墙。等渲染落地后再改成 collidersFromProps()。
+      ...platformColliders(arenaPropsCfg),
     ],
     lavaY: arenaCfg.lava.startY,
   };

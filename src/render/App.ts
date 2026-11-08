@@ -5,6 +5,9 @@ import { Lava } from './Lava';
 import { Spire } from './Spire';
 import { Atmosphere } from './Atmosphere';
 import { PostFX } from './PostFX';
+import { createArenaPropsView } from './ArenaProps';
+import type { ArenaPropsView } from './ArenaProps';
+import type { ArenaPropsConfig } from '../game/ArenaProps';
 
 export type BackendName = 'WebGPU' | 'WebGL2';
 
@@ -38,6 +41,29 @@ export class App {
     this.lava?.setLevel(y);
   }
 
+  /**
+   * 挂载场地道具的表现层（M3-04：12 件跳跃平台）。
+   *
+   * 必须在 createGame 之后调用：平台位置与逻辑层碰撞箱同读
+   * `core/config/arena-props.json`，两边同源才不会「看得见站不上」。
+   * 重复调用会先释放旧的。
+   */
+  mountArenaProps(config: ArenaPropsConfig, showCollisionBoxes = false): ArenaPropsView {
+    this.arenaProps?.dispose();
+    const view = createArenaPropsView({
+      scene: this.sceneRef,
+      config,
+      showCollisionBoxes,
+    });
+    this.arenaProps = view;
+    return view;
+  }
+
+  /** 诊断：场地道具的表现层（验收用） */
+  get arenaPropsView(): ArenaPropsView | null {
+    return this.arenaProps;
+  }
+
   private readonly host: HTMLElement;
   private readonly sceneRef = new THREE.Scene();
   private readonly cameraRef: THREE.PerspectiveCamera;
@@ -46,6 +72,7 @@ export class App {
   private spire: Spire | null = null;
   private lava: Lava | null = null;
   private atmosphere: Atmosphere | null = null;
+  private arenaProps: ArenaPropsView | null = null;
 
   private lastFrameTime = 0;
   private firstFrameTime = 0;
@@ -138,6 +165,7 @@ export class App {
     window.removeEventListener('resize', this.handleResize);
     document.removeEventListener('visibilitychange', this.handleVisibility);
     void this.renderer?.setAnimationLoop(null);
+    this.arenaProps?.dispose();
     this.postFX?.dispose();
     void this.renderer?.dispose();
   }
