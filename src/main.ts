@@ -16,11 +16,15 @@ import type { Attr, BodyPart, MatchPhase } from './core/events';
 import type { FlowConfig } from './flow/types';
 import type { FormSwitchConfig } from './player/FormSwitch';
 import type { MagicWeaponConfig, PhysicalWeaponConfig, WeaponHit, WeaponInput } from './player/weaponTypes';
+import { createStoryDirector } from './story/StoryDirector';
+import { StoryPresenter } from './ui/StoryPresenter';
+import type { StoryConfig } from './story/types';
 import flowCfgJson from './core/config/flow.json';
 import playerCfgJson from './core/config/player.json';
 import towersCfgJson from './core/config/towers.json';
 import arenaPropsCfgJson from './core/config/arena-props.json';
 import type { ArenaPropsConfig } from './game/ArenaProps';
+import storyCfgJson from './core/config/story.json';
 
 interface WlSave {
   level: number;
@@ -64,6 +68,12 @@ declare global {
       audio: () => AudioStats | null;
     };
     __boss?: IgnisBoss;
+    /** 剧情层调试句柄（QA / 手动验收用，只读 + force） */
+    __story?: {
+      state: () => unknown;
+      force: (cueId: string) => boolean;
+      cueIds: () => string[];
+    };
   }
 }
 
@@ -381,6 +391,37 @@ async function boot(): Promise<void> {
   overlay.setHp(game.snapshot().player.hp);
   overlay.setMessage('熔心孤塔 · 点击画面锁定鼠标，WASD 移动');
 
+  // ── 4.9 剧情层：表里双世界 + 五幕（迷惘·成长·舍弃·决绝·新生）─────────────
+  // 纯订阅者：只听 bus 已有事件，不新增契约、不改 events.ts。
+  // 逻辑层（StoryDirector）与表现层（StoryPresenter）分离，前者可在 Node 下跑单测。
+  // 必须建在 createGame 之后：时间轴在 createGame 内部已发首个 MatchPhaseChanged，
+  // 剧情层靠 init 时从快照补读当前阶段来对齐（否则第一幕台词整段不触发）。
+  const story = createStoryDirector();
+  const storyCfg = storyCfgJson as unknown as StoryConfig;
+  story.init({
+    bus: game.bus,
+    cfg: storyCfg,
+    runIndex: 0,
+    // 阶段时长交给剧情层，phaseProgress 触发器靠它把进度换算成时间
+    phaseDurations: flowCfg.phases.map((p) => ({
+      phase: p.phase,
+      startSec: p.startSec,
+      endSec: p.endSec,
+    })),
+  });
+  const storyView = new StoryPresenter(host, {
+    canvas: app.canvas,
+    // 表现层时序参数由配置注入（项目铁律：所有数值外置 JSON）
+    timing: storyCfg.inner,
+  });
+
+  // 调试句柄：控制台可直接看当前 cue / 世界层，或强播某条台词
+  window.__story = {
+    state: () => story.state(),
+    force: (cueId: string) => story.force(cueId),
+    cueIds: () => storyCfg.cues.map((c) => c.id),
+  };
+
   // ── 5. 事件接线 ──────────────────────────────────────────────────────────
   let lastPhase: MatchPhase = game.snapshot().phase;
   game.bus.on('MatchPhaseChanged', (p) => {
@@ -577,6 +618,11 @@ async function boot(): Promise<void> {
     if (steps >= budget) acc = 0;
 
     overlay.setHp(game.snapshot().player.hp);
+
+    // 剧情推进：必须在逻辑推进之后（阶段/血量/熔岩都已更新），
+    // 再交给表现层按帧同步（打字机、滤镜过渡都靠 dt）。
+    story.update(real);
+    storyView.present(story.state(), real);
   };
 
   app.onFrame = (value) => {

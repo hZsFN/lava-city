@@ -1,0 +1,373 @@
+{
+  "minShowMs": 1200,
+  "inner": {
+    "enterFadeMs": 480,
+    "exitFadeMs": 620,
+    "crystalPerVisit": 0.16,
+    "crystalMax": 0.72
+  },
+  "cues": [
+    {
+      "id": "a1_run",
+      "trigger": { "kind": "phaseProgress", "phase": "wake", "pct": 25 },
+      "priority": 10,
+      "durationMs": 3600,
+      "world": "surface",
+      "text": "你还记得自己在跑。\n你不记得跑向哪里。"
+    },
+    {
+      "id": "a1_faces",
+      "trigger": { "kind": "phaseProgress", "phase": "wake", "pct": 62 },
+      "priority": 20,
+      "durationMs": 2600,
+      "world": "inner",
+      "holdInnerMs": 500,
+      "letterbox": true,
+      "text": "往下走的人，背影一模一样。\n你数到第七个就醒了。"
+    },
+    {
+      "id": "a1_keeper_intro",
+      "trigger": { "kind": "phaseProgress", "phase": "wake", "pct": 92 },
+      "priority": 10,
+      "durationMs": 3400,
+      "world": "surface",
+      "speaker": "引路人",
+      "altOnReplay": "a1_keeper_intro_r2",
+      "text": "塔心还亮着。说明有人替你守过。\n别浪费。"
+    },
+    {
+      "id": "a1_build_teach",
+      "trigger": { "kind": "phaseProgress", "phase": "tutorial", "pct": 45 },
+      "priority": 10,
+      "durationMs": 3400,
+      "world": "surface",
+      "speaker": "引路人",
+      "text": "石头记得形状。\n把塔建在它想站的地方。"
+    },
+    {
+      "id": "a1_first_tower",
+      "trigger": { "kind": "event", "event": "TowerPlaced" },
+      "window": { "fromSec": 16, "toSec": 50 },
+      "priority": 11,
+      "durationMs": 2800,
+      "world": "surface",
+      "speaker": "引路人",
+      "text": "塔不是墙。\n塔是你肯留下的一部分。"
+    },
+    {
+      "id": "a1_prep",
+      "trigger": { "kind": "phase", "phase": "prep" },
+      "priority": 10,
+      "durationMs": 3000,
+      "world": "surface",
+      "speaker": "引路人",
+      "text": "他快上来了。\n最后看一眼你建的这些东西。"
+    },
+
+    {
+      "id": "a2_boss_greet",
+      "trigger": { "kind": "phase", "phase": "boss1" },
+      "priority": 12,
+      "durationMs": 3600,
+      "world": "surface",
+      "speaker": "伊格纳斯",
+      "text": "又一个。\n上一个也说自己只是路过。"
+    },
+    {
+      "id": "a2_heartbeat",
+      "trigger": { "kind": "phaseProgress", "phase": "boss1", "pct": 18 },
+      "priority": 10,
+      "durationMs": 3200,
+      "world": "surface",
+      "speaker": "引路人",
+      "text": "你打它的时候，有没有听见别的动静。\n很轻，比石头慢。"
+    },
+    {
+      "id": "a2_hp75",
+      "trigger": { "kind": "bossHpBelow", "pct": 75 },
+      "priority": 20,
+      "durationMs": 2800,
+      "world": "inner",
+      "holdInnerMs": 400,
+      "letterbox": true,
+      "text": "岩甲下面有心跳。\n你听见过它，只是没承认。"
+    },
+    {
+      "id": "a2_core_first",
+      "trigger": { "kind": "event", "event": "WeaknessExposed", "match": { "part": "core" } },
+      "priority": 22,
+      "durationMs": 3000,
+      "world": "inner",
+      "holdInnerMs": 400,
+      "letterbox": true,
+      "speaker": "引路人",
+      "text": "蓝的。\n他护着的不是自己，是那个。"
+    },
+    {
+      "id": "a2_hp50",
+      "trigger": { "kind": "bossHpBelow", "pct": 50 },
+      "priority": 11,
+      "durationMs": 3200,
+      "world": "surface",
+      "speaker": "伊格纳斯",
+      "text": "你越打，它越凉。\n你知道吗？"
+    },
+    {
+      "id": "a2_exec_first",
+      "trigger": { "kind": "event", "event": "ExecutionEnded" },
+      "priority": 21,
+      "durationMs": 2200,
+      "world": "inner",
+      "holdInnerMs": 300,
+      "letterbox": true,
+      "text": "击碎的声音，\n像有人在很远的地方关上一扇门。"
+    },
+    {
+      "id": "a2_quiet",
+      "trigger": { "kind": "phaseProgress", "phase": "boss1", "pct": 78 },
+      "priority": 10,
+      "durationMs": 3000,
+      "world": "surface",
+      "speaker": "引路人",
+      "text": "你很快。\n快的人，通常是不想停下来想。"
+    },
+
+    {
+      "id": "a3_transition",
+      "trigger": { "kind": "phase", "phase": "transition" },
+      "priority": 30,
+      "durationMs": 4000,
+      "world": "inner",
+      "letterbox": true,
+      "text": "记忆是这座城的第二层。\n你现在站在它里面。"
+    },
+    {
+      "id": "a3_letgo",
+      "trigger": { "kind": "afterCue", "id": "a3_transition", "delayMs": 200 },
+      "priority": 30,
+      "durationMs": 4400,
+      "world": "inner",
+      "letterbox": true,
+      "speaker": "引路人",
+      "altOnReplay": "a3_letgo_r2",
+      "text": "想上去，先松开手里的东西。\n你一直不肯松。"
+    },
+    {
+      "id": "a3_prevlevel",
+      "trigger": { "kind": "afterCue", "id": "a3_letgo", "delayMs": 200 },
+      "priority": 30,
+      "durationMs": 4600,
+      "world": "inner",
+      "holdInnerMs": 700,
+      "letterbox": true,
+      "text": "你想起上一关。\n你没有回头。\n那不是勇敢，是舍不得回头。"
+    },
+    {
+      "id": "a3_boss2",
+      "trigger": { "kind": "phase", "phase": "boss2" },
+      "priority": 25,
+      "durationMs": 4400,
+      "world": "surface",
+      "speaker": "伊格纳斯",
+      "text": "壳没了。\n现在你看见我了——\n我不好看，但我一直在。"
+    },
+
+    {
+      "id": "a4_notblocking",
+      "trigger": { "kind": "afterCue", "id": "a3_boss2", "delayMs": 600 },
+      "priority": 10,
+      "durationMs": 3600,
+      "world": "surface",
+      "speaker": "引路人",
+      "text": "他不是拦你。\n他是唯一还在守的人。"
+    },
+    {
+      "id": "a4_knee",
+      "trigger": { "kind": "event", "event": "KneeBroken" },
+      "priority": 21,
+      "durationMs": 2200,
+      "world": "inner",
+      "holdInnerMs": 300,
+      "letterbox": true,
+      "text": "跪下的时候，\n石头也会疼。"
+    },
+    {
+      "id": "a4_taunt",
+      "trigger": { "kind": "event", "event": "TauntStarted" },
+      "priority": 10,
+      "durationMs": 2800,
+      "world": "surface",
+      "speaker": "引路人",
+      "text": "让他转过去。\n有些话只能从背后说。"
+    },
+    {
+      "id": "a4_freeze",
+      "trigger": { "kind": "event", "event": "FreezeFull" },
+      "priority": 20,
+      "durationMs": 2400,
+      "world": "inner",
+      "holdInnerMs": 300,
+      "letterbox": true,
+      "text": "冻住的那一瞬，\n整座城都安静了。"
+    },
+    {
+      "id": "a4_silence",
+      "trigger": { "kind": "phaseProgress", "phase": "boss2", "pct": 30 },
+      "priority": 13,
+      "durationMs": 3200,
+      "world": "surface",
+      "speaker": "引路人",
+      "text": "他在等你先动手。\n他一直是这样的。"
+    },
+    {
+      "id": "a4_hurt",
+      "trigger": { "kind": "playerHpBelow", "pct": 35 },
+      "priority": 22,
+      "durationMs": 3000,
+      "world": "inner",
+      "holdInnerMs": 300,
+      "letterbox": true,
+      "speaker": "引路人",
+      "text": "你身上剩得不多了。\n你进来的时候就是这样。"
+    },
+    {
+      "id": "a4_core_low",
+      "trigger": { "kind": "coreHpBelow", "pct": 40 },
+      "priority": 20,
+      "durationMs": 3200,
+      "world": "surface",
+      "speaker": "引路人",
+      "text": "塔心在漏。\n它比你还急着想停。"
+    },
+    {
+      "id": "a4_death",
+      "trigger": { "kind": "event", "event": "PlayerDied" },
+      "cooldownMs": 20000,
+      "priority": 24,
+      "durationMs": 2600,
+      "world": "inner",
+      "holdInnerMs": 400,
+      "letterbox": true,
+      "text": "你倒下的时候，\n塔心顿了一下。"
+    },
+    {
+      "id": "a4_hp30",
+      "trigger": { "kind": "bossHpBelow", "pct": 30 },
+      "priority": 25,
+      "durationMs": 4200,
+      "world": "inner",
+      "holdInnerMs": 600,
+      "letterbox": true,
+      "speaker": "伊格纳斯",
+      "text": "你要的是上去。\n我要的是它别停。\n我们其实不冲突。"
+    },
+    {
+      "id": "a4_endgame",
+      "trigger": { "kind": "afterCue", "id": "a4_hp30", "delayMs": 400 },
+      "priority": 12,
+      "durationMs": 3400,
+      "world": "surface",
+      "speaker": "伊格纳斯",
+      "text": "你比我快。\n我年轻的时候也这么快。"
+    },
+    {
+      "id": "a4_last",
+      "trigger": { "kind": "afterCue", "id": "a4_hp30", "delayMs": 500 },
+      "priority": 14,
+      "durationMs": 3400,
+      "world": "surface",
+      "letterbox": true,
+      "text": "熔岩漫过塔沿了。\n你还有最后一次机会。"
+    },
+
+    {
+      "id": "a5_win",
+      "trigger": { "kind": "event", "event": "MatchEnded", "match": { "result": "win" } },
+      "priority": 30,
+      "durationMs": 4000,
+      "world": "inner",
+      "letterbox": true,
+      "speaker": "引路人",
+      "altOnReplay": "a5_win_r2",
+      "text": "心还在跳。\n只是换了一个人的胸腔。"
+    },
+    {
+      "id": "a5_win_after",
+      "trigger": { "kind": "afterCue", "id": "a5_win", "delayMs": 500 },
+      "priority": 30,
+      "durationMs": 4000,
+      "world": "surface",
+      "letterbox": true,
+      "text": "你听见的第一声，\n是自己的。"
+    },
+    {
+      "id": "a5_lose_core",
+      "trigger": { "kind": "event", "event": "MatchEnded", "match": { "reason": "core_destroyed" } },
+      "priority": 30,
+      "durationMs": 3800,
+      "world": "surface",
+      "letterbox": true,
+      "text": "塔心灭了。\n城又沉了一寸。"
+    },
+    {
+      "id": "a5_lose_dead",
+      "trigger": { "kind": "event", "event": "MatchEnded", "match": { "reason": "player_out_of_lives" } },
+      "priority": 30,
+      "durationMs": 3800,
+      "world": "surface",
+      "letterbox": true,
+      "text": "你倒在石头上。\n石头记得你的重量。"
+    },
+    {
+      "id": "a5_lose_time",
+      "trigger": { "kind": "event", "event": "MatchEnded", "match": { "reason": "timeout" } },
+      "priority": 30,
+      "durationMs": 3800,
+      "world": "surface",
+      "letterbox": true,
+      "text": "熔岩盖过眼睛的时候，\n你没有闭眼。"
+    },
+    {
+      "id": "a5_lose_lava",
+      "trigger": { "kind": "event", "event": "MatchEnded", "match": { "reason": "lava_swallowed" } },
+      "priority": 30,
+      "durationMs": 3800,
+      "world": "surface",
+      "letterbox": true,
+      "text": "你没跑过它。\n它等这一天很久了。"
+    },
+
+    {
+      "id": "a1_keeper_intro_r2",
+      "trigger": { "kind": "phaseProgress", "phase": "wake", "pct": 92 },
+      "priority": 10,
+      "durationMs": 4200,
+      "world": "inner",
+      "holdInnerMs": 400,
+      "letterbox": true,
+      "speaker": "引路人",
+      "text": "塔心还亮着。\n我替你守的。第二次了。"
+    },
+    {
+      "id": "a3_letgo_r2",
+      "trigger": { "kind": "afterCue", "id": "a3_transition", "delayMs": 200 },
+      "priority": 30,
+      "durationMs": 4800,
+      "world": "inner",
+      "letterbox": true,
+      "speaker": "引路人",
+      "text": "你又来了。\n上一次你松开了，然后你忘了。"
+    },
+    {
+      "id": "a5_win_r2",
+      "trigger": { "kind": "event", "event": "MatchEnded", "match": { "result": "win" } },
+      "priority": 30,
+      "durationMs": 4600,
+      "world": "inner",
+      "holdInnerMs": 1200,
+      "letterbox": true,
+      "speaker": "引路人",
+      "text": "这次别忘。\n记住我，就是记住你自己。"
+    }
+  ]
+}
