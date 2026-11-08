@@ -150,7 +150,12 @@ export interface StoryDirector {
     runIndex?: number;
     /**
      * 阶段时长表（来自 flow.json）。`phaseProgress` 触发器靠它把
-     * 「阶段内进度百分比」换算成实际时间。省略时该类 cue 静默不触发。
+     * 「阶段内进度百分比」换算成实际时间。
+     *
+     * **省略时不会失效**：引擎会回落到 `src/core/config/flow.json` 的阶段定义
+     * （保证「忘传配置」不会让整幕台词静默消失）。传入值优先级更高，
+     * 用于自定义 flow 配置的测试/调试场景。
+     * 同名多段（如 wake 的 dark/blur）会合并成一个语义跨度。
      */
     phaseDurations?: ReadonlyArray<{ phase: MatchPhase; startSec: number; endSec: number }>;
   }): void;

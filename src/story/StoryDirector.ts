@@ -109,6 +109,11 @@ function payloadMatches(payload: Payload, match: Readonly<Record<string, unknown
   return true;
 }
 
+/** afterCue 因撞车未播出去时，重排的等待毫秒。 */
+const AFTER_RETRY_DELAY_MS = 250;
+/** afterCue 最多重试次数（超过则放弃，避免长台词把队列永久占住）。 */
+const MAX_AFTER_RETRY = 8;
+
 export function createStoryDirector(): StoryDirectorContract {
   let bus: Bus | null = null;
   let cfg: StoryConfig | null = null;
@@ -120,6 +125,12 @@ export function createStoryDirector(): StoryDirectorContract {
 
   // ── 当前播放状态 ──────────────────────────────────────────────────────────
   let current: StoryCue | null = null;
+  /**
+   * 当前 cue 的「触发源 id」。多周目时 current 是变体（如 a3_letgo_r2），
+   * 而 afterCue 的 trigger.id 指向原 id（a3_letgo）。播完时要按两个 id
+   * 都去武装子 cue，否则第二周目起 afterCue 链会断。
+   */
+  let currentOriginId: string | null = null;
   /** 当前 cue 已显示毫秒 */
   let shownMs = 0;
   /** 当前 cue 正文剩余毫秒 */
@@ -144,6 +155,8 @@ export function createStoryDirector(): StoryDirectorContract {
 
   /** afterCue 武装表：cueId → 剩余毫秒。 */
   const armedAfter = new Map<string, number>();
+  /** afterCue 因撞车未播出去时的重试计数（防止无限占用）。 */
+  const afterRetries = new Map<string, number>();
 
   // ── 阶段进度追踪（phaseProgress 触发器用）────────────────────────────────
   /**
@@ -218,6 +231,19 @@ export function createStoryDirector(): StoryDirectorContract {
   }
 
   /**
+   * 按「原 id + 变体 id」两条都武装。
+   *
+   * 为什么必须两条都试：多周目时实际播出的是变体（如 a3_letgo_r2），
+   * 而子 cue 的 `trigger.id` 永远指向原 id（a3_letgo）。若只传实际播出的 id，
+   * 子 cue 匹配不到 → afterCue 链在第二周目断裂（实测 a3_prevlevel、
+   * a5_win_after 全部丢失）。这里用「播过的 origin」来补上另一半。
+   */
+  function armAfterCuesBoth(playedId: string, originId: string): void {
+    armAfterCues(playedId);
+    if (originId !== playedId) armAfterCues(originId);
+  }
+
+  /**
    * 尝试播放一条 cue。
    * `origin` 是触发源（用于记录消费与 afterCue 武装）；实际播出的可能是它的变体。
    * 返回 true = 真的播了。
@@ -247,6 +273,7 @@ export function createStoryDirector(): StoryDirectorContract {
     const duration = Math.max(target.durationMs, cfg.minShowMs);
 
     current = target;
+    currentOriginId = origin.id;
     shownMs = 0;
     remainMs = duration;
     innerHoldLeft = 0;
@@ -278,11 +305,29 @@ export function createStoryDirector(): StoryDirectorContract {
       else armedAfter.set(id, next);
     }
     if (due.length === 0) return;
-    for (const id of due) armedAfter.delete(id);
     due.sort((a, b) => (cueById(b)?.priority ?? 0) - (cueById(a)?.priority ?? 0));
     for (const id of due) {
       const cue = cueById(id);
-      if (cue) tryPlay(cue);
+      if (!cue) {
+        armedAfter.delete(id);
+        continue;
+      }
+      // 到点就播；若被更高优先级占位而没播出去，**不丢弃**，重排到 250ms 后
+      // 再试（最多重试 MAX_AFTER_RETRY 次，防止无限占用）。
+      // 否则「父 cue 播完 → 子 cue 到点时正撞上别的长台词」会让子 cue 永久消失，
+      // 这与 event 类的重试语义保持一致。
+      if (tryPlay(cue)) {
+        armedAfter.delete(id);
+      } else {
+        const tries = (afterRetries.get(id) ?? 0) + 1;
+        if (tries > MAX_AFTER_RETRY) {
+          armedAfter.delete(id);
+          afterRetries.delete(id);
+        } else {
+          afterRetries.set(id, tries);
+          armedAfter.set(id, AFTER_RETRY_DELAY_MS);
+        }
+      }
     }
   }
 
@@ -363,8 +408,11 @@ export function createStoryDirector(): StoryDirectorContract {
       const key = `${cue.id}@${t.pct}`;
       if (firedThresholds.has(key)) continue;
       if (pct >= t.pct) continue;
-      firedThresholds.add(key);
-      tryPlay(cue);
+      // **先尝试播，成功了才标记阈值已用**。
+      // 若此刻被更高优先级 cue 占位而没播出去，不标记 → 血量继续下降时
+      // 还会再试。这与 onEvent 的「只在真播出去时才消费」保持同一语义，
+      // 否则会出现「台词写了却因为撞车永久丢失」。
+      if (tryPlay(cue)) firedThresholds.add(key);
     }
   }
 
@@ -472,6 +520,7 @@ export function createStoryDirector(): StoryDirectorContract {
     firedThresholds.clear();
     countProgress.clear();
     armedAfter.clear();
+    afterRetries.clear();
 
     runtimes.clear();
     variantIds.clear();
@@ -560,9 +609,11 @@ export function createStoryDirector(): StoryDirectorContract {
         // 且必须在「播完」这一刻武装而不是「开播」那一刻，否则子 cue 会在
         // 父 cue 还没播完时就来抢位置，被优先级挡掉后永久丢失）。
         const finished = current;
+        const finishedOrigin = currentOriginId ?? finished.id;
         const hold = finished.holdInnerMs ?? 0;
 
         current = null;
+        currentOriginId = null;
         shownMs = 0;
         remainMs = 0;
 
@@ -573,7 +624,9 @@ export function createStoryDirector(): StoryDirectorContract {
           world = 'surface';
         }
 
-        armAfterCues(finished.id);
+        // 按「实际播出 id + 触发源 id」都武装：
+        // 多周目时 finished 是变体，子 cue 的 trigger.id 却指向原 id。
+        armAfterCuesBoth(finished.id, finishedOrigin);
       }
     } else if (innerHoldLeft > 0) {
       // 2. 余韵倒计时
@@ -624,6 +677,7 @@ export function createStoryDirector(): StoryDirectorContract {
     innerHoldLeft = 0;
     world = 'surface';
     armedAfter.clear();
+    afterRetries.clear();
   }
 
   return { init, update, state, force, dispose };
