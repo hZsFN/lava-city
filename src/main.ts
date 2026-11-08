@@ -18,6 +18,8 @@ import type { FormSwitchConfig } from './player/FormSwitch';
 import type { MagicWeaponConfig, PhysicalWeaponConfig, WeaponHit, WeaponInput } from './player/weaponTypes';
 import { createStoryDirector } from './story/StoryDirector';
 import { StoryPresenter } from './ui/StoryPresenter';
+import { GameFeel } from './ui/GameFeel';
+import { canPause, shouldAutoPause } from './game/feelRules';
 import type { StoryConfig } from './story/types';
 import flowCfgJson from './core/config/flow.json';
 import playerCfgJson from './core/config/player.json';
@@ -372,6 +374,7 @@ async function boot(): Promise<void> {
   });
 
   const hud = new M5Hud({ bus: game.bus });
+  hud.setClockSource(() => game.timeline.tSec());
   const weakScreen = new THREE.Vector3();
   const resolveWeaknessDirection = (): { x: number; y: number; behind: boolean } | null => {
     const snap = game.snapshot();
@@ -413,7 +416,7 @@ async function boot(): Promise<void> {
     // 硬锁：连结算层的 lose 分支一起挡住（狂暴吞噬/塔心爆/血尽都算），否则血量锁了照样会弹失败页
     game.timeline.setInvincible(locked);
     hpLockBadge.style.display = locked ? 'flex' : 'none';
-    overlay.setMessage(locked ? '锁血：开 · 不死（K 关闭）' : '锁血：关');
+    notify(locked ? '锁血：开 · 不死（K 关闭）' : '锁血：关');
   };
 
   // ── 4.9 剧情层：表里双世界 + 五幕（迷惘·成长·舍弃·决绝·新生）─────────────
@@ -573,9 +576,60 @@ async function boot(): Promise<void> {
     }
   }
 
-  // ── 7. 固定步长驱动 ──────────────────────────────────────────────────────
+  // ── 6.5 手感层 + 暂停 ────────────────────────────────────────────────────
+  // 暂停只冻结逻辑与剧情时钟，渲染照常（熔岩/粒子继续流动，画面不会"死"掉）。
   let fps = 60;
   let acc = 0;
+  let autoPausedAt = 0;
+  const requestLock = (): void => {
+    if (view.isTactical()) return;
+    // Esc 退出指针锁后浏览器有短暂冷却，期间 requestPointerLock 会拒绝；失败就等玩家点画面
+    try {
+      void Promise.resolve(app.canvas.requestPointerLock()).catch(() => undefined);
+    } catch {
+      /* 冷却期内拒绝，忽略 */
+    }
+  };
+  const pausable = (): boolean => canPause(game.timeline.phase(), game.isOver(), show.isFailing());
+  const pause = (): void => {
+    if (feel.isPaused || !pausable()) return;
+    feel.setPaused(true);
+    if (document.pointerLockElement) document.exitPointerLock();
+  };
+  const resume = (): void => {
+    if (!feel.isPaused) return;
+    feel.setPaused(false);
+    acc = 0;
+    requestLock();
+  };
+  const feel = new GameFeel({ bus: game.bus, onResume: resume });
+  // 玩家可见的反馈：DebugOverlay 只在 ?debug=1 显示，建塔/换塔/跳过等结果必须另走 toast
+  const notify = (msg: string): void => {
+    overlay.setMessage(msg);
+    feel.toast(msg);
+  };
+
+  let hadLock = false;
+  const onLockChange = (): void => {
+    const locked = document.pointerLockElement === app.canvas;
+    if (!locked && shouldAutoPause({
+      hadLock,
+      tactical: view.isTactical(),
+      phase: game.timeline.phase(),
+      over: game.isOver(),
+      failing: show.isFailing(),
+    })) {
+      autoPausedAt = performance.now();
+      pause();
+    }
+    hadLock = locked;
+  };
+  document.addEventListener('pointerlockchange', onLockChange);
+  // 切到别的窗口也停表：Boss 不该趁玩家不在时把人打死
+  const onBlur = (): void => { if (!debug && !demo) pause(); };
+  window.addEventListener('blur', onBlur);
+
+  // ── 7. 固定步长驱动 ──────────────────────────────────────────────────────
 
   // 每帧只取一次武器输入；一帧补多步时，边沿事件只喂给第一步
   let pendingWeapon: WeaponInput | null = null;
@@ -620,6 +674,14 @@ async function boot(): Promise<void> {
   }
 
   app.onTick = (dt) => {
+    if (feel.isPaused) {
+      // 暂停期间照样把边沿输入消费掉，否则恢复瞬间会补发一串攻击/切形态
+      input.weaponInput();
+      input.consumeFormSwitch();
+      pendingWeapon = null;
+      pendingToggle = false;
+      return;
+    }
     const w = input.weaponInput();
     // 按下边沿只该喂给第一步逻辑，但前提是这一帧真的有逻辑步。渲染帧快于 60 Hz 时
     // （高刷屏、或卡顿后补帧不足一格）有些帧一个逻辑步都不跑，无条件覆盖会把边沿吞掉，
@@ -682,7 +744,7 @@ async function boot(): Promise<void> {
     input.setLockAllowed(!on);
     app.canvas.style.cursor = on ? 'crosshair' : '';
     if (on && document.pointerLockElement) document.exitPointerLock();
-    overlay.setMessage(
+    notify(
       on
         ? `俯视：点塔位建塔/换塔（旧塔折返 ${Math.round((towersCfgJson.build?.sellRefundRatio ?? 0) * 100)}%）· 1–5 换塔型 · B 返回`
         : '回到第一人称',
@@ -788,7 +850,7 @@ async function boot(): Promise<void> {
   const doSkip = (): void => {
     game.timeline.jumpToBoss1();
     skipBtn.remove();
-    overlay.setMessage('开场跳过 · 伊格纳斯正在上来');
+    notify('开场跳过 · 伊格纳斯正在上来');
   };
   skipBtn.addEventListener('click', doSkip);
   document.body.appendChild(skipBtn);
@@ -801,7 +863,7 @@ async function boot(): Promise<void> {
     if (!slotId) return;
     const slot = game.towers.slots().find((s2) => s2.slotId === slotId);
     if (!slot || (slot.state !== 'open' && slot.state !== 'occupied')) {
-      overlay.setMessage(`${slotId} 不可建（${slot?.state ?? '未知'}）`);
+      notify(`${slotId} 不可建（${slot?.state ?? '未知'}）`);
       return;
     }
     const label = TOWER_LABEL[buildKind];
@@ -809,14 +871,14 @@ async function boot(): Promise<void> {
     if (slot.state === 'occupied') {
       const cur = game.towers.list().find((t) => t.id === slot.towerId);
       if (cur && cur.kind === buildKind) {
-        overlay.setMessage(`${slotId} 已经是${label}了`);
+        notify(`${slotId} 已经是${label}了`);
         return;
       }
       const refund = cur
         ? Math.floor(cur.investedCost * (towersCfgJson.build?.sellRefundRatio ?? 0))
         : 0;
       const ok = game.replaceTower(slotId, buildKind);
-      overlay.setMessage(
+      notify(
         ok
           ? `${slotId} 换塔：${cur ? TOWER_LABEL[cur.kind] : '旧塔'} → ${label}（折返 ${refund}，熔核 ${game.towers.motes()}）`
           : `换塔失败：折返 ${refund} 后仍买不起${label}（造价 ${kindCfg(buildKind).cost ?? '?'}）`,
@@ -825,7 +887,7 @@ async function boot(): Promise<void> {
     }
 
     const ok = game.placeTower(slotId, buildKind);
-    overlay.setMessage(
+    notify(
       ok ? `在 ${slotId} 建了 ${label}（熔核 ${game.towers.motes()}）` : '建塔失败：熔核不足',
     );
   });
@@ -833,11 +895,21 @@ async function boot(): Promise<void> {
   window.addEventListener('keydown', (event) => {
     if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
 
+    // P / Esc：暂停切换。Esc 在指针锁定时会先被浏览器拿去解锁并触发自动暂停，
+    // 部分浏览器随后仍会派发 keydown —— 刚自动暂停的 300ms 内不再翻转，免得一按即恢复。
+    if (event.code === 'KeyP' || event.code === 'Escape') {
+      event.preventDefault();
+      if (!feel.isPaused) pause();
+      else if (performance.now() - autoPausedAt > 300) resume();
+      return;
+    }
+    if (feel.isPaused) return;
+
     // E：教程书翻阅（不暂停游戏）
     if (event.code === 'KeyE') {
       if (show.interact()) {
         const view = show.flowSnapshot();
-        overlay.setMessage(`教程书 · 第 ${(Number(view.bookPage) || 0) + 1} 页`);
+        notify(`教程书 · 第 ${(Number(view.bookPage) || 0) + 1} 页`);
       }
       return;
     }
@@ -850,7 +922,7 @@ async function boot(): Promise<void> {
         event.preventDefault();
         game.timeline.jumpToBoss1();
         skipBtn.remove();
-        overlay.setMessage('开场跳过 · 伊格纳斯正在上来');
+        notify('开场跳过 · 伊格纳斯正在上来');
         return;
       }
     }
@@ -874,7 +946,7 @@ async function boot(): Promise<void> {
       if (view.isTactical()) {
         buildKind = kind;
         refreshBuildPanel();
-        overlay.setMessage(
+        notify(
           `已选塔型：${TOWER_LABEL[kind]} · ${statLine(kind)} · 点击青色塔位放置/替换`,
         );
         return;
@@ -882,12 +954,12 @@ async function boot(): Promise<void> {
       // 第一人称：保留原来的"一键建到第一个空位"快捷方式
       const openSlot = game.towers.slots().find((s) => s.state === 'open');
       if (!openSlot) {
-        overlay.setMessage('没有可用的开放塔位');
+        notify('没有可用的开放塔位');
         return;
       }
       const ok = game.placeTower(openSlot.slotId, kind);
-      overlay.setMessage(
-        ok ? `在 ${openSlot.slotId} 建了 ${kind}（熔核 ${game.towers.motes()}）`
+      notify(
+        ok ? `在 ${openSlot.slotId} 建了 ${TOWER_LABEL[kind]}（熔核 ${game.towers.motes()}）`
            : `建塔失败：熔核不足或塔位不可用`,
       );
       return;
@@ -970,6 +1042,9 @@ async function boot(): Promise<void> {
 
   window.addEventListener('pagehide', () => {
     input.dispose();
+    document.removeEventListener('pointerlockchange', onLockChange);
+    window.removeEventListener('blur', onBlur);
+    feel.dispose();
     show.dispose();
     audio?.dispose();
     // 剧情层也要清理：StoryPresenter 会写 canvas 的 filter/transition、
