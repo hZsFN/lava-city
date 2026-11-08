@@ -231,5 +231,9 @@ function reasonLabel(reason: string): string {
 void boot().catch((error: unknown) => {
   console.error('[boot] 启动失败', error);
   const tip = document.getElementById('boot-tip');
-  if (tip) tip.textContent = '启动失败：' + (error instanceof Error ? error.message : String(error));
+  if (tip) {
+    const stack = error instanceof Error ? (error.stack ?? '') : '';
+    tip.innerHTML = '<pre style="max-width:90vw;white-space:pre-wrap;font-size:12px;">启动失败：' +
+      (error instanceof Error ? error.message : String(error)) + '\n\n' + stack + '</pre>';
+  }
 });
