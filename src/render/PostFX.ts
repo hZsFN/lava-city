@@ -102,6 +102,8 @@ export class PostFX {
   private lastNow = 0;
   private panel: HTMLDivElement | null = null;
   private rows = new Map<EffectKey, HTMLSpanElement>();
+  private boxes = new Map<EffectKey, HTMLInputElement>();
+  private readonly locked = new Set<EffectKey>();
   private statsEl: HTMLSpanElement | null = null;
   private qualitySelect: HTMLSelectElement | null = null;
   private tick = 0;
@@ -131,21 +133,26 @@ export class PostFX {
     this.preset = cfg.qualityPresets[this.quality];
 
     this.toggles = {
-      gtao: cfg.post.gtao.enabled,
-      ssr: cfg.post.ssr.enabled,
+      gtao: cfg.post.gtao.enabled && this.preset.gtao,
+      ssr: cfg.post.ssr.enabled && this.preset.ssr,
       traa: cfg.post.traa.enabled,
       volumetric: cfg.post.volumetric.enabled,
       bloom: cfg.post.bloom.enabled,
-      motionBlur: cfg.post.motionBlur.enabled,
+      motionBlur: cfg.post.motionBlur.enabled && this.preset.motionBlur,
       dof: cfg.post.dof.enabled,
       grade: cfg.post.grade.enabled,
       lut: cfg.post.lut.enabled,
       heatHaze: cfg.post.heatHaze.enabled,
     };
 
-    // 调试/截图用：?off=motionBlur,lut 临时关闭个别效果
-    for (const key of new URLSearchParams(window.location.search).get('off')?.split(',') ?? []) {
-      if (key in this.toggles) this.toggles[key as EffectKey] = false;
+    // 调试/截图用：?off=motionBlur,lut 临时关闭个别效果；?off=all 全关
+    const offList = new URLSearchParams(window.location.search).get('off')?.split(',') ?? [];
+    const allOff = offList.includes('all');
+    for (const key of Object.keys(this.toggles) as EffectKey[]) {
+      if (allOff || offList.includes(key)) {
+        this.toggles[key] = false;
+        this.locked.add(key);
+      }
     }
 
     patchMaterials(scene);
@@ -193,9 +200,14 @@ export class PostFX {
     if (tier === this.quality) return;
     this.quality = tier;
     this.preset = this.cfg.qualityPresets[tier];
+    // 档位决定高开销项默认开关；被 ?off= 锁定的项保持关闭
+    for (const key of ['gtao', 'ssr', 'motionBlur'] as const) {
+      if (!this.locked.has(key)) this.toggles[key] = this.preset[key];
+    }
     this.rebuild();
     this.onQualityChanged?.(tier);
     if (this.qualitySelect) this.qualitySelect.value = tier;
+    this.syncPanel();
     this.updatePanel(true);
   }
 
@@ -338,9 +350,9 @@ export class PostFX {
     // 显示空间后再走 LUT，避免 HDR 高光被 0–1 采样裁掉
     let graded: ColorNode = renderOutput(node, THREE.ACESFilmicToneMapping, THREE.SRGBColorSpace);
 
-    // 暗部压向 #05070a：把大部分画面拉回真正的黑，而不是褐红
+    // 暗部压向 #05070a：只压最深的黑，不吞掉补光后的石头中间调
     const luma = dot(graded.rgb, vec3(0.2126, 0.7152, 0.0722));
-    const shadow = float(1).sub(smoothstep(0, 0.16, luma)).mul(0.62);
+    const shadow = float(1).sub(smoothstep(0, 0.1, luma)).mul(0.12);
     graded = mix(graded, vec3(0.0196, 0.0275, 0.0392), shadow) as unknown as ColorNode;
 
     if (this.toggles.lut) {
@@ -372,9 +384,8 @@ export class PostFX {
         const world = cameraWorldMatrix.mul(vec4(view, 1)).xyz;
 
         const heat = exp(max(world.y.add(22), 0).mul(-0.075));
-        const noise = mx_noise_float(
-          world.mul(0.075).add(vec3(0, time.mul(-0.22), time.mul(0.05))),
-        )
+        // 密度场保持静态：若随时间滚动，整幅暗部占比会来回摆动
+        const noise = mx_noise_float(world.mul(0.075))
           .mul(0.5)
           .add(0.5);
         const density = heat.mul(float(0.55).add(noise.mul(0.9))).mul(step);
@@ -448,6 +459,7 @@ export class PostFX {
         this.toggles[effect.key] = box.checked;
         this.rebuild();
       };
+      this.boxes.set(effect.key, box);
 
       const name = document.createElement('span');
       name.textContent = effect.label;
@@ -470,6 +482,8 @@ export class PostFX {
     panel.appendChild(button);
 
     document.body.appendChild(panel);
+    // 默认收起：M4-01 的 HUD 占用左上角；按 H 随时呼出渲染调试面板
+    panel.style.display = 'none';
     this.panel = panel;
 
     window.addEventListener('keydown', (event) => {
@@ -477,6 +491,10 @@ export class PostFX {
         panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
       }
     });
+  }
+
+  private syncPanel(): void {
+    for (const [key, box] of this.boxes) box.checked = this.toggles[key];
   }
 
   private updatePanel(force = false): void {
@@ -545,6 +563,7 @@ export class PostFX {
         this.toggles = { ...p.saved };
         this.profile = null;
         this.rebuild();
+        this.syncPanel();
         this.updatePanel(true);
         return;
       }

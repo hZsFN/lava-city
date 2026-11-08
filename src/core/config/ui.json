@@ -1,6 +1,11 @@
 {
   "countdownSec": 270,
   "teachingFirstRunOnly": true,
+  "audio": {
+    "master": 0.8,
+    "music": 0.5,
+    "sfx": 0.8
+  },
   "hud": {
     "playerBottomLeft": true,
     "bossTopCenter": true,

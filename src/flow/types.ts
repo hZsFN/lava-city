@@ -1,6 +1,6 @@
 // src/flow/types.ts
 // ============================================================================
-// P2-B 共享类型层（流程侧）· 由 S0（控制会话）维护，三路只读不改
+// 共享类型层（流程侧）· M4-01 起承载 9 段演出时间轴
 // ----------------------------------------------------------------------------
 // B3 实现 MatchTimeline / Scoring / Telemetry。
 // B1 的 TowerSystem 需要 setPhase / setLavaY，通过 MatchPhase 与 lavaY 对接。
@@ -13,6 +13,8 @@ export type { Bus, MatchPhase };
 /** config/flow.json 里单个阶段 */
 export interface PhaseConfig {
   phase: MatchPhase;
+  /** wake 段的内部节拍（dark / blur），只用于演出，不进入契约 */
+  beat?: string;
   startSec: number;
   endSec: number;
 }
@@ -25,10 +27,127 @@ export interface GradeConfig {
   minCorePct: number;
 }
 
+/** 一行旁白 / 台词。atSec 相对该 phase 第一次出现的开始时刻。 */
+export interface NarrationLine {
+  phase: MatchPhase;
+  atSec: number;
+  text: string;
+  speaker?: 'boss' | 'narrator';
+  fadeMs: number;
+  holdMs: number;
+}
+
+export interface TutorialGeometry {
+  widthM: number;
+  coverThicknessM: number;
+  depthM: number;
+  pagesInsetM: number;
+  pagesThicknessM: number;
+}
+
+export interface TutorialConfig {
+  autoDissolveAfterSec: number;
+  offsetRightM: number;
+  offsetForwardM: number;
+  heightM: number;
+  floatAmplitudeM: number;
+  floatPeriodSec: number;
+  pickupRadiusM: number;
+  leaveRadiusM: number;
+  readingFov: number;
+  cameraBlendSec: number;
+  light: { color: string; intensity: number; distance: number };
+  geometry: TutorialGeometry;
+  colors: { cover: string; pages: string; edge: string };
+  sparkCount: number;
+  sparkMs: number;
+  /** 最后一页停留多久后自动化成火星 */
+  lastPageHoldSec: number;
+  sparkColor: string;
+  prompt: string;
+  pageHint: string;
+  pages: string[];
+}
+
+export interface WakeShowConfig {
+  darkEndSec: number;
+  blurEndSec: number;
+  blurMaxPx: number;
+  pitchStartDeg: number;
+  pitchEndDeg: number;
+}
+
+export interface BossSpawnConfig {
+  mouthPos: [number, number, number];
+  mouthRadiusM: number;
+  rippleSec: number;
+  riseSec: number;
+  fromY: number;
+  toY: number;
+  fromScale: number;
+  toScale: number;
+  shakeSec: number;
+  shakePx: number;
+  sparkCount: number;
+}
+
+export interface TransitionShowConfig {
+  sinkSec: number;
+  sinkDepthM: number;
+  darkStartSec: number;
+  darkEndSec: number;
+  darkFactor: number;
+  riseStartSec: number;
+  riseEndSec: number;
+  bossScale2: number;
+  restoreEndSec: number;
+  lavaRiseStartSec: number;
+  lavaRiseEndSec: number;
+  visualLavaRiseM: number;
+}
+
+export interface VictoryShowConfig {
+  shatterSec: number;
+  shardCount: number;
+  shardLifeSec: number;
+  beamFromM: number;
+  beamToM: number;
+  beamGrowSec: number;
+  beamRadiusM: number;
+  beamColor: string;
+  beamOpacity: number;
+  washColor: string;
+  washIntensity: number;
+  shakeSec: number;
+  shakePx: number;
+}
+
+export interface EscapeShowConfig {
+  orbitRadiusM: number;
+  orbitHeightM: number;
+  orbitTurns: number;
+  avatarRiseToM: number;
+  avatarFadeStartSec: number;
+  avatarFadeEndSec: number;
+  whiteStartSec: number;
+  whiteFadeSec: number;
+}
+
+export interface FailShowConfig {
+  blackSec: number;
+  text: string;
+  textFadeSec: number;
+  handoffDelaySec: number;
+  reason: string;
+}
+
 /** config/flow.json 整体形状 */
 export interface FlowConfig {
   matchLengthSec: number;
+  playerSpawn: [number, number, number];
   phases: PhaseConfig[];
+  victory: { durationSec: number; escapeDurationSec: number };
+  rage: { atSec: number; risePerSec: number; swallowAfterSec: number };
   core: { maxHp: number };
   motes: {
     start: number;
@@ -36,6 +155,16 @@ export interface FlowConfig {
     perExecution: number;
   };
   score: { grades: GradeConfig[] };
+  narration: NarrationLine[];
+  speakers: Record<string, string>;
+  wake: WakeShowConfig;
+  tutorial: TutorialConfig;
+  bossSpawn: BossSpawnConfig;
+  transition: TransitionShowConfig;
+  victoryShow: VictoryShowConfig;
+  escape: EscapeShowConfig;
+  fail: FailShowConfig;
+  demo: { winAtSec: number; failAtSec: number };
 }
 
 /** 一局结束的原因 */
@@ -87,7 +216,7 @@ export interface MatchTimeline {
   /** 熔岩当前高度 */
   lavaY(): number;
 
-  /** 外部通知：Boss 死了 */
+  /** 外部通知：Boss 死了 → 进入 victory 演出（不是立即结算） */
   notifyBossDefeated(): void;
   /** 外部通知：塔心被打爆 */
   notifyCoreDestroyed(): void;

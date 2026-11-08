@@ -32,6 +32,9 @@
       respawn: function () { return window.WL ? WL.respawn() : null; },
       completeLevel: function (config, save, options) {
         return window.WL ? WL.completeLevel(config, save, options) : null;
+      },
+      failLevel: function (reason, save, config) {
+        return window.WL ? WL.failLevel(reason, save, config) : null;
       }
     };
   </script>

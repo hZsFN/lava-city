@@ -1,10 +1,13 @@
 // src/flow/MatchTimeline.ts
 // ============================================================================
-// 4:30 时间轴状态机（T-M2-03）· B3 实现
+// 一局 4:30 时间轴状态机（M4-01 演出版）
 // ----------------------------------------------------------------------------
+// 9 段：wake(dark) → wake(blur) → tutorial → prep → boss1 → transition
+//       → boss2 →（Boss 死亡）victory → escape → 结算
+// 兜底：4:30 仍未击杀 → rage（熔岩每秒 +1 m，5 s 内吞没塔心）→ 失败。
+//
 // 职责：阶段推进 + 熔岩液面 + 塔心 HP + 一局结算。**只发事件，不碰塔/Boss/玩家**。
-// 归属事件：MatchPhaseChanged / LavaLevelChanged / CoreHpChanged / MatchEnded
-// 数值来源：config/flow.json（阶段、时长、塔心 HP）+ config/arena.json（熔岩、塔高）
+// 数值来源：config/flow.json（阶段/时长/演出节拍）+ config/arena.json（熔岩/塔高）
 // 硬规则：时间点全部从 flow.json 读，不硬编码；逻辑层不 import three。
 // ============================================================================
 
@@ -18,56 +21,34 @@ const MAX_DT_SEC = 0.1;
 /** 熔岩液面变化量阈值：>= 0.01 才广播，避免每帧刷屏 */
 const LAVA_EMIT_EPS = 0.01;
 
-/** arena.json 里与本模块相关的字段（宽松结构，缺失时回落到仓库内 arena.json） */
 interface LavaOverrides {
   startY?: number;
   phase2RiseTo?: number;
-  rageRisePerSec?: number;
-  /** 熔岩吞没塔心的液面高度；arena.json 目前未定义，见 handoff 的配置申请 */
-  swallowY?: number;
 }
 
 interface ArenaLike {
-  tower?: { height?: number };
   lava?: LavaOverrides;
 }
 
 interface LavaCfg {
   startY: number;
   phase2RiseTo: number;
-  rageRisePerSec: number;
-  swallowY: number;
 }
 
-/**
- * 解析熔岩数值。全部来自 arena.json；`swallowY` 缺失时按设计口径回落为
- * 「4:30 整的液面高度」= phase2RiseTo + rageRisePerSec × rage 时长。
- * 这样默认配置下熔岩恰在 270 s 淹没塔心，与超时同帧 → 超时优先（见 handoff 说明）。
- */
-function resolveLava(arenaCfg: unknown, flowCfg: FlowConfig): LavaCfg {
+function resolveLava(arenaCfg: unknown): LavaCfg {
   const base = (arenaJson as unknown as ArenaLike).lava ?? {};
   const over = ((arenaCfg ?? {}) as ArenaLike).lava ?? {};
-
   const pick = (key: keyof LavaOverrides, fallback: number): number => {
     const v = over[key] ?? base[key];
     return typeof v === 'number' ? v : fallback;
   };
-
-  const startY = pick('startY', 0);
-  const phase2RiseTo = pick('phase2RiseTo', 0);
-  const rageRisePerSec = pick('rageRisePerSec', 0);
-
-  let swallowY = pick('swallowY', Number.NaN);
-  if (!Number.isFinite(swallowY)) {
-    const rage = flowCfg.phases.find((p) => p.phase === 'rage');
-    swallowY = rage
-      ? phase2RiseTo +
-        rageRisePerSec * Math.max(0, Math.min(rage.endSec, flowCfg.matchLengthSec) - rage.startSec)
-      : phase2RiseTo;
-  }
-
-  return { startY, phase2RiseTo, rageRisePerSec, swallowY };
+  return {
+    startY: pick('startY', 0),
+    phase2RiseTo: pick('phase2RiseTo', 0),
+  };
 }
+
+type TimelineMode = 'script' | 'victory' | 'escape' | 'rage';
 
 export function createMatchTimeline(): MatchTimeline {
   let bus: Bus | null = null;
@@ -76,13 +57,19 @@ export function createMatchTimeline(): MatchTimeline {
   let phaseIdx = 0;
 
   let t = 0;
+  let mode: TimelineMode = 'script';
   let coreHp = 0;
   let coreMaxHp = 0;
 
-  let lava: LavaCfg = { startY: 0, phase2RiseTo: 0, rageRisePerSec: 0, swallowY: Number.POSITIVE_INFINITY };
+  let lava: LavaCfg = { startY: 0, phase2RiseTo: 0 };
   let lavaY = 0;
   let lastEmitY = Number.NaN;
   let lastEmitRate = Number.NaN;
+
+  /** victory / escape / rage 的起始时刻（真实秒） */
+  let victoryAt = -1;
+  let escapeAt = -1;
+  let rageAt = -1;
 
   let ended: MatchResult | null = null;
 
@@ -94,69 +81,66 @@ export function createMatchTimeline(): MatchTimeline {
     bus?.emit('CoreHpChanged', { hp: coreHp, maxHp: coreMaxHp });
   }
 
-  /** 结算：一局只发一次 MatchEnded；之后所有 notify / apply 全部忽略 */
+  function currentPhase(): MatchPhase {
+    if (ended) return 'ended';
+    if (mode === 'victory') return 'victory';
+    if (mode === 'escape') return 'escape';
+    if (mode === 'rage') return 'rage';
+    return phases[phaseIdx]?.phase ?? 'wake';
+  }
+
+  /** 结算：一局只发一次 MatchEnded；之后所有 notify / update 全部忽略 */
   function finish(result: 'win' | 'lose', reason: EndReason): void {
     if (ended || !bus) return;
+    const prevPhase = currentPhase();
     ended = { result, reason, tSec: t };
-
-    // 提前结束（Boss 死/塔心爆/玩家耗尽）时补发一次 ended 阶段事件
-    const endedIdx = phases.findIndex((p) => p.phase === 'ended');
-    if (endedIdx >= 0 && phases[phaseIdx]?.phase !== 'ended') {
-      phaseIdx = endedIdx;
-      emitPhase('ended', t);
-    }
-
+    if (prevPhase !== 'ended') emitPhase('ended', t);
     bus.emit('MatchEnded', { result, reason, tSec: t });
   }
 
-  /** 按「当前阶段 + 阶段内进度」推进熔岩液面；变化够大才广播 */
+  /** 按「当前模式 + 当前时刻」推进熔岩液面；变化够大才广播 */
   function updateLava(): void {
-    const p = phases[phaseIdx];
-    if (!p) return;
+    if (!flowCfg) return;
 
-    const dur = Math.max(1e-9, p.endSec - p.startSec);
     let y = lavaY;
     let rate = 0;
 
-    switch (p.phase) {
-      case 'wake':
-      case 'prep':
-      case 'boss1':
-        y = lava.startY;
-        rate = 0;
-        break;
-      case 'transition': {
-        const prog = Math.min(1, Math.max(0, (t - p.startSec) / dur));
-        y = lava.startY + (lava.phase2RiseTo - lava.startY) * prog;
-        rate = (lava.phase2RiseTo - lava.startY) / dur;
-        break;
+    if (mode === 'rage') {
+      y = lava.phase2RiseTo + flowCfg.rage.risePerSec * Math.max(0, t - rageAt);
+      rate = flowCfg.rage.risePerSec;
+    } else if (mode === 'victory' || mode === 'escape') {
+      y = lava.phase2RiseTo;
+    } else {
+      const p = phases[phaseIdx];
+      switch (p?.phase) {
+        case 'transition': {
+          const riseStart = p.startSec + flowCfg.transition.lavaRiseStartSec;
+          const riseEnd = p.startSec + flowCfg.transition.lavaRiseEndSec;
+          const k = Math.min(1, Math.max(0, (t - riseStart) / Math.max(1e-9, riseEnd - riseStart)));
+          y = lava.startY + (lava.phase2RiseTo - lava.startY) * k;
+          rate = k > 0 && k < 1
+            ? (lava.phase2RiseTo - lava.startY) / Math.max(1e-9, riseEnd - riseStart)
+            : 0;
+          break;
+        }
+        case 'boss2':
+          y = lava.phase2RiseTo;
+          break;
+        default:
+          y = lava.startY;
+          break;
       }
-      case 'boss2':
-        y = lava.phase2RiseTo;
-        rate = 0;
-        break;
-      case 'rage':
-        y = lava.phase2RiseTo + lava.rageRisePerSec * Math.max(0, t - p.startSec);
-        rate = lava.rageRisePerSec;
-        break;
-      default:
-        break;
     }
 
     lavaY = y;
 
     const rateChanged = rate !== lastEmitRate;
-    const movedEnough =
-      !Number.isFinite(lastEmitY) || Math.abs(y - lastEmitY) >= LAVA_EMIT_EPS;
+    const movedEnough = !Number.isFinite(lastEmitY) || Math.abs(y - lastEmitY) >= LAVA_EMIT_EPS;
     if (rateChanged || movedEnough) {
       lastEmitY = y;
       lastEmitRate = rate;
       bus?.emit('LavaLevelChanged', { y, risePerSec: rate });
     }
-
-    // 熔岩吞没塔心 → 判负。硬上限之前才判：270 s 同帧时超时优先（见 handoff）。
-    const hardEnd = flowCfg?.matchLengthSec ?? Number.POSITIVE_INFINITY;
-    if (y >= lava.swallowY && t < hardEnd) finish('lose', 'lava_swallowed');
   }
 
   function init(deps: { bus: Bus; flowCfg: FlowConfig; arenaCfg: unknown }): void {
@@ -166,12 +150,16 @@ export function createMatchTimeline(): MatchTimeline {
     phases = [...flowCfg.phases].sort((a, b) => a.startSec - b.startSec);
     phaseIdx = 0;
     t = 0;
+    mode = 'script';
+    victoryAt = -1;
+    escapeAt = -1;
+    rageAt = -1;
     ended = null;
 
     coreMaxHp = flowCfg.core.maxHp;
     coreHp = coreMaxHp;
 
-    lava = resolveLava(deps.arenaCfg, flowCfg);
+    lava = resolveLava(deps.arenaCfg);
     lavaY = lava.startY;
     lastEmitY = Number.NaN;
     lastEmitRate = Number.NaN;
@@ -187,41 +175,76 @@ export function createMatchTimeline(): MatchTimeline {
     const dt = Math.min(Math.max(dtSec, 0), MAX_DT_SEC);
     if (!(dt > 0)) return false;
 
+    const nextT = t + dt;
+
+    // ── 胜利演出：victory → escape → 结算 ──────────────────────────────────
+    if (mode === 'victory') {
+      t = nextT;
+      if (t >= victoryAt + flowCfg.victory.durationSec) {
+        t = victoryAt + flowCfg.victory.durationSec;
+        mode = 'escape';
+        escapeAt = t;
+        emitPhase('escape', t);
+        updateLava();
+        return true;
+      }
+      return false;
+    }
+
+    if (mode === 'escape') {
+      t = nextT;
+      if (t >= escapeAt + flowCfg.victory.escapeDurationSec) {
+        t = escapeAt + flowCfg.victory.escapeDurationSec;
+        finish('win', 'boss_defeated');
+        return true;
+      }
+      return false;
+    }
+
+    // ── 狂暴：熔岩上涨，倒计时结束即失败 ──────────────────────────────────
+    if (mode === 'rage') {
+      t = nextT;
+      updateLava();
+      if (t >= rageAt + flowCfg.rage.swallowAfterSec) {
+        t = rageAt + flowCfg.rage.swallowAfterSec;
+        finish('lose', 'lava_swallowed');
+        return true;
+      }
+      return false;
+    }
+
+    // ── 脚本阶段 ──────────────────────────────────────────────────────────
     const cur = phases[phaseIdx];
     if (!cur) return false;
 
-    const nextT = t + dt;
-    const isLast = phaseIdx >= phases.length - 1;
-
-    // 跨过当前阶段结束点 → 切下一阶段（一帧最多切一次，时间钳在边界上）
-    if (!isLast && nextT >= cur.endSec) {
+    if (nextT >= cur.endSec) {
       t = cur.endSec;
+
+      if (cur.phase === 'boss2') {
+        // 4:30 未击杀 → 狂暴（Boss 进 rage、熔岩上涨由本状态机驱动）
+        mode = 'rage';
+        rageAt = t;
+        emitPhase('rage', t);
+        updateLava();
+        return true;
+      }
+
       phaseIdx += 1;
       const np = phases[phaseIdx];
-
-      emitPhase(np.phase, t);
-      updateLava();
-      if (ended) return true;
-
-      if (np.phase === 'ended' || t >= flowCfg.matchLengthSec) {
-        finish('lose', 'timeout');
+      if (np) {
+        emitPhase(np.phase, t);
+        updateLava();
       }
       return true;
     }
 
     t = nextT;
     updateLava();
-    if (ended) return true;
-
-    if (t >= flowCfg.matchLengthSec) {
-      finish('lose', 'timeout');
-      return true;
-    }
     return false;
   }
 
   function phase(): MatchPhase {
-    return phases[phaseIdx]?.phase ?? 'wake';
+    return currentPhase();
   }
 
   function tSec(): number {
@@ -229,7 +252,10 @@ export function createMatchTimeline(): MatchTimeline {
   }
 
   function endsAtSec(): number {
-    if (ended || phase() === 'ended') return 0;
+    if (ended || mode === 'script' && !phases[phaseIdx]) return 0;
+    if (mode === 'victory' && flowCfg) return victoryAt + flowCfg.victory.durationSec;
+    if (mode === 'escape' && flowCfg) return escapeAt + flowCfg.victory.escapeDurationSec;
+    if (mode === 'rage' && flowCfg) return rageAt + flowCfg.rage.swallowAfterSec;
     return phases[phaseIdx]?.endSec ?? 0;
   }
 
@@ -241,8 +267,16 @@ export function createMatchTimeline(): MatchTimeline {
     return lavaY;
   }
 
+  /** Boss 死亡 → 进入 victory；演出结束后由 escape 自动结算 */
   function notifyBossDefeated(): void {
-    finish('win', 'boss_defeated');
+    if (ended || !flowCfg || mode !== 'script') return;
+    const p = currentPhase();
+    if (p !== 'boss1' && p !== 'boss2') return;
+
+    mode = 'victory';
+    victoryAt = t;
+    emitPhase('victory', t);
+    updateLava();
   }
 
   function notifyCoreDestroyed(): void {

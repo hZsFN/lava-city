@@ -1,27 +1,18 @@
-// src/main.ts
-// ============================================================================
-// 启动接线（S0 维护）
-// ----------------------------------------------------------------------------
-// 渲染器 → 逻辑 → 表现层 → 音频 → Boss / 战斗 → 事件接线 → 调试 API
-//
-// 视角只有一条链路：InputHandle.aim()（只读、无副作用）→ GameView / 射线判定。
-// ============================================================================
-
-import * as THREE from 'three/webgpu';
 import { App } from './render/App';
 import { DebugOverlay } from './ui/DebugOverlay';
+import { Hud } from './ui/Hud';
 import { createGame, LOGIC_DT } from './game/GameLoop';
+import type { InputSource } from './game/GameLoop';
 import { createGameView } from './game/GameView';
 import { IgnisBoss } from './boss/IgnisBoss';
 import { createInput } from './game/Input';
-import { CombatController } from './game/CombatController';
-import { createAudioManager } from './audio/AudioManager';
-import playerCfgJson from './core/config/player.json';
-import type { Attr, BodyPart, MatchPhase } from './core/events';
-import type { WeaponHit } from './player/weaponTypes';
-import type { FormSwitchConfig } from './player/FormSwitch';
-import type { MagicWeaponConfig, PhysicalWeaponConfig } from './player/weaponTypes';
+import { FlowDirector } from './game/FlowDirector';
+import { AudioPlayer } from './audio/AudioPlayer';
+import type { AudioStats } from './audio/AudioPlayer';
 import type { TowerKind } from './towers/types';
+import type { BodyPart, MatchPhase } from './core/events';
+import type { FlowConfig } from './flow/types';
+import flowCfgJson from './core/config/flow.json';
 
 interface WlSave {
   level: number;
@@ -56,25 +47,18 @@ declare global {
       damagePlayer: (n: number) => number;
       /** QA/演示：直接击杀 Boss（会走 victory 演出） */
       killBoss: () => void;
+      /** 演出快照：阶段 / 教程书 / 失败状态 */
+      flow: () => Record<string, unknown>;
       /** 平台交接状态（验收证据用） */
       handoff: () => { done: boolean; result: 'win' | 'fail' | null };
+      /** 音频状态（加载进度 / 声部峰值 / 静音，验收用） */
+      audio: () => AudioStats | null;
     };
     __boss?: IgnisBoss;
   }
 }
 
-/**
- * Boss 登场参数：与 flow.json 的 bossSpawn 段同值。
- * 该段还没进入 FlowConfig / config 合同，先在这里固定，合同补齐后再改读配置。
- */
-const BOSS_SPAWN = {
-  mouthPos: [0, 0, 11] as [number, number, number],
-  riseSec: 1.5,
-  fromY: -9,
-  toY: 0,
-  fromScale: 0.85,
-  toScale: 1,
-};
+const flowCfg = flowCfgJson as unknown as FlowConfig;
 
 // 本地 dev 没有大厅下发的 CONFIG，用最小占位让按键链路可验证
 const FALLBACK_CONFIG: Record<string, unknown> = {
@@ -105,6 +89,13 @@ async function boot(): Promise<void> {
   const host = document.getElementById('app');
   if (!host) throw new Error('index.html 缺少 #app 容器');
 
+  const params = new URLSearchParams(window.location.search);
+  const debug = params.get('debug') === '1';
+  const demo = params.get('demo') ?? '';
+  const speed = Math.max(1, Math.min(24, queryNumber('speed') ?? 1));
+  const jumpTo = queryNumber('t');
+  const hpOverride = queryNumber('hp');
+
   // ── 1. 渲染器 ────────────────────────────────────────────────────────────
   const app = new App(host);
   await app.init();
@@ -112,9 +103,32 @@ async function boot(): Promise<void> {
   // ── 2. 逻辑（三路交付物的整合）──────────────────────────────────────────
   const input = createInput(app.canvas);
 
-  // 血量接力规则：入口血量从存档读（?hp= 可覆盖），注入逻辑层；读不到才退回 config 兜底值
+  // 演出锁定期：不能走、不能转头（镜头由 FlowDirector 接管）
+  interface GatedInput extends InputSource {
+    locked: boolean;
+    frozenYaw: number;
+    frozen: boolean;
+  }
+  const gated: GatedInput = {
+    locked: false,
+    frozenYaw: 0,
+    frozen: false,
+    sample() {
+      const raw = input.sample();
+      if (!this.locked) {
+        this.frozen = false;
+        return raw;
+      }
+      if (!this.frozen) {
+        this.frozen = true;
+        this.frozenYaw = raw.yaw;
+      }
+      return { moveX: 0, moveZ: 0, yaw: this.frozenYaw, jump: false, dash: false };
+    },
+  };
+
+  // 血量接力规则：入口血量从存档读，注入逻辑层；读不到才退回 config 兜底值
   let save = readSave();
-  const hpOverride = queryNumber('hp');
   const hp = hpOverride !== null
     ? {
         hp: Math.max(0, Math.floor(hpOverride)),
@@ -124,13 +138,12 @@ async function boot(): Promise<void> {
       ? { hp: save.player.hp, maxHp: save.player.max_hp }
       : undefined;
 
-  // Boss 实例在 game 之后创建，但塔的 bossState 闭包会在逻辑帧里才取值
+  // Boss 实例在 game 之后创建，但塔的 bossState 闭包会在 tick 时才取值
   let bossRef: IgnisBoss | null = null;
 
   const game = createGame({
-    input,
+    input: gated,
     playerHp: hp,
-    // 塔的目标是 Boss 的真实位置与弱点；未登场（隐藏/死亡）时返回 null
     bossState: () => {
       const boss = bossRef;
       if (!boss || !boss.root.visible || boss.isDead()) return null;
@@ -139,12 +152,14 @@ async function boot(): Promise<void> {
       return {
         pos: [boss.root.position.x, boss.root.position.y, boss.root.position.z],
         weakness: part,
-        weaknessAttr: part ? boss.weaknessAttr(part) : null,
+        weaknessAttr: part ? boss.weaknessAttr(part as BodyPart) : null,
         skill: st.skill,
         taunted: false,
       };
     },
   });
+  // 开局熔核（HUD 与建造共用同一份余额）
+  game.setMotes(flowCfg.motes.start);
 
   // ── 3. 表现层 ────────────────────────────────────────────────────────────
   const view = createGameView({
@@ -155,154 +170,117 @@ async function boot(): Promise<void> {
     aim: () => input.aim(),
   });
 
-  // ── 3.5 音频：P2-A 事件音效（首次用户手势后解锁）──────────────────────
-  const audio = createAudioManager({ bus: game.bus, motion: game.player });
-  const unlockAudio = (): void => {
-    void audio.unlock().then((ok) => {
-      if (!ok) return;
-      window.removeEventListener('pointerdown', unlockAudio, true);
-      window.removeEventListener('keydown', unlockAudio, true);
-    });
-  };
-  window.addEventListener('pointerdown', unlockAudio, true);
-  window.addEventListener('keydown', unlockAudio, true);
-
-  // ── 3.6 Boss：先藏起来，进阶段 I 时从熔岩口登场，之后每帧更新 ───────────
   const boss = new IgnisBoss(game.bus);
   boss.attachTo(app.scene);
-  boss.root.position.set(...BOSS_SPAWN.mouthPos);
+  boss.root.position.set(...flowCfg.bossSpawn.mouthPos);
   boss.hideForShow();
   bossRef = boss;
   window.__boss = boss;
 
-  // ── 4. 玩家战斗：鼠标 → 武器 → 相机射线 → Boss 结算（方案一）────────────
-  const pc = playerCfgJson as unknown as {
-    formSwitch: FormSwitchConfig;
-    weaponPhysical: PhysicalWeaponConfig;
-    weaponMagic: Omit<MagicWeaponConfig, 'overheat'>;
-    overheat: MagicWeaponConfig['overheat'];
-  };
+  // ── 3.5 音频（M5-02）─────────────────────────────────────────────────────
+  // 构造阶段零音频资源：首次 pointerdown / keydown 才建 AudioContext 并分批解码。
+  // M 键静音由 AudioPlayer 自己接管；弱点/Boss 音效的左右定位读 bossPosition。
+  // ?audio=0：无头截图/QA 时关闭音频，避免软件音频栈拖慢渲染。
+  const audio = params.get('audio') === '0'
+    ? null
+    : new AudioPlayer({
+        bus: game.bus,
+        bossPosition: () => {
+          const b = bossRef;
+          return b ? [b.root.position.x, b.root.position.y, b.root.position.z] : null;
+        },
+      });
 
-  let exposed: { part: BodyPart; attr: Attr } | null = null;
-  game.bus.on('WeaknessExposed', (p) => { exposed = { part: p.part, attr: p.attr }; });
-  game.bus.on('WeaknessClosed', (p) => {
-    if (exposed?.part === p.part) exposed = null;
-  });
-
-  const raycaster = new THREE.Raycaster();
-  const aimDir = new THREE.Vector3();
-
-  function resolveBossHit(rangeM: number): WeaponHit | null {
-    const aim = input.aim();
-    const cp = Math.cos(aim.pitch);
-    aimDir
-      .set(-Math.sin(aim.yaw) * cp, Math.sin(aim.pitch), -Math.cos(aim.yaw) * cp)
-      .normalize();
-    raycaster.set(app.camera.position, aimDir);
-    raycaster.far = Number.isFinite(rangeM) ? rangeM : 60;
-    const hit = raycaster.intersectObject(boss.root, true)[0];
-    if (!hit) return null;
-    const p = hit.point;
-    return {
-      target: 'boss',
-      point: [p.x, p.y, p.z],
-      pos: [boss.root.position.x, boss.root.position.y, boss.root.position.z],
-      weakness: exposed ? { part: exposed.part, attr: exposed.attr } : null,
-      // 方案一：抗性/减抗由 Boss 自己算，这里只占位
-      resist: { resistArcane: 0, resistPhysical: 0 },
-      debuffs: { scorch: 0, sunder: 0 },
-    };
-  }
-
-  const combat = new CombatController({
-    bus: game.bus,
-    config: {
-      formSwitch: pc.formSwitch,
-      physical: pc.weaponPhysical,
-      magic: { ...pc.weaponMagic, overheat: pc.overheat },
-    },
-    resolveHit: (q) => resolveBossHit(q.rangeM),
-    applyBoss: (o) => {
-      if (o.target !== 'boss' || !o.point) return;
-      // Boss 的弱点常量是局部坐标，必须先把命中点转进 boss 局部空间
-      const local = boss.root.worldToLocal(new THREE.Vector3(o.point[0], o.point[1], o.point[2]));
-      boss.takeDamage(o.baseDamage, o.attr, [local.x, local.y, local.z]);
-    },
-  });
-
-  const NO_WEAPON = { lightPressed: false, lightHeld: false, heavyPressed: false, heavyHeld: false };
-
-  // ── 5. 固定步长驱动 ──────────────────────────────────────────────────────
-  app.onTick = (dt) => {
-    const steps = game.tick(dt);
-    boss.update(dt * 1000);
-    audio.update();
-
-    // 武器按逻辑步推进：一帧补了多步时，边沿输入只喂第一步
-    if (steps > 0) {
-      const weapon = input.weaponInput();
-      const toggle = input.consumeFormSwitch();
-      for (let i = 0; i < steps; i += 1) {
-        combat.update(LOGIC_DT, {
-          weapon: i === 0 ? weapon : NO_WEAPON,
-          toggleForm: i === 0 ? toggle : false,
-        });
-      }
-    }
-  };
-  app.onSync = () => { view.sync(); };
-
-  // ── 6. 调试浮层 ──────────────────────────────────────────────────────────
-  const overlay = new DebugOverlay(app.backendName);
-  overlay.setHp(game.snapshot().player.hp);
-  overlay.setMessage('熔心孤塔 · 点击画面锁定鼠标，WASD 移动');
-
-  // 平台交接状态（window.__game.handoff）
+  // ── 4. 演出 / HUD ────────────────────────────────────────────────────────
   let handoffDone = false;
   let handoffResult: 'win' | 'fail' | null = null;
 
-  // 血量归零：唯一出口是 WL.failLevel（不做复活、不回血）
-  let failed = false;
-  game.bus.on('PlayerDied', (p) => {
-    if (failed) return;
-    failed = true;
+  function failToPlatform(reason: string): void {
+    if (handoffDone) return;
     handoffDone = true;
     handoffResult = 'fail';
-    overlay.setHp(0);
-    overlay.setMessage(`倒下：${p.cause}`);
+    save = save ?? readSave();
+    if (save) save.player.hp = 0;
     try {
-      window.__WL__?.failLevel?.('被熔渊之主击倒，倒在塔心前');
+      window.__WL__?.failLevel?.(reason, save ?? undefined, window.CONFIG ?? FALLBACK_CONFIG);
     } catch (error) {
       console.error('[boot] failLevel 失败', error);
     }
+  }
+
+  function completeToPlatform(): void {
+    if (handoffDone) return;
+    handoffDone = true;
+    handoffResult = 'win';
+    const bridge = window.__WL__;
+    save = save ?? readSave();
+    if (save) save.player.hp = Math.max(1, Math.round(game.snapshot().player.hp));
+    if (!bridge || !save) {
+      console.warn('[boot] 无 WL 存档，跳过 completeLevel（本地预览）');
+      return;
+    }
+    try {
+      bridge.completeLevel(window.CONFIG ?? FALLBACK_CONFIG, save, { exitHook: EXIT_HOOK });
+    } catch (error) {
+      console.error('[boot] completeLevel 失败', error);
+    }
+  }
+
+  const show = new FlowDirector({
+    scene: app.scene,
+    camera: app.camera,
+    bus: game.bus,
+    game,
+    boss,
+    flowCfg,
+    lava: { setLavaY: (y) => app.setLavaY(y), lavaBaseY: app.lavaBaseY },
+    debug,
+    onFail: (reason) => failToPlatform(reason),
+    audio,
   });
 
-  // Boss 登场：进阶段 I 时从熔岩口升到地面
+  const hud = new Hud();
+  const overlay = new DebugOverlay(app.backendName);
+  overlay.root.style.display = debug ? 'block' : 'none';
+  overlay.root.style.right = '18px';
+  overlay.root.style.top = '84px';
+  overlay.root.style.bottom = 'auto';
+  overlay.setHp(game.snapshot().player.hp);
+  overlay.setMessage('熔心孤塔 · 点击画面锁定鼠标，WASD 移动');
+
+  // ── 5. 事件接线 ──────────────────────────────────────────────────────────
+  let lastPhase: MatchPhase = game.snapshot().phase;
   game.bus.on('MatchPhaseChanged', (p) => {
+    lastPhase = p.phase;
     overlay.setMessage(`${phaseLabel(p.phase)} · ${p.tSec.toFixed(1)}s`);
+
+    // Boss 登场：从熔岩口升到地面（flowCfg.bossSpawn 参数见 flow.json）
     if (p.phase === 'boss1') {
+      const sp = flowCfg.bossSpawn;
       boss.beginSpawn({
-        durMs: BOSS_SPAWN.riseSec * 1000,
-        fromY: BOSS_SPAWN.fromY,
-        toY: BOSS_SPAWN.toY,
-        fromScale: BOSS_SPAWN.fromScale,
-        toScale: BOSS_SPAWN.toScale,
+        durMs: sp.riseSec * 1000,
+        fromY: sp.fromY,
+        toY: sp.toY,
+        fromScale: sp.fromScale,
+        toScale: sp.toScale,
       });
     }
   });
 
   // Boss 死亡（塔/调试伤害）→ 时间轴进入 victory 演出
   game.bus.on('BossHpChanged', (p) => {
-    const phase = game.timeline.phase();
-    if (p.hp <= 0 && (phase === 'boss1' || phase === 'boss2')) game.timeline.notifyBossDefeated();
+    if (p.hp <= 0 && (lastPhase === 'boss1' || lastPhase === 'boss2')) {
+      game.timeline.notifyBossDefeated();
+    }
   });
 
-  // 塔的伤害落到 Boss 身上；阶段 I 留 1 血，保证转阶段一定发生
+  // 塔的伤害落到 Boss 身上；阶段 I 留 1 血，保证 2:20 转阶段一定发生
   game.bus.on('TowerTargetHit', (p) => {
+    if (!show.bossDamageAllowed()) return;
     const bossNow = bossRef;
     if (!bossNow || bossNow.isDead()) return;
     let amount = p.amount;
-    if (game.timeline.phase() === 'boss1') amount = Math.min(amount, bossNow.state.hp - 1);
+    if (lastPhase === 'boss1') amount = Math.min(amount, bossNow.state.hp - 1);
     if (amount > 0) bossNow.takeDamage(amount, p.attr);
   });
 
@@ -311,53 +289,119 @@ async function boot(): Promise<void> {
     if (p.stage !== 'active') return;
     // 只有近身三招算命中；汲取/石柱/吐息交给后续战斗票
     if (p.skill !== 'rockSweep' && p.skill !== 'leapSlam' && p.skill !== 'lavaCharge') return;
+    if (!show.bossCanHurtPlayer()) return;
     const b = bossRef;
-    if (!b || game.isOver()) return;
+    if (!b) return;
     const pp = game.playerPos();
     const dx = pp[0] - b.root.position.x;
     const dz = pp[2] - b.root.position.z;
     if (Math.hypot(dx, dz) <= 10) game.player.takeHit(p.skill);
   });
 
-  // ── 7. 局终处理：胜利/失败 → WL 交接 ────────────────────────────────────
+  // 玩家血归零：黑屏 0.6 s →「塔心熄灭了」→ 3 s 后 failLevel（不白屏、不重开）
+  game.bus.on('PlayerDied', () => {
+    show.startFail(flowCfg.fail.reason);
+  });
+
+  // 一局结算：胜利 → completeLevel；失败 → 走同一套失败演出
   game.bus.on('MatchEnded', (p) => {
-    if (failed) return; // 已因血量归零判定失败，避免重复提交
-    handoffDone = true;
-    handoffResult = p.result === 'win' ? 'win' : 'fail';
     overlay.setMessage(
       p.result === 'win'
         ? `通关！${p.tSec.toFixed(1)}s · ${p.reason}`
         : `失败：${reasonLabel(p.reason)} · ${p.tSec.toFixed(1)}s`,
     );
-
-    if (p.result === 'win') {
-      const bridge = window.__WL__;
-      save = save ?? readSave();
-      if (bridge && save) {
-        try {
-          bridge.completeLevel(window.CONFIG ?? FALLBACK_CONFIG, save, { exitHook: EXIT_HOOK });
-        } catch (error) {
-          console.error('[boot] completeLevel 失败', error);
-        }
-      }
-    } else if (window.__WL__?.failLevel) {
-      try {
-        window.__WL__.failLevel(reasonLabel(p.reason));
-      } catch (error) {
-        console.error('[boot] failLevel 失败', error);
-      }
-    }
+    if (p.result === 'win') completeToPlatform();
+    else show.startFail(flowCfg.fail.reason);
   });
 
-  app.onFrame = (fps) => {
-    overlay.setFps(fps);
+  // ── 6. 演示脚本（仅 ?demo= 时启用，用于验收录制）───────────────────────
+  let demoAccum = 0;
+  let demoKilled = false;
+  function demoStep(dt: number): void {
+    if (!bossRef) return;
+    const t = game.timeline.tSec();
+    const phase = game.timeline.phase();
+
+    if (demo === 'failhp') {
+      if (t >= flowCfg.demo.failAtSec && !game.player.isDead) game.player.kill('熔岩');
+      return;
+    }
+
+    if (demo !== 'win') return;
+
+    if (phase === 'boss1' || phase === 'boss2') {
+      demoAccum += dt;
+      if (demoAccum >= 0.2) {
+        demoAccum = 0;
+        const from = phase === 'boss1' ? 50 : 155;
+        const to = phase === 'boss1' ? 140 : flowCfg.demo.winAtSec;
+        const maxHp = bossRef.state.maxHp;
+        const target = Math.max(1, Math.round(maxHp * (1 - (t - from) / Math.max(1, to - from))));
+        // 用该阶段不抗的属性，保证演示血量按时间轴线性下降
+        const attr = phase === 'boss1' ? 'physical' : 'arcane';
+        if (bossRef.state.hp > target) bossRef.takeDamage(bossRef.state.hp - target, attr);
+      }
+    }
+
+    if (!demoKilled && t >= flowCfg.demo.winAtSec && !bossRef.isDead()) {
+      demoKilled = true;
+      bossRef.takeDamage(1_000_000, 'arcane');
+    }
+  }
+
+  // ── 7. 固定步长驱动 ──────────────────────────────────────────────────────
+  let fps = 60;
+  let acc = 0;
+
+  function stepLogic(dt: number): void {
+    gated.locked = show.locksPlayer();
+    if (!show.isFailing() && !game.isOver()) {
+      game.tick(dt);
+      boss.update(dt * 1000);
+      demoStep(dt);
+    }
+    view.sync();
+    show.update(dt, fps);
+  }
+
+  app.onTick = (dt) => {
+    const real = Math.min(0.1, dt);
+    acc += real * speed;
+    const budget = Math.max(3, Math.min(160, Math.ceil(real * speed * 60) + 2));
+    let steps = 0;
+    while (acc >= LOGIC_DT && steps < budget) {
+      stepLogic(LOGIC_DT);
+      acc -= LOGIC_DT;
+      steps += 1;
+    }
+    if (steps >= budget) acc = 0;
+
+    if (input.consumeFormSwitch()) {
+      const next = game.snapshot().player.form === 'arcane' ? 'physical' : 'arcane';
+      game.bus.emit('FormSwitched', { form: next });
+    }
+
+    hud.update(show.hudView(fps));
     overlay.setHp(game.snapshot().player.hp);
+  };
+
+  app.onFrame = (value) => {
+    fps = value;
   };
 
   // ── 8. 调试快捷键 ────────────────────────────────────────────────────────
   let motes = game.snapshot().motes;
   window.addEventListener('keydown', (event) => {
     if (event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    // E：教程书翻阅（不暂停游戏）
+    if (event.code === 'KeyE') {
+      if (show.interact()) {
+        const view = show.flowSnapshot();
+        overlay.setMessage(`教程书 · 第 ${(Number(view.bookPage) || 0) + 1} 页`);
+      }
+      return;
+    }
 
     // 1-5：在最近的一个 open 塔位上建对应塔
     const kindByDigit: Record<string, TowerKind> = {
@@ -392,21 +436,18 @@ async function boot(): Promise<void> {
       overlay.setHp(next.player.hp);
       overlay.setMessage(`WL.respawn() · 死亡 ${next.player.deaths ?? 0} 次`);
     } else if (event.code === 'KeyN') {
-      // 原来是 KeyM，让位给音频静音
+      // 原来是 KeyM，让位给音频静音（票面要求 M 兼作静音键）
       motes += 10;
       game.setMotes(motes);
       overlay.setMessage(`熔核补给 +10（当前 ${motes}）`);
     } else if (event.code === 'Enter' || event.code === 'NumpadEnter') {
-      const bridge = window.__WL__;
-      save = save ?? readSave();
-      if (bridge && save) {
-        try {
-          bridge.completeLevel(window.CONFIG ?? FALLBACK_CONFIG, save, { exitHook: EXIT_HOOK });
-          overlay.setMessage('WL.completeLevel() 已提交交接');
-        } catch (error) {
-          overlay.setMessage('交接失败：' + (error instanceof Error ? error.message : String(error)));
-        }
-      }
+      completeToPlatform();
+      overlay.setMessage('WL.completeLevel() 已提交交接');
+    } else if (event.code === 'KeyK' && debug) {
+      bossRef?.takeDamage(1_000_000, 'arcane');
+      overlay.setMessage('调试：Boss 击杀');
+    } else if (event.code === 'KeyJ' && debug) {
+      game.player.kill('调试');
     }
   });
 
@@ -427,18 +468,28 @@ async function boot(): Promise<void> {
     tSec: () => game.timeline.tSec(),
     damagePlayer: (n) => game.player.takeDamage(n, 'debug'),
     killBoss: () => bossRef?.takeDamage(1_000_000, 'arcane'),
+    flow: () => show.flowSnapshot(),
     handoff: () => ({ done: handoffDone, result: handoffResult }),
+    audio: () => audio?.stats() ?? null,
   };
 
-  // ── 10. 启动 ──────────────────────────────────────────────────────────────
+  // ── 10. ?t= 快进（逐段截图/验收用）───────────────────────────────────────
+  if (jumpTo !== null && jumpTo > 0) {
+    const cap = Math.min(flowCfg.matchLengthSec + flowCfg.rage.swallowAfterSec, jumpTo);
+    const frames = Math.floor(cap * 60);
+    for (let i = 0; i < frames; i += 1) stepLogic(LOGIC_DT);
+    hud.update(show.hudView(fps));
+  }
+
+  // ── 11. 启动 ──────────────────────────────────────────────────────────────
+  hud.update(show.hudView(fps));
   app.start();
   document.getElementById('boot-tip')?.classList.add('hidden');
 
   window.addEventListener('pagehide', () => {
-    window.removeEventListener('pointerdown', unlockAudio, true);
-    window.removeEventListener('keydown', unlockAudio, true);
-    audio.dispose();
     input.dispose();
+    show.dispose();
+    audio?.dispose();
     view.dispose();
     app.dispose();
   }, { once: true });

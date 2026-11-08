@@ -1,0 +1,176 @@
+[
+  {
+    "stage": "06-prep",
+    "phase": "prep",
+    "tSec": 44.966666666666384,
+    "flow": {
+      "phase": "prep",
+      "tSec": 44.966666666666384,
+      "phaseT": 4.966666666666384,
+      "bossVisible": false,
+      "bossHp": 1400,
+      "bossPhase": 1,
+      "bookNear": false,
+      "bookReading": false,
+      "bookPage": 0,
+      "bookVisible": false,
+      "failing": false,
+      "white": 0
+    },
+    "handoff": {
+      "done": false,
+      "result": null
+    },
+    "hp": 100,
+    "maxHp": 100
+  },
+  {
+    "stage": "08-transition-dark",
+    "error": "ProtocolError: Page.captureScreenshot timed out. Increase the 'protocolTimeout' setting in launch/connect calls for a higher timeout if needed."
+  },
+  {
+    "stage": "09-transition-rise",
+    "phase": "transition",
+    "tSec": 153.05000000001039,
+    "flow": {
+      "phase": "transition",
+      "tSec": 153.05000000001039,
+      "phaseT": 13.050000000010385,
+      "bossVisible": true,
+      "bossHp": 1400,
+      "bossPhase": 2,
+      "bookNear": false,
+      "bookReading": false,
+      "bookPage": 0,
+      "bookVisible": false,
+      "failing": false,
+      "white": 0
+    },
+    "handoff": {
+      "done": false,
+      "result": null
+    },
+    "hp": 88,
+    "maxHp": 100
+  },
+  {
+    "stage": "10-boss2",
+    "phase": "boss2",
+    "tSec": 200.05000000003585,
+    "flow": {
+      "phase": "boss2",
+      "tSec": 200.05000000003585,
+      "phaseT": 45.05000000003585,
+      "bossVisible": true,
+      "bossHp": 659,
+      "bossPhase": 2,
+      "bookNear": false,
+      "bookReading": false,
+      "bookPage": 0,
+      "bookVisible": false,
+      "failing": false,
+      "white": 0
+    },
+    "handoff": {
+      "done": false,
+      "result": null
+    },
+    "hp": 84,
+    "maxHp": 100
+  },
+  {
+    "stage": "11-victory",
+    "phase": "victory",
+    "tSec": 243.9500000000708,
+    "flow": {
+      "phase": "victory",
+      "tSec": 243.9500000000708,
+      "phaseT": 3.9500000000031434,
+      "bossVisible": false,
+      "bossHp": 0,
+      "bossPhase": 2,
+      "bookNear": false,
+      "bookReading": false,
+      "bookPage": 0,
+      "bookVisible": false,
+      "failing": false,
+      "white": 0
+    },
+    "handoff": {
+      "done": false,
+      "result": null
+    },
+    "hp": 80,
+    "maxHp": 100
+  },
+  {
+    "stage": "12-victory-beam",
+    "error": "ProtocolError: Page.captureScreenshot timed out. Increase the 'protocolTimeout' setting in launch/connect calls for a higher timeout if needed."
+  },
+  {
+    "stage": "13-escape",
+    "error": "ProtocolError: Page.captureScreenshot timed out. Increase the 'protocolTimeout' setting in launch/connect calls for a higher timeout if needed."
+  },
+  {
+    "stage": "14-white",
+    "phase": "escape",
+    "tSec": 269.95000000005575,
+    "flow": {
+      "phase": "escape",
+      "tSec": 269.95000000005575,
+      "phaseT": 14.949999999988108,
+      "bossVisible": false,
+      "bossHp": 0,
+      "bossPhase": 2,
+      "bookNear": false,
+      "bookReading": false,
+      "bookPage": 0,
+      "bookVisible": false,
+      "failing": false,
+      "white": 0.9749999999940542
+    },
+    "handoff": {
+      "done": false,
+      "result": null
+    },
+    "hp": 80,
+    "maxHp": 100
+  },
+  {
+    "stage": "15-rage",
+    "phase": "rage",
+    "tSec": 272.9499999999973,
+    "flow": {
+      "phase": "rage",
+      "tSec": 272.9499999999973,
+      "phaseT": 2.949999999997317,
+      "bossVisible": true,
+      "bossHp": 1400,
+      "bossPhase": 2,
+      "bookNear": false,
+      "bookReading": false,
+      "bookPage": 0,
+      "bookVisible": false,
+      "failing": false,
+      "white": 0
+    },
+    "handoff": {
+      "done": false,
+      "result": null
+    },
+    "hp": 77,
+    "maxHp": 100
+  },
+  {
+    "stage": "16-fail-hp",
+    "error": "Error: net::ERR_CONNECTION_REFUSED at http://localhost:5173/?debug=1&demo=failhp&hp=100&quality=low"
+  },
+  {
+    "stage": "17-fail-hp-handoff",
+    "error": "Error: net::ERR_CONNECTION_REFUSED at http://localhost:5173/?debug=1&demo=failhp&hp=100&quality=low"
+  },
+  {
+    "stage": "18-rage-fail",
+    "error": "Error: net::ERR_CONNECTION_REFUSED at http://localhost:5173/?debug=1&demo=rage&hp=100&quality=low&t=276"
+  }
+]

@@ -11,7 +11,6 @@
 // ============================================================================
 
 import type { PlayerInput } from '../player/PlayerController';
-import type { WeaponInput } from '../player/weaponTypes';
 import type { InputSource } from './GameLoop';
 
 const KEY = {
@@ -32,6 +31,12 @@ const MAX_MOVE_STEP = 90;
 const MOVE_GAP_MS = 100;
 
 export interface InputHandle extends InputSource {
+  /**
+   * 只读当前视角（yaw/pitch），不消费任何边沿触发。
+   * 相机必须用这个而不是 player.yaw —— 后者只在固定步长逻辑帧里更新，
+   * 渲染帧率与 60Hz 不同步时相机会隔帧才更新一次，转视角就是一顿一顿的。
+   */
+  aim(): { yaw: number; pitch: number };
   /** 销毁：解绑所有监听 */
   dispose(): void;
   /** 当前是否已锁定指针 */
@@ -40,17 +45,18 @@ export interface InputHandle extends InputSource {
   consumeFormSwitch(): boolean;
   /** 本帧是否有"击破"的边沿触发 */
   consumeExecute(): boolean;
-  /** 本帧武器输入；边沿只生效一次 */
-  weaponInput(): WeaponInput;
-  /**
-   * 只读当前视角（yaw/pitch），无副作用、不消费任何边沿触发。
-   * 相机与射线判定都必须用这个而不是 player.yaw —— 后者只在固定步长逻辑帧里
-   * 更新，渲染帧率与 60Hz 不同步时相机会隔帧才动一次，转视角就是一顿一顿的。
-   */
-  aim(): { yaw: number; pitch: number };
 }
 
 export function createInput(canvas: HTMLCanvasElement): InputHandle {
+  // HMR 保护：改代码时模块会被重新执行，若不先解绑，每热更新一次就多绑
+  // 一套 window 监听，鼠标位移被重复累加进 yaw —— 表现就是视角越转越快、
+  // 忽然跳向别的方向。这里保证全局只有一个活着的 Input。
+  const g = window as unknown as { __lavaInput?: { dispose(): void } };
+  if (g.__lavaInput) {
+    try { g.__lavaInput.dispose(); } catch { /* 旧实例已失效，忽略 */ }
+    g.__lavaInput = undefined;
+  }
+
   const pressed = new Set<string>();
   let yaw = 0;
   let pitch = 0;
@@ -64,12 +70,6 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   let edgeJump = false;
   let edgeFormSwitch = false;
   let edgeExecute = false;
-
-  // 鼠标左右键
-  let lightHeld = false;
-  let heavyHeld = false;
-  let edgeLight = false;
-  let edgeHeavy = false;
 
   function has(codes: readonly string[]): boolean {
     return codes.some((c) => pressed.has(c));
@@ -115,37 +115,11 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
 
   const onPointerLockChange = (): void => {
     const nowLocked = document.pointerLockElement === canvas;
-    // ① 刚拿到锁：浏览器会补发一段"从上次位置到这里"的累积位移，先丢两个事件
     if (nowLocked && !locked) {
       lockGrace = 2;
       lastMoveTs = 0;
     }
     locked = nowLocked;
-    // 解锁时清掉按住状态，避免"没锁定还一直开火"
-    if (!locked) {
-      lightHeld = false;
-      heavyHeld = false;
-    }
-  };
-
-  const onMouseDown = (e: MouseEvent): void => {
-    if (!locked) return;
-    if (e.button === 0) {
-      lightHeld = true;
-      edgeLight = true;
-    } else if (e.button === 2) {
-      heavyHeld = true;
-      edgeHeavy = true;
-    }
-  };
-
-  const onMouseUp = (e: MouseEvent): void => {
-    if (e.button === 0) lightHeld = false;
-    else if (e.button === 2) heavyHeld = false;
-  };
-
-  const onContextMenu = (e: MouseEvent): void => {
-    e.preventDefault();
   };
 
   const onClick = (): void => {
@@ -156,23 +130,20 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   const onBlur = (): void => {
     pressed.clear();
     edgeDash = edgeJump = edgeFormSwitch = edgeExecute = false;
-    lightHeld = false;
-    heavyHeld = false;
-    edgeLight = false;
-    edgeHeavy = false;
   };
 
   canvas.addEventListener('click', onClick);
-  canvas.addEventListener('contextmenu', onContextMenu);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mousedown', onMouseDown);
-  window.addEventListener('mouseup', onMouseUp);
   window.addEventListener('blur', onBlur);
   document.addEventListener('pointerlockchange', onPointerLockChange);
 
-  return {
+  const handle: InputHandle = {
+    aim(): { yaw: number; pitch: number } {
+      return { yaw, pitch };
+    },
+
     sample(): PlayerInput {
       const forward = (has(KEY.forward) ? 1 : 0) - (has(KEY.back) ? 1 : 0);
       const right = (has(KEY.right) ? 1 : 0) - (has(KEY.left) ? 1 : 0);
@@ -206,31 +177,17 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
       return v;
     },
 
-    weaponInput(): WeaponInput {
-      const input: WeaponInput = {
-        lightPressed: edgeLight,
-        lightHeld,
-        heavyPressed: edgeHeavy,
-        heavyHeld,
-      };
-      edgeLight = false;
-      edgeHeavy = false;
-      return input;
-    },
-
-    aim: () => ({ yaw, pitch }),
-
     dispose(): void {
       canvas.removeEventListener('click', onClick);
-      canvas.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('blur', onBlur);
       document.removeEventListener('pointerlockchange', onPointerLockChange);
       if (document.pointerLockElement === canvas) document.exitPointerLock();
     },
   };
+
+  g.__lavaInput = handle;
+  return handle;
 }

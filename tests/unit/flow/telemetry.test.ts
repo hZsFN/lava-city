@@ -37,8 +37,10 @@ describe('telemetry/Telemetry · 字段完整性', () => {
     const { bus, timeline } = newTimeline();
     const t = createTelemetry(12345, { flowCfg, bus, timeline });
 
-    for (let i = 0; i < 60 * 30; i += 1) timeline.update(FIXED_DT_SEC);
+    for (let i = 0; i < 60 * 60; i += 1) timeline.update(FIXED_DT_SEC);
     timeline.notifyBossDefeated();
+    // victory 15 s + escape 15 s 演出走完才结算
+    for (let i = 0; i < 60 * 31; i += 1) timeline.update(FIXED_DT_SEC);
 
     const raw = t.toJson();
     const parsed = JSON.parse(raw) as TelemetryRecord;
@@ -54,7 +56,7 @@ describe('telemetry/Telemetry · 字段完整性', () => {
     expect(['S', 'A', 'B', 'C']).toContain(parsed.grade);
   });
 
-  it('phaseTimes 累加 ≈ 总时长（跑满 270 s）', () => {
+  it('phaseTimes 累加 ≈ 总时长（270 s + 5 s 狂暴）', () => {
     const { bus, timeline } = newTimeline();
     const t = createTelemetry(1, { flowCfg, bus, timeline });
 
@@ -62,9 +64,9 @@ describe('telemetry/Telemetry · 字段完整性', () => {
 
     const rec = t.record();
     const sum = Object.values(rec.phaseTimes).reduce((a, b) => a + b, 0);
-    expect(sum).toBeCloseTo(flowCfg.matchLengthSec, 0);
+    expect(sum).toBeCloseTo(flowCfg.matchLengthSec + flowCfg.rage.swallowAfterSec, 0);
     expect(rec.result).toBe('lose');
-    expect(rec.reason).toBe('timeout');
+    expect(rec.reason).toBe('lava_swallowed');
   });
 
   it('各阶段时长与 flow.json 一致', () => {
@@ -74,10 +76,14 @@ describe('telemetry/Telemetry · 字段完整性', () => {
     for (let i = 0; i < 60 * 280 && !timeline.result(); i += 1) timeline.update(FIXED_DT_SEC);
 
     const { phaseTimes } = t.record();
+    const expected: Record<string, number> = {};
     for (const p of flowCfg.phases) {
-      if (p.phase === 'ended') continue;
-      expect(phaseTimes[p.phase]).toBeCloseTo(p.endSec - p.startSec, 1);
+      expected[p.phase] = (expected[p.phase] ?? 0) + (p.endSec - p.startSec);
     }
+    for (const [phase, duration] of Object.entries(expected)) {
+      expect(phaseTimes[phase]).toBeCloseTo(duration, 1);
+    }
+    expect(phaseTimes.rage).toBeCloseTo(flowCfg.rage.swallowAfterSec, 1);
   });
 
   it('击破与建塔事件被记录（含时刻）', () => {
@@ -152,13 +158,13 @@ describe('flow/MatchRunner · runToEnd', () => {
     const cost = performance.now() - started;
 
     expect(rec.result).toBe('lose');
-    expect(rec.reason).toBe('timeout');
+    expect(rec.reason).toBe('lava_swallowed');
     expect(cost).toBeLessThan(2000);
     // 供交付报告引用
     console.log(`[runToEnd] 实测耗时 ${cost.toFixed(1)} ms`);
   });
 
-  it('Boss 在 100 s 被打死 → 提前结算，返回 win', () => {
+  it('Boss 在 100 s 被打死 → victory + escape 演出后结算 win', () => {
     const { bus, timeline } = newTimeline();
     let killed = false;
     const runner = createMatchRunner({
@@ -178,7 +184,7 @@ describe('flow/MatchRunner · runToEnd', () => {
     const rec = runner.runToEnd(300);
     expect(rec.result).toBe('win');
     expect(rec.reason).toBe('boss_defeated');
-    expect(rec.tSec).toBeCloseTo(100, 0);
+    expect(rec.tSec).toBeCloseTo(100 + flowCfg.victory.durationSec + flowCfg.victory.escapeDurationSec, 0);
     expect(rec.tSec).toBeLessThan(flowCfg.matchLengthSec);
   });
 

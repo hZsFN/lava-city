@@ -92,7 +92,7 @@ export class Spire {
       rockMaterial,
     );
     this.elevator.name = 'spire-elevator';
-    this.elevator.castShadow = true;
+    this.elevator.castShadow = false;
     this.elevator.receiveShadow = true;
     this.elevator.position.set(cfg.spire.elevator.x, cfg.spire.elevator.minY, 0);
     this.group.add(this.elevator);
@@ -731,7 +731,7 @@ export class Spire {
       );
     }
     const pillarMesh = new THREE.Mesh(mergeOrThrow(pillars), pillarMaterial);
-    pillarMesh.castShadow = true;
+    pillarMesh.castShadow = false;
     pillarMesh.receiveShadow = true;
     this.shield.add(pillarMesh);
 
@@ -783,23 +783,22 @@ export class Spire {
     coreBeam.renderOrder = 3;
     g.add(coreBeam);
 
-    const discMaterial = new THREE.MeshBasicNodeMaterial();
-    discMaterial.colorNode = vec3(0.42, 0.9, 1.15);
-    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.78, 0.06, 32, 1), discMaterial);
-    disc.position.y = b.y + 0.66;
-    g.add(disc);
+    const disc = new THREE.CylinderGeometry(0.78, 0.78, 0.06, 32, 1).translate(0, b.y + 0.66, 0).toNonIndexed();
 
     // 灯塔基座的冷青符文环：把光柱与塔顶地面接起来
     const cyanMaterial = new THREE.MeshBasicNodeMaterial();
     cyanMaterial.colorNode = vec3(0.16, 0.44, 0.55);
+    const cyanParts: THREE.BufferGeometry[] = [disc];
     for (const radius of [2.36, 2.88]) {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(radius, 0.024, 4, 80).rotateX(Math.PI / 2),
-        cyanMaterial,
+      cyanParts.push(
+        new THREE.TorusGeometry(radius, 0.024, 4, 80)
+          .rotateX(Math.PI / 2)
+          .translate(0, b.y + 0.018, 0)
+          .toNonIndexed(),
       );
-      ring.position.y = b.y + 0.018;
-      g.add(ring);
     }
+    const base = new THREE.Mesh(mergeOrThrow(cyanParts), cyanMaterial);
+    g.add(base);
 
     return g;
   }
@@ -861,7 +860,7 @@ function createRockMaterial(): THREE.MeshStandardNodeMaterial {
   });
   material.map = map;
   material.bumpMap = map;
-  material.bumpScale = 0.18;
+  material.bumpScale = 0.22;
   return material;
 }
 
@@ -886,20 +885,22 @@ function createRockTexture(): THREE.CanvasTexture {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('无法创建 2D 画布上下文');
 
-  ctx.fillStyle = '#2b2523';
+  // 贴图只做明度细节，基色交给材质 color (#2b2523)；
+  // 若贴图也用近黑，会和 color 相乘成二次方、把石头压到看不见。
+  ctx.fillStyle = '#8f8478';
   ctx.fillRect(0, 0, size, size);
 
   const rng = createRng(0x2a15_9b3c);
-  // 大块斑驳：波长约为原来的 4 倍，明度差压到 ±5（对比度 ~0.6）
+  // 大块斑驳：波长约为原来的 4 倍，明度差压到 ±12（对比度 ~0.6）
   for (let i = 0; i < 34; i += 1) {
-    const shade = 38 + Math.floor(rng() * 11);
+    const shade = 78 + Math.floor(rng() * 25);
     const radius = 150 + rng() * 160;
-    drawWrapped(ctx, size, rng() * size, rng() * size, radius, `rgba(${shade},${shade - 3},${shade - 4},0.5)`, 'rgba(0,0,0,0)');
+    drawWrapped(ctx, size, rng() * size, rng() * size, radius, `rgba(${shade},${shade - 4},${shade - 7},0.5)`, 'rgba(0,0,0,0)');
   }
   for (let i = 0; i < 22; i += 1) {
-    const shade = 34 + Math.floor(rng() * 13);
+    const shade = 66 + Math.floor(rng() * 26);
     const radius = 70 + rng() * 120;
-    drawWrapped(ctx, size, rng() * size, rng() * size, radius, `rgba(${shade},${shade - 2},${shade - 3},0.4)`, 'rgba(0,0,0,0)');
+    drawWrapped(ctx, size, rng() * size, rng() * size, radius, `rgba(${shade},${shade - 3},${shade - 5},0.4)`, 'rgba(0,0,0,0)');
   }
 
   // 稀疏裂纹：只留作 bump 细节，不参与发光
@@ -908,7 +909,7 @@ function createRockTexture(): THREE.CanvasTexture {
     let x = rng() * size;
     let y = rng() * size;
     ctx.beginPath();
-    ctx.strokeStyle = `rgba(16,13,11,${0.25 + rng() * 0.25})`;
+    ctx.strokeStyle = `rgba(38,32,28,${0.3 + rng() * 0.3})`;
     ctx.lineWidth = 0.8 + rng() * 1.6;
     ctx.moveTo(x, y);
     const steps = 4 + Math.floor(rng() * 6);
@@ -922,7 +923,7 @@ function createRockTexture(): THREE.CanvasTexture {
 
   const image = ctx.getImageData(0, 0, size, size);
   for (let i = 0; i < image.data.length; i += 4) {
-    const grain = (rng() - 0.5) * 8;
+    const grain = (rng() - 0.5) * 14;
     image.data[i] = clampByte(image.data[i] + grain);
     image.data[i + 1] = clampByte(image.data[i + 1] + grain);
     image.data[i + 2] = clampByte(image.data[i + 2] + grain);

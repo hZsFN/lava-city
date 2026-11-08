@@ -54,14 +54,15 @@ describe('game/GameLoop · 整合层', () => {
     expect(after[2]).toBeLessThan(before[2]);
   });
 
-  it('阶段按 flow.json 推进：40 秒后进入 boss1', () => {
+  it('阶段按 flow.json 推进：55 秒后处于 boss1', () => {
     const game = createGame({ input: IDLE });
     const phases: string[] = [];
     game.bus.on('MatchPhaseChanged', (p) => phases.push(p.phase));
 
-    // 跑到 45 秒
-    for (let i = 0; i < 45 * 60; i += 1) game.tick(LOGIC_DT);
+    // 跑到 55 秒（boss1 从 50 s 开始）
+    for (let i = 0; i < 55 * 60; i += 1) game.tick(LOGIC_DT);
 
+    expect(phases).toContain('tutorial');
     expect(phases).toContain('prep');
     expect(phases).toContain('boss1');
     expect(game.timeline.phase()).toBe('boss1');
@@ -93,15 +94,15 @@ describe('game/GameLoop · 整合层', () => {
     expect(slot).toBeDefined();
     game.placeTower(slot!.slotId, 'ballista');
 
-    // 跑到 boss1 阶段（40 秒）再多跑 5 秒
-    for (let i = 0; i < 45 * 60; i += 1) game.tick(LOGIC_DT);
+    // 跑到 boss1 阶段（50 秒）再多跑 10 秒
+    for (let i = 0; i < 60 * 60; i += 1) game.tick(LOGIC_DT);
 
     expect(hits.length).toBeGreaterThan(0);
     expect(hits[0].kind).toBe('ballista');
     expect(hits[0].amount).toBe(25);
   });
 
-  it('跑满 270 秒会结束，且 MatchEnded 只发一次', () => {
+  it('跑满 270 秒会进狂暴，275 秒失败，MatchEnded 只发一次', () => {
     const game = createGame({ input: IDLE });
     let endedCount = 0;
     let result: string | null = null;
@@ -110,17 +111,18 @@ describe('game/GameLoop · 整合层', () => {
       result = p.result;
     });
 
-    // 跑到 275 秒
-    for (let i = 0; i < 275 * 60; i += 1) game.tick(LOGIC_DT);
+    // 跑到 280 秒（270 s 进 rage，275 s 熔岩吞没）
+    for (let i = 0; i < 280 * 60; i += 1) game.tick(LOGIC_DT);
 
     expect(endedCount).toBe(1);
-    expect(result).toBe('lose'); // 没打 Boss，超时失败
+    expect(result).toBe('lose'); // 没打 Boss，狂暴失败
+    expect(game.timeline.result()?.reason).toBe('lava_swallowed');
     expect(game.isOver()).toBe(true);
   });
 
   it('结束后 tick 不再推进', () => {
     const game = createGame({ input: IDLE });
-    for (let i = 0; i < 275 * 60; i += 1) game.tick(LOGIC_DT);
+    for (let i = 0; i < 280 * 60; i += 1) game.tick(LOGIC_DT);
     const tAfterEnd = game.timeline.tSec();
 
     for (let i = 0; i < 60; i += 1) game.tick(LOGIC_DT);

@@ -10,6 +10,9 @@ export interface CameraPose {
 
 export interface QualityPreset {
   pixelRatio: number;
+  gtao: boolean;
+  ssr: boolean;
+  motionBlur: boolean;
   gtaoScale: number;
   gtaoSamples: number;
   ssrQuality: number;
@@ -117,6 +120,7 @@ export interface VisualConfig {
   };
   lights: {
     hemisphere: { sky: string; ground: string; intensity: number };
+    skyFill: { color: string; intensity: number; position: [number, number, number] };
     key: {
       color: string;
       intensity: number;
