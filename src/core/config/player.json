@@ -24,7 +24,8 @@
       "combo": [30, 30, 60],
       "range": 3.0,
       "thirdKnockback": 6.0,
-      "swingIntervalSec": 0.45
+      "swingIntervalSec": 0.45,
+      "comboWindowSec": 0.9
     },
     "anchor": {
       "chargeSec": 1.0,
