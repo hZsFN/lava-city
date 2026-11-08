@@ -26,13 +26,20 @@ src/core/config/visual.json  （新建/填充）
 
 ### 1. 渲染器
 
-用 `THREE.WebGLRenderer`（**本票不切 WebGPU**，先保证零兼容风险），参数：
+主路径用 `THREE.WebGPURenderer`，失败时自动回退 `WebGLRenderer`（M0 的版本保留为 fallback 分支）：
+
 ```ts
-new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
-renderer.outputColorSpace = THREE.SRGBColorSpace
-renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.05
+import * as THREE from 'three/webgpu';        // r17x+ 的 WebGPU 入口
+const renderer = new THREE.WebGPURenderer({ antialias: true, powerPreference: 'high-performance' });
+await renderer.init();                        // 必须 await，WebGPU 是异步初始化的
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
 ```
+
+`await renderer.init()` 要用 `try/catch` 包住；抛错或 `navigator.gpu` 不存在时，回落到 `WebGLRenderer` 并把画质档强制降到 `low`。**两条路都必须跑通**，交付时贴出两条路径各自的 draw call 数字。
+
+用 TSL（Three Shading Language，`three/tsl`）写所有自定义材质与后处理，不手写 GLSL 字符串。TSL 用法不确定时用 `mcp__context7__query-docs` 查 `three` 的 TSL 节点 API，不要凭记忆写。
 
 ### 2. 熔岩海（Lava.ts）—— 本票第一优先级
 
@@ -77,14 +84,26 @@ renderer.toneMappingExposure = 1.05
 - **火星粒子**：`Points`，2000 个，`BufferGeometry` 随机分布在半径 120 / 高度 60 的柱体空间内，每个粒子上浮（速度 0.4–1.2 m/s，带正弦横摆），越界回到底部重开。`PointsMaterial({size:0.35, color:#ffb060, transparent, opacity:0.75, sizeAttenuation:true, blending:AdditiveBlending, depthWrite:false})`
 - **热浪**：`PostFX` 里做屏幕空间扰动，用 `sin(uv.y*40 + t*2)` 的极轻量 UV 偏移（幅度 0.0015），越靠下越强
 
-### 6. 后处理（PostFX.ts）
+### 6. 后处理（PostFX.ts）—— 完整链，一项都不能少
 
-**不引外部后处理库**，手写一个两 pass 的 `EffectComposer` 替代品（`WebGLRenderTarget` + 全屏 quad）：
+用 Three 的节点式后处理（`three/addons/tsl/display/` 下的节点），或用 TSL 自建，按下面顺序串起来：
 
-1. **Bloom**：亮部提取（阈值 0.72）→ 水平高斯（9 tap）→ 垂直高斯（9 tap）→ 叠加回主图，强度 0.85
-2. **合成 pass**：加暗角（`1 - smoothstep(0.35, 0.95, dist)`）、色差（RGB 各偏移 0.0008 × 边缘权重）、胶片颗粒（`hash(uv+t)*0.035`）、暖橙/冷青分级（暗部偏 `#0a1a22`、亮部偏 `#ffb070`）
+1. **GTAO**（环境光遮蔽，轻度，半径 0.4 m，强度 0.7）
+2. **SSR**（屏幕空间反射，只在黑曜石/湿岩材质的 `roughness < 0.35` 处生效，其余跳过）
+3. **TRAA**（时序抗锯齿；镜头高速运动时回落 SMAA）
+4. **体积光 / 雾**（熔岩橙雾 + 塔顶冷色光束，屏幕空间射线步进 24 tap）
+5. **Bloom**（阈值 0.72，半径大，强度 0.85 —— 熔岩与弱点高亮的核心）
+6. **运动模糊**（仅冲刺与击破慢镜时把强度提到 0.8，平时 0.15）
+7. **景深**（仅开场睁眼与击破镜头启用，其余关）
+8. **色差 + 暗角 + 胶片颗粒**（轻量）
+9. **3D LUT 色彩分级**（暖橙/冷青，用代码生成 16³ LUT，不引外部 .cube 文件）
 
-所有 pass 的半分辨率可开关。
+每一项必须：①单独可开关；②单独计时并显示在 debug 面板；③在 `low` 档能降级但不能消失到看不出。
+
+### 6.1 阴影与粒子
+
+- **CSM 级联阴影**：主光（下方来的熔岩方向光）三级级联，`shadow.mapSize 2048`，覆盖 0–40 m；塔与 Boss 核心的点光**不投影**，接触阴影交给 GTAO。
+- **GPU 计算粒子**（TSL compute）：熔岩飞溅 8 万、火雨 4 万、岩屑 4 万、符文 4 万，全部走 `InstancedMesh` + compute 更新位置，单次 draw call。WebGL2 回退时自动切 CPU 简化粒子（上限 1.5 万）。
 
 ### 7. 画质档位
 
@@ -113,7 +132,8 @@ node kit/tools/check.mjs out/
 
 性能：在 `src/ui/DebugOverlay.ts` 里加一行显示 `renderer.info.render.calls` 与三角数，交付时贴出这两个数字。Draw call 必须 < 120。
 
-## 【本票明确不做】
+## 【性能预算（每项都必须在交付里贴实测数字）】
 
-SSR、GTAO、TRAA、DoF、运动模糊、CSM、GPU 计算粒子、3D LUT 文件、WebGPU。
-理由：这些在今天的时间预算里是加分项，而"熔岩好看"是必答题。留给 M5 打磨票。
+1080p 独显：16.6 ms/帧；Draw call < 400；三角 < 1.2 M；后处理总计 ≤ 5 ms；GPU 粒子 ≤ 1.5 ms。
+
+超标时按这个顺序降级（**不得关闭弱点高亮**）：SSR → 体积光 → GTAO → Bloom 分辨率。
