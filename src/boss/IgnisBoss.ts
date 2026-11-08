@@ -414,7 +414,11 @@ export class IgnisBoss {
         const target = this.phase === 2 ? HEIGHT_2 / HEIGHT_1 : 1;
         this.scaleNow += (target - this.scaleNow) * Math.min(1, dtMs / 600);
       }
-      this.root.position.y = 0;
+      // 保持上一次演出动画的目标高度：
+      //   登场结束 → showToY = bossSpawn.toY（沉在熔岩里，只露核心球）
+      //   起身结束 → showToY = 0（完整站出）
+      // 原来这里写死 0，等于登场一结束就把它拽回地面。
+      this.root.position.y = this.showToY;
       this.build.rig.root.scale.setScalar(this.scaleNow);
       return;
     }
