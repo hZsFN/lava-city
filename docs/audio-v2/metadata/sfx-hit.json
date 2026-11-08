@@ -1,0 +1,14 @@
+{
+  "id": "sfx-hit",
+  "title": "岩刃受击",
+  "category": "sfx",
+  "loop": false,
+  "usage": "玩家实际受伤反馈，建议80ms限流。",
+  "events": [
+    "PlayerDamaged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.3
+}

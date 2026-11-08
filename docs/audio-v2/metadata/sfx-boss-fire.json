@@ -1,0 +1,14 @@
+{
+  "id": "sfx-boss-fire",
+  "title": "熔火爆裂",
+  "category": "sfx",
+  "loop": false,
+  "usage": "火弹或火雨单次落点；技能级可在 active 使用，逐落点需新增调用点。",
+  "events": [
+    "BossSkillStart"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.6
+}

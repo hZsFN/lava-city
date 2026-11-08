@@ -1,0 +1,18 @@
+{
+  "id": "sfx-land-light",
+  "title": "轻落石台",
+  "category": "sfx",
+  "loop": false,
+  "usage": "待落地判定点：空中→地面且下落距离足够时播放；初次出生落地、台阶吸附应抑制。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.44,
+  "introduced_version": "v2",
+  "implementation_status": "needs_action_hook",
+  "evidence": "src/player/PlayerController.ts: handleJump/integrateVertical/isGrounded; no step/jump/land events",
+  "suggested_mix_gain_db": -5,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

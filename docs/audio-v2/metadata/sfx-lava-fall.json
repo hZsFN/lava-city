@@ -1,0 +1,20 @@
+{
+  "id": "sfx-lava-fall",
+  "title": "坠入熔海",
+  "category": "sfx",
+  "loop": false,
+  "usage": "PlayerDied.cause=lava 单次；可替代同次通用死亡声，避免两套死亡音叠加。",
+  "events": [
+    "PlayerDied"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.9,
+  "introduced_version": "v2",
+  "implementation_status": "observed_event",
+  "evidence": "src/player/PlayerController.ts: die(lava)",
+  "suggested_mix_gain_db": 0,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

@@ -1,0 +1,14 @@
+{
+  "id": "sfx-weakness-close",
+  "title": "弱点收束",
+  "category": "sfx",
+  "loop": false,
+  "usage": "弱点关闭；击破成功同帧可抑制此声，避免覆盖击破。",
+  "events": [
+    "WeaknessClosed"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.65
+}

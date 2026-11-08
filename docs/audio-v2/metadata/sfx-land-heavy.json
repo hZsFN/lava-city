@@ -1,0 +1,18 @@
+{
+  "id": "sfx-land-heavy",
+  "title": "重落石台",
+  "category": "sfx",
+  "loop": false,
+  "usage": "待落地判定点按撞击前垂直速度或下落距离选择；与轻落互斥，当前快照不含vy。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.84,
+  "introduced_version": "v2",
+  "implementation_status": "needs_action_hook",
+  "evidence": "src/player/PlayerController.ts: handleJump/integrateVertical/isGrounded; no step/jump/land events",
+  "suggested_mix_gain_db": -2,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

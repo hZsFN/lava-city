@@ -1,0 +1,12 @@
+{
+  "id": "sfx-physical-shot-a",
+  "title": "物理弩击 A",
+  "category": "sfx",
+  "loop": false,
+  "usage": "玩家物理发射变体；当前契约没有发射事件，需要武器实际开火处调用。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.24
+}

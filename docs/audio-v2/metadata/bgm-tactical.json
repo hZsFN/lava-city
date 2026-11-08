@@ -1,0 +1,40 @@
+{
+  "id": "bgm-tactical",
+  "title": "符文静思 · 战术选择",
+  "category": "music",
+  "loop": true,
+  "usage": "预备曲/待接入：当前主入口未消费Q且不发布战术状态；未来TacticalViewChanged.open=true时可替换主音乐，转场/危险提示优先，不叠加主音乐。",
+  "events": [
+    "TacticalViewChanged"
+  ],
+  "bpm": 96,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 20.0,
+  "version": 2,
+  "key": "D minor / modal colour",
+  "arrangement": [
+    {
+      "bars": "1–2",
+      "role": "提出主题"
+    },
+    {
+      "bars": "3–4",
+      "role": "温暖和声回应"
+    },
+    {
+      "bars": "5–6",
+      "role": "空间展开"
+    },
+    {
+      "bars": "7–8",
+      "role": "悬念回环"
+    }
+  ],
+  "revision_notes": [
+    "新增用途明确的专用循环",
+    "节拍与响度适合操作、界面及提示留白"
+  ],
+  "synthesis": "Original deterministic additive/modal oscillators and filtered noise; no external samples",
+  "bars": 8.0
+}

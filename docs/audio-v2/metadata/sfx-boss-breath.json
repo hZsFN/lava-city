@@ -1,0 +1,14 @@
+{
+  "id": "sfx-boss-breath",
+  "title": "熔息喷涌",
+  "category": "sfx",
+  "loop": false,
+  "usage": "喷息技能 active；非循环，可按实际技能结束淡出，不适合无限repeat。",
+  "events": [
+    "BossSkillStart"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 2.6
+}

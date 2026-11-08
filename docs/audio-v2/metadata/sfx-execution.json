@@ -1,0 +1,14 @@
+{
+  "id": "sfx-execution",
+  "title": "熔核击破",
+  "category": "sfx",
+  "loop": false,
+  "usage": "击破伤害结算落点；仅 ExecutionEnded 播一次，避免开始/结束重复。",
+  "events": [
+    "ExecutionEnded"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 2.4
+}

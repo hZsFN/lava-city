@@ -1,0 +1,20 @@
+{
+  "id": "sfx-execution-ready",
+  "title": "可击破信号",
+  "category": "sfx",
+  "loop": false,
+  "usage": "预备：WeaknessProgress.executable 从false→true时单次；与弱点仅暴露不同，Boss/武器实际链路接入后使用。",
+  "events": [
+    "WeaknessProgress"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.95,
+  "introduced_version": "v2",
+  "implementation_status": "contract_only",
+  "evidence": "src/core/events.ts: WeaknessProgress",
+  "suggested_mix_gain_db": 0,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

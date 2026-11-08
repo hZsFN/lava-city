@@ -1,0 +1,20 @@
+{
+  "id": "sfx-player-low-health",
+  "title": "生命将熄",
+  "category": "sfx",
+  "loop": false,
+  "usage": "PlayerDamaged.amount>0 且hp从阈值上方跨到 0<hp<=max(1,ceil(maxHp*0.25))；冷却5秒，死亡优先；初始化快照静默。最新接力HP0直接失败，无复活声。",
+  "events": [
+    "PlayerDamaged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.28,
+  "introduced_version": "v2",
+  "implementation_status": "observed_event",
+  "evidence": "Merged PR #2: inherited HP, no respawn/regeneration",
+  "suggested_mix_gain_db": -1,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "bgm-boss-phase1",
+    "old_bpm": 96,
+    "new_bpm": 150,
+    "old_lufs": -18.03,
+    "new_lufs": -16.01,
+    "old_duration": 40.0,
+    "new_duration": 51.2,
+    "normalized_waveform_similarity": 0.03354877268067434
+  },
+  {
+    "id": "bgm-boss-phase2",
+    "old_bpm": 96,
+    "new_bpm": 150,
+    "old_lufs": -18.02,
+    "new_lufs": -16.01,
+    "old_duration": 40.0,
+    "new_duration": 51.2,
+    "normalized_waveform_similarity": 0.03698111638728473
+  },
+  {
+    "id": "bgm-defeat",
+    "old_bpm": 96,
+    "new_bpm": 96,
+    "old_lufs": -18.04,
+    "new_lufs": -18.01,
+    "old_duration": 6.0,
+    "new_duration": 8.0,
+    "normalized_waveform_similarity": 0.16316144994334894
+  },
+  {
+    "id": "bgm-molten-heart",
+    "old_bpm": 96,
+    "new_bpm": 96,
+    "old_lufs": -18.05,
+    "new_lufs": -20.03,
+    "old_duration": 40.0,
+    "new_duration": 40.0,
+    "normalized_waveform_similarity": 0.268530297449137
+  },
+  {
+    "id": "bgm-phase-transition",
+    "old_bpm": 96,
+    "new_bpm": 144,
+    "old_lufs": -18.45,
+    "new_lufs": -19.94,
+    "old_duration": 8.0,
+    "new_duration": 10.0,
+    "normalized_waveform_similarity": 0.2501470558867136
+  },
+  {
+    "id": "bgm-rage",
+    "old_bpm": 96,
+    "new_bpm": 160,
+    "old_lufs": -18.02,
+    "new_lufs": -16.01,
+    "old_duration": 20.0,
+    "new_duration": 24.0,
+    "normalized_waveform_similarity": 0.05453199364331097
+  },
+  {
+    "id": "bgm-victory",
+    "old_bpm": 96,
+    "new_bpm": 96,
+    "old_lufs": -18.0,
+    "new_lufs": -17.98,
+    "old_duration": 7.5,
+    "new_duration": 12.0,
+    "normalized_waveform_similarity": 0.20199616418065441
+  }
+]

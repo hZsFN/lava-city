@@ -1,0 +1,30 @@
+{
+  "checked_files": 3557,
+  "changed": [],
+  "missing": [],
+  "added": [
+    "lava-city/.tmp/node-compile-cache/v24.21.0-x64-964aae3f/a6b6593d",
+    "lava-city/.tmp/node-compile-cache/v24.21.0-x64-964aae3f/ce773a6b"
+  ],
+  "scope": [
+    "lava-city",
+    "wt-p2a",
+    "p2b-1",
+    "p2b-2",
+    "p2b-3",
+    "_t.md",
+    "_t1.md",
+    "GIT-CONNECTION.md"
+  ],
+  "excluded": [
+    ".agents",
+    ".codex",
+    ".git",
+    ".vite",
+    "__pycache__",
+    "build",
+    "dist",
+    "node_modules",
+    "out"
+  ]
+}

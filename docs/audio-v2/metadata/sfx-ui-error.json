@@ -1,0 +1,18 @@
+{
+  "id": "sfx-ui-error",
+  "title": "建造拒绝",
+  "category": "ui",
+  "loop": false,
+  "usage": "待建塔/升级调用结果返回false或无效按钮操作时触发；并非TowerPlaced事件，当前契约没有专用失败事件。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.36,
+  "introduced_version": "v2",
+  "implementation_status": "needs_action_hook",
+  "evidence": "GameLoop.placeTower returns boolean; no build-rejected event",
+  "suggested_mix_gain_db": -2,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

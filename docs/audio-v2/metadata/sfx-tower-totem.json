@@ -1,0 +1,14 @@
+{
+  "id": "sfx-tower-totem",
+  "title": "嘲讽共鸣",
+  "category": "sfx",
+  "loop": false,
+  "usage": "嘲讽生效时播放，单次，不持续叠加。",
+  "events": [
+    "TauntStarted"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.2
+}

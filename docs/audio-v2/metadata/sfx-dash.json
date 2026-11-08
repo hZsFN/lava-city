@@ -1,0 +1,14 @@
+{
+  "id": "sfx-dash",
+  "title": "疾步破风",
+  "category": "sfx",
+  "loop": false,
+  "usage": "冲刺起步，当前位置跟随玩家。",
+  "events": [
+    "PlayerDashed"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.4
+}

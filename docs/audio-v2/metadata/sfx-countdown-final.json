@@ -1,0 +1,20 @@
+{
+  "id": "sfx-countdown-final",
+  "title": "交战开始",
+  "category": "ui",
+  "loop": false,
+  "usage": "MatchPhaseChanged.phase=boss1 首次进入单次，可替代倒数0音；不得同时从倒数调度和阶段事件触发。",
+  "events": [
+    "MatchPhaseChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.8,
+  "introduced_version": "v2",
+  "implementation_status": "observed_event",
+  "evidence": "src/flow/MatchTimeline.ts: phase transition",
+  "suggested_mix_gain_db": 0,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

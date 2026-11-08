@@ -1,0 +1,20 @@
+{
+  "id": "sfx-execution-windup",
+  "title": "击破凝力",
+  "category": "sfx",
+  "loop": false,
+  "usage": "预备：ExecutionStarted单次前摇，声音不含最终重击；ExecutionEnded且damage>0再用原sfx-execution。",
+  "events": [
+    "ExecutionStarted"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.95,
+  "introduced_version": "v2",
+  "implementation_status": "contract_only",
+  "evidence": "src/core/events.ts: ExecutionStarted",
+  "suggested_mix_gain_db": -2,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

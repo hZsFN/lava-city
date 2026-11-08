@@ -1,0 +1,14 @@
+{
+  "id": "amb-lava",
+  "title": "熔岩海低鸣",
+  "category": "ambience",
+  "loop": true,
+  "usage": "通用熔岩环境床，开局淡入；与上涨层分别控制音量。",
+  "events": [
+    "MatchPhaseChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 16.0
+}

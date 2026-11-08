@@ -1,0 +1,14 @@
+{
+  "id": "sfx-form-switch",
+  "title": "双形态转换",
+  "category": "sfx",
+  "loop": false,
+  "usage": "形态切换确认；物理与法术可分别配不同播放速率。",
+  "events": [
+    "FormSwitched"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.66
+}

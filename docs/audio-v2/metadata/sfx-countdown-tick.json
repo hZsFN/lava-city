@@ -1,0 +1,18 @@
+{
+  "id": "sfx-countdown-tick",
+  "title": "准备倒计时",
+  "category": "ui",
+  "loop": false,
+  "usage": "准备期最后3秒逐整数门限单次；读取timeline.tSec()/endsAtSec()，不可依赖不逐帧更新的snapshot.tSec；后台恢复不补播旧tick。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.3,
+  "introduced_version": "v2",
+  "implementation_status": "needs_timeline_scheduler",
+  "evidence": "src/flow/MatchTimeline.ts: tSec(), endsAtSec()",
+  "suggested_mix_gain_db": -2,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

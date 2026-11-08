@@ -1,0 +1,14 @@
+{
+  "id": "sfx-tower-rune",
+  "title": "符文灼印",
+  "category": "sfx",
+  "loop": false,
+  "usage": "TowerTargetHit 且 kind=rune；作为命中声使用。",
+  "events": [
+    "TowerTargetHit"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.62
+}

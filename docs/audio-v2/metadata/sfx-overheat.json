@@ -1,0 +1,14 @@
+{
+  "id": "sfx-overheat",
+  "title": "过热泄压",
+  "category": "sfx",
+  "loop": false,
+  "usage": "仅 overheated 从 false 变 true 时播放。",
+  "events": [
+    "OverheatChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.05
+}

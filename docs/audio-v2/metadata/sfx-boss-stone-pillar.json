@@ -1,0 +1,20 @@
+{
+  "id": "sfx-boss-stone-pillar",
+  "title": "岩柱破地",
+  "category": "sfx",
+  "loop": false,
+  "usage": "预备：stonePillars active或独立岩柱破土点二选一；若多岩柱同帧合并限流。",
+  "events": [
+    "BossSkillStart"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.55,
+  "introduced_version": "v2",
+  "implementation_status": "planned_boss",
+  "evidence": "src/boss/preview.ts: stonePillars",
+  "suggested_mix_gain_db": 0,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

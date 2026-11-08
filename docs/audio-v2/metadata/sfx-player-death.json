@@ -1,0 +1,14 @@
+{
+  "id": "sfx-player-death",
+  "title": "余烬熄灭",
+  "category": "sfx",
+  "loop": false,
+  "usage": "玩家死亡，仅一次；复活后恢复常规混音。",
+  "events": [
+    "PlayerDied"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 2.0
+}

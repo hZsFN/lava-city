@@ -1,0 +1,14 @@
+{
+  "id": "sfx-core-warning",
+  "title": "塔心濒危",
+  "category": "sfx",
+  "loop": false,
+  "usage": "塔心血量首次跌破25%时提示，建议最多每4秒一次。",
+  "events": [
+    "CoreHpChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.1
+}

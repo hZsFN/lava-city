@@ -1,0 +1,20 @@
+{
+  "id": "sfx-tactical-open",
+  "title": "战术视图开启",
+  "category": "ui",
+  "loop": false,
+  "usage": "预备：TacticalViewChanged.open false→true；当前主循环未发布，需战术UI实际接入。",
+  "events": [
+    "TacticalViewChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.62,
+  "introduced_version": "v2",
+  "implementation_status": "contract_only",
+  "evidence": "src/core/events.ts: TacticalViewChanged",
+  "suggested_mix_gain_db": -3,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

@@ -1,0 +1,20 @@
+{
+  "id": "sfx-boss-rock-sweep",
+  "title": "岩臂横扫",
+  "category": "sfx",
+  "loop": false,
+  "usage": "预备：rockSweep active出手，实际击中另用命中反馈；Boss当前主循环尚未接入。",
+  "events": [
+    "BossSkillStart"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.15,
+  "introduced_version": "v2",
+  "implementation_status": "planned_boss",
+  "evidence": "src/boss/preview.ts: rockSweep",
+  "suggested_mix_gain_db": 0,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

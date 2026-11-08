@@ -1,0 +1,14 @@
+{
+  "id": "sfx-boss-slam",
+  "title": "巨掌砸落",
+  "category": "sfx",
+  "loop": false,
+  "usage": "BossSkillStart stage=active 且技能为砸击；具体skill映射见接入说明。",
+  "events": [
+    "BossSkillStart"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.75
+}

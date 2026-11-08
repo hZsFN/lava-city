@@ -1,0 +1,40 @@
+{
+  "id": "bgm-preparation",
+  "title": "石阵将启 · 布防",
+  "category": "music",
+  "loop": true,
+  "usage": "MatchPhaseChanged.phase=prep；独立循环，阶段切换淡化；原wake/prep共享逻辑可选拆分。",
+  "events": [
+    "MatchPhaseChanged"
+  ],
+  "bpm": 120,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 32.0,
+  "version": 2,
+  "key": "D minor / modal colour",
+  "arrangement": [
+    {
+      "bars": "1–4",
+      "role": "提出主题"
+    },
+    {
+      "bars": "5–8",
+      "role": "温暖和声回应"
+    },
+    {
+      "bars": "9–12",
+      "role": "空间展开"
+    },
+    {
+      "bars": "13–16",
+      "role": "悬念回环"
+    }
+  ],
+  "revision_notes": [
+    "新增用途明确的专用循环",
+    "节拍与响度适合操作、界面及提示留白"
+  ],
+  "synthesis": "Original deterministic additive/modal oscillators and filtered noise; no external samples",
+  "bars": 16.0
+}

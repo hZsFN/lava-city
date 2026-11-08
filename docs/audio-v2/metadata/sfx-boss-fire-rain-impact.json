@@ -1,0 +1,18 @@
+{
+  "id": "sfx-boss-fire-rain-impact",
+  "title": "火雨落点",
+  "category": "sfx",
+  "loop": false,
+  "usage": "预备：每颗火雨的实际落点回调；BossSkillStart只代表整次技能，不可当作每次撞地，当前契约缺少逐落点事件。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.86,
+  "introduced_version": "v2",
+  "implementation_status": "needs_action_hook",
+  "evidence": "src/boss/preview.ts: fireRain; no per-projectile impact event",
+  "suggested_mix_gain_db": 0,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

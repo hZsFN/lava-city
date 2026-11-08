@@ -1,0 +1,65 @@
+{
+  "assets": 67,
+  "all_signal_checks_passed": true,
+  "categories": {
+    "ambience": 3,
+    "music": 9,
+    "sfx": 48,
+    "ui": 7
+  },
+  "revisions": {
+    "retained": 32,
+    "reworked": 7,
+    "new": 28
+  },
+  "references_checked": 281,
+  "missing_references": [],
+  "js_syntax": "pass",
+  "zip_crc": "pass",
+  "metadata_event_spellings": "pass",
+  "music_revisions_verified": 7,
+  "showcase_loudness": {
+    "input_i": -19.46,
+    "input_tp": -4.75,
+    "input_lra": 6.6
+  },
+  "ab_loudness": {
+    "input_i": -20.04,
+    "input_tp": -7.83,
+    "input_lra": 1.7
+  },
+  "browser_control": "unavailable: CUA Transport closed",
+  "subjective_listening": "pending user audition",
+  "in_game_mix": "not integrated",
+  "original_workspace_snapshot": {
+    "checked_files": 3557,
+    "changed": [],
+    "missing": [],
+    "added": [
+      "lava-city/.tmp/node-compile-cache/v24.21.0-x64-964aae3f/a6b6593d",
+      "lava-city/.tmp/node-compile-cache/v24.21.0-x64-964aae3f/ce773a6b"
+    ],
+    "scope": [
+      "lava-city",
+      "wt-p2a",
+      "p2b-1",
+      "p2b-2",
+      "p2b-3",
+      "_t.md",
+      "_t1.md",
+      "GIT-CONNECTION.md"
+    ],
+    "excluded": [
+      ".agents",
+      ".codex",
+      ".git",
+      ".vite",
+      "__pycache__",
+      "build",
+      "dist",
+      "node_modules",
+      "out"
+    ]
+  },
+  "write_scope": "molten-heart-audio only; no game writes"
+}
