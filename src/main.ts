@@ -214,6 +214,30 @@ async function boot(): Promise<void> {
   const aimDir = new THREE.Vector3();
   const bossBox = new THREE.Box3();
   const bossBoxHit = new THREE.Vector3();
+  const partBox = new THREE.Box3();
+  /** 包围盒兜底的采样步长（米） */
+  const SAMPLE_STEP = 0.25;
+
+  /**
+   * Boss 可见网格的世界包围盒。
+   * 只算 visible：阶段 II 的网格在阶段 I 是隐藏的，Box3.setFromObject 会把它们也算进来，
+   * 判定框被撑大一圈，近战就会隔空打到。
+   */
+  function bossHurtBox(): THREE.Box3 {
+    bossBox.makeEmpty();
+    boss.root.updateWorldMatrix(true, true);
+    boss.root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.visible) return;
+      const geo = mesh.geometry;
+      if (!geo) return;
+      if (!geo.boundingBox) geo.computeBoundingBox();
+      if (!geo.boundingBox) return;
+      partBox.copy(geo.boundingBox).applyMatrix4(mesh.matrixWorld);
+      bossBox.union(partBox);
+    });
+    return bossBox;
+  }
 
   function resolveBossHit(rangeM: number): WeaponHit | null {
     const aim = input.aim();
@@ -225,7 +249,7 @@ async function boot(): Promise<void> {
     raycaster.set(app.camera.position, aimDir);
     raycaster.far = far;
     const hit = raycaster.intersectObject(boss.root, true)[0];
-    let p: THREE.Vector3;
+    let p: THREE.Vector3 | null = null;
     if (hit) {
       p = hit.point;
     } else {
@@ -233,11 +257,15 @@ async function boot(): Promise<void> {
       // （2026-11-08 实测：眼高 1.7 m 平射，140 个网格 0 命中），单点射线永远打不到。
       // 精确命中优先（弱点判定要用真实命中点），落空且朝向 Boss 包围盒时才用它兜底。
       if (!boss.root.visible) return null;
-      bossBox.setFromObject(boss.root);
-      const enter = raycaster.ray.intersectBox(bossBox, bossBoxHit);
-      if (!enter) return null;
-      if (enter.distanceTo(app.camera.position) > far) return null;
-      p = enter;
+      // 沿射线按 0.25 m 步进采样：只要有一个点落在包围盒里就算打中。
+      // 用采样而不是 Ray.intersectBox，是因为玩家可以贴到包围盒内部（巨型 Boss 常见），
+      // 那时 intersectBox 返回的是背离摄像机的交点，距离判定会把它当成"太远"。
+      const box = bossHurtBox();
+      for (let t = SAMPLE_STEP; t <= far; t += SAMPLE_STEP) {
+        raycaster.ray.at(t, bossBoxHit);
+        if (box.containsPoint(bossBoxHit)) { p = bossBoxHit; break; }
+      }
+      if (!p) return null;
     }
     return {
       target: 'boss',
@@ -475,8 +503,17 @@ async function boot(): Promise<void> {
   }
 
   app.onTick = (dt) => {
-    pendingWeapon = input.weaponInput();
-    pendingToggle = input.consumeFormSwitch();
+    const w = input.weaponInput();
+    // 按下边沿只该喂给第一步逻辑，但前提是这一帧真的有逻辑步。渲染帧快于 60 Hz 时
+    // （高刷屏、或卡顿后补帧不足一格）有些帧一个逻辑步都不跑，无条件覆盖会把边沿吞掉，
+    // 表现就是"点了没反应"。所以这里改成累积，等某一步真正消费掉再清。
+    pendingWeapon = {
+      lightPressed: (pendingWeapon?.lightPressed ?? false) || w.lightPressed,
+      lightHeld: w.lightHeld,
+      heavyPressed: (pendingWeapon?.heavyPressed ?? false) || w.heavyPressed,
+      heavyHeld: w.heavyHeld,
+    };
+    pendingToggle = pendingToggle || input.consumeFormSwitch();
     const real = Math.min(0.1, dt);
     acc += real * speed;
     const budget = Math.max(3, Math.min(160, Math.ceil(real * speed * 60) + 2));
