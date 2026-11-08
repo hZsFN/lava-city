@@ -1,0 +1,14 @@
+{
+  "id": "amb-tower",
+  "title": "孤塔风与符文",
+  "category": "ambience",
+  "loop": true,
+  "usage": "塔顶环境床，开局淡入；可与熔岩海低鸣低音量叠加。",
+  "events": [
+    "MatchPhaseChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 16.0
+}

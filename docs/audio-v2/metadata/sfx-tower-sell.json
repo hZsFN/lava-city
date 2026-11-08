@@ -1,0 +1,14 @@
+{
+  "id": "sfx-tower-sell",
+  "title": "熔核回收",
+  "category": "sfx",
+  "loop": false,
+  "usage": "只在 reason=sold 时播放。",
+  "events": [
+    "TowerDestroyed"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.7
+}

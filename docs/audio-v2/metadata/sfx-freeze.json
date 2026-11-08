@@ -1,0 +1,14 @@
+{
+  "id": "sfx-freeze",
+  "title": "寒晶封冻",
+  "category": "sfx",
+  "loop": false,
+  "usage": "完全冻结确认；可在 BossSkillInterrupted by=freeze 时与 FreezeFull 去重。",
+  "events": [
+    "FreezeFull"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.3
+}

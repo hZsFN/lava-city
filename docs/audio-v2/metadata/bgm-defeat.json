@@ -1,0 +1,34 @@
+{
+  "id": "bgm-defeat",
+  "title": "沉入熔海 · 失败精修",
+  "category": "music",
+  "loop": false,
+  "usage": "MatchEnded.result=lose 或 PlayerDied 候选；当前主入口死亡直接failLevel可能不先发MatchEnded；同一局只播一次，淡出其他音乐。",
+  "events": [
+    "MatchEnded",
+    "PlayerDied"
+  ],
+  "bpm": 96,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 8.0,
+  "version": 2,
+  "key": "D minor / modal colour",
+  "arrangement": [
+    {
+      "seconds": "0–6",
+      "role": "主题与和声收束"
+    },
+    {
+      "seconds": "6–8",
+      "role": "尾音结束"
+    }
+  ],
+  "revision_notes": [
+    "6秒扩至8秒",
+    "用主题碎片下降回应，不仅低频下滑",
+    "留出沉降尾音与明确结束"
+  ],
+  "synthesis": "Original deterministic additive/modal oscillators and filtered noise; no external samples",
+  "bars": null
+}

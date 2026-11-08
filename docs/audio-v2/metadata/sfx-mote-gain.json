@@ -1,0 +1,20 @@
+{
+  "id": "sfx-mote-gain",
+  "title": "熔核增益提示",
+  "category": "sfx",
+  "loop": false,
+  "usage": "MoteCountChanged正增量的可选通用资源提示；首次初始化静默，退款/调试设值不当作拾取，与出售声去重。",
+  "events": [
+    "MoteCountChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.54,
+  "introduced_version": "v2",
+  "implementation_status": "observed_event",
+  "evidence": "src/towers/TowerSystem.ts: place/upgrade/sell; GameLoop.setMotes",
+  "suggested_mix_gain_db": -4,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

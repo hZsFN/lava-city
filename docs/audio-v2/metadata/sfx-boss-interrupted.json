@@ -1,0 +1,20 @@
+{
+  "id": "sfx-boss-interrupted",
+  "title": "岩甲施法打断",
+  "category": "sfx",
+  "loop": false,
+  "usage": "预备：BossSkillInterrupted.by=interrupt/stagger；freeze用已有封冻音，避免同次事件双播。",
+  "events": [
+    "BossSkillInterrupted"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.2,
+  "introduced_version": "v2",
+  "implementation_status": "contract_only",
+  "evidence": "src/core/events.ts: BossSkillInterrupted",
+  "suggested_mix_gain_db": 0,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

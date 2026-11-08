@@ -1,0 +1,14 @@
+{
+  "id": "sfx-tower-quake",
+  "title": "震地锚脉冲",
+  "category": "sfx",
+  "loop": false,
+  "usage": "震地塔请求打断的出手音；成功打断反馈需另按 BossSkillInterrupted 过滤。",
+  "events": [
+    "TowerInterruptRequested"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.82
+}

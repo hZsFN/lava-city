@@ -1,0 +1,14 @@
+{
+  "id": "sfx-boss-windup",
+  "title": "岩甲蓄势",
+  "category": "sfx",
+  "loop": false,
+  "usage": "BossSkillStart 且 stage=windup；通用预警，不冒充精确前摇长度。",
+  "events": [
+    "BossSkillStart"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.2
+}

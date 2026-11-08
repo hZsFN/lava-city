@@ -1,0 +1,18 @@
+{
+  "id": "sfx-footstep-stone-02",
+  "title": "黑曜石脚步 2",
+  "category": "sfx",
+  "loop": false,
+  "usage": "待移动声调度：isGrounded且水平累计距离达到步幅时播；四变体交替避免连重复，空中/冲刺/静止不播。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.29,
+  "introduced_version": "v2",
+  "implementation_status": "needs_action_hook",
+  "evidence": "src/player/PlayerController.ts: handleJump/integrateVertical/isGrounded; no step/jump/land events",
+  "suggested_mix_gain_db": -7,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

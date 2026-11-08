@@ -1,0 +1,12 @@
+{
+  "id": "sfx-ui-confirm",
+  "title": "符印确认",
+  "category": "ui",
+  "loop": false,
+  "usage": "菜单确认；当前契约无专用UI事件，需UI按钮调用。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.22
+}

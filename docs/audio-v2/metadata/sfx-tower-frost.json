@@ -1,0 +1,14 @@
+{
+  "id": "sfx-tower-frost",
+  "title": "寒晶蓄能",
+  "category": "sfx",
+  "loop": false,
+  "usage": "冻结进度跨25/50/75%阈值时可提示；应限流，不随每次进度更新播放。",
+  "events": [
+    "FreezeProgressChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.72
+}

@@ -1,0 +1,46 @@
+{
+  "id": "bgm-boss-phase1",
+  "title": "岩甲之重 · 熔炉战歌",
+  "category": "music",
+  "loop": true,
+  "usage": "MatchPhaseChanged.phase=boss1；150 BPM、32小节循环，事件驱动切换；不同节奏曲目采用0.8–1.2秒淡化。",
+  "events": [
+    "MatchPhaseChanged"
+  ],
+  "bpm": 150,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 51.2,
+  "version": 2,
+  "key": "D minor / modal colour",
+  "arrangement": [
+    {
+      "bars": "1–4",
+      "role": "braam 落地 + 太鼓重音型"
+    },
+    {
+      "bars": "5–12",
+      "role": "弦乐断奏、低铜切分刺音、合唱铺底"
+    },
+    {
+      "bars": "13–20",
+      "role": "原创铜管主题 + 铁砧锻打"
+    },
+    {
+      "bars": "21–24",
+      "role": "半速留白、合唱与低号动机、军鼓滚奏蓄力"
+    },
+    {
+      "bars": "25–32",
+      "role": "主题高八度高潮、全编制，鼓过门回到开头"
+    }
+  ],
+  "revision_notes": [
+    "史诗预告片风格的原创重写：不含任何外部旋律、和声进行或采样",
+    "3+3+2 十六分重音型统一底鼓/太鼓/低音/弦乐，节奏更鲜明",
+    "底鼓侧链压低和声层，混响减少以突出节拍",
+    "熔岩色彩：braam 低铜轰鸣、次低频冲击、岩浆气泡与上升嘶声、铁砧锻打"
+  ],
+  "synthesis": "Original deterministic additive/modal oscillators and filtered noise; no external samples",
+  "bars": 32.0
+}

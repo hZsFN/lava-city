@@ -1,0 +1,33 @@
+{
+  "id": "bgm-victory",
+  "title": "余烬见光 · 胜利精修",
+  "category": "music",
+  "loop": false,
+  "usage": "MatchEnded.result=win；单次，结算前淡出其他音乐。",
+  "events": [
+    "MatchEnded"
+  ],
+  "bpm": 96,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 12.0,
+  "version": 2,
+  "key": "D minor / modal colour",
+  "arrangement": [
+    {
+      "seconds": "0–10",
+      "role": "主题与和声收束"
+    },
+    {
+      "seconds": "10–12",
+      "role": "尾音结束"
+    }
+  ],
+  "revision_notes": [
+    "7.5秒扩至12秒",
+    "主题完整回归，D小调向明亮D大和弦释放",
+    "长尾收束保留胜利后的空间"
+  ],
+  "synthesis": "Original deterministic additive/modal oscillators and filtered noise; no external samples",
+  "bars": null
+}

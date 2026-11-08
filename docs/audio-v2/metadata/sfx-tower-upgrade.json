@@ -1,0 +1,14 @@
+{
+  "id": "sfx-tower-upgrade",
+  "title": "符文升阶",
+  "category": "sfx",
+  "loop": false,
+  "usage": "升级成功确认。",
+  "events": [
+    "TowerUpgraded"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.1
+}

@@ -1,0 +1,22 @@
+{
+  "id": "sfx-boss-core-drain",
+  "title": "塔心汲取循环",
+  "category": "sfx",
+  "loop": true,
+  "usage": "预备：BossSkillStart skill=coreDrain,stage=active 开启单个循环；End/Interrupted/阶段退出时淡出，不能按帧重启。",
+  "events": [
+    "BossSkillStart",
+    "BossSkillEnd",
+    "BossSkillInterrupted"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 8.0,
+  "introduced_version": "v2",
+  "implementation_status": "planned_boss",
+  "evidence": "src/boss/preview.ts: coreDrain",
+  "suggested_mix_gain_db": -6,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

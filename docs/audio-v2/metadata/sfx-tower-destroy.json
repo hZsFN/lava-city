@@ -1,0 +1,14 @@
+{
+  "id": "sfx-tower-destroy",
+  "title": "石塔崩解",
+  "category": "sfx",
+  "loop": false,
+  "usage": "只在 reason=broken 或 drowned 时播放；与回收声互斥。",
+  "events": [
+    "TowerDestroyed"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.55
+}

@@ -1,0 +1,20 @@
+{
+  "id": "sfx-slot-unlock",
+  "title": "外环塔位解锁",
+  "category": "sfx",
+  "loop": false,
+  "usage": "TowerSlotStateChanged 仅locked→open；初始化open静默，同帧多塔位合并为一次，不把拆塔occupied→open当作解锁。",
+  "events": [
+    "TowerSlotStateChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.1,
+  "introduced_version": "v2",
+  "implementation_status": "observed_event",
+  "evidence": "src/towers/TowerSystem.ts: phaseChange / slot state updates",
+  "suggested_mix_gain_db": -3,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

@@ -1,0 +1,14 @@
+{
+  "id": "sfx-tower-build",
+  "title": "石基建造",
+  "category": "sfx",
+  "loop": false,
+  "usage": "防御塔成功放置。",
+  "events": [
+    "TowerPlaced"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.05
+}

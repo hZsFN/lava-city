@@ -1,0 +1,18 @@
+{
+  "id": "sfx-jump",
+  "title": "离地蹬步",
+  "category": "sfx",
+  "loop": false,
+  "usage": "待实际跳跃成功调用点；不能直接绑定空格按下，离地或冲刺时拒绝跳跃不播。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.44,
+  "introduced_version": "v2",
+  "implementation_status": "needs_action_hook",
+  "evidence": "src/player/PlayerController.ts: handleJump/integrateVertical/isGrounded; no step/jump/land events",
+  "suggested_mix_gain_db": -5,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

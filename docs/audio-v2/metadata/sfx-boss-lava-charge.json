@@ -1,0 +1,20 @@
+{
+  "id": "sfx-boss-lava-charge",
+  "title": "熔躯冲撞",
+  "category": "sfx",
+  "loop": false,
+  "usage": "预备：lavaCharge active出手；非循环，若技能提前中断则淡出。",
+  "events": [
+    "BossSkillStart"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.25,
+  "introduced_version": "v2",
+  "implementation_status": "planned_boss",
+  "evidence": "src/boss/preview.ts: lavaCharge",
+  "suggested_mix_gain_db": 0,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

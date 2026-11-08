@@ -1,0 +1,14 @@
+{
+  "id": "sfx-lava-rise",
+  "title": "熔岩上涨",
+  "category": "ambience",
+  "loop": true,
+  "usage": "上涨状态进入时开启循环，停止上涨时淡出；不可每帧重播。",
+  "events": [
+    "LavaLevelChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 8.0
+}

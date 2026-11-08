@@ -1,0 +1,20 @@
+{
+  "id": "sfx-boss-self-ignite",
+  "title": "熔甲自燃",
+  "category": "sfx",
+  "loop": false,
+  "usage": "预备：selfIgnite active单次，伴随体表引燃；不每帧重播，持续层另外控制。",
+  "events": [
+    "BossSkillStart"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.8,
+  "introduced_version": "v2",
+  "implementation_status": "planned_boss",
+  "evidence": "src/boss/preview.ts: selfIgnite",
+  "suggested_mix_gain_db": 0,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}

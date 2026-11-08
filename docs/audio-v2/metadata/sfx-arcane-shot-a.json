@@ -1,0 +1,12 @@
+{
+  "id": "sfx-arcane-shot-a",
+  "title": "符文射击 A",
+  "category": "sfx",
+  "loop": false,
+  "usage": "玩家法术发射变体；当前契约没有发射事件，需要武器实际开火处调用。",
+  "events": [],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 0.52
+}

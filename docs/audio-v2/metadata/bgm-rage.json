@@ -1,0 +1,34 @@
+{
+  "id": "bgm-rage",
+  "title": "最后余烬 · 熔岩狂潮",
+  "category": "music",
+  "loop": true,
+  "usage": "MatchPhaseChanged.phase=rage；160 BPM、16小节循环，事件驱动切换；不同节奏曲目采用0.8–1.2秒淡化。",
+  "events": [
+    "MatchPhaseChanged"
+  ],
+  "bpm": 160,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 24.0,
+  "version": 2,
+  "key": "D minor / modal colour",
+  "arrangement": [
+    {
+      "bars": "1–8",
+      "role": "全编制主题，3+3+2 重音"
+    },
+    {
+      "bars": "9–16",
+      "role": "主题高八度，16分镲与双踩"
+    }
+  ],
+  "revision_notes": [
+    "史诗预告片风格的原创重写：不含任何外部旋律、和声进行或采样",
+    "3+3+2 十六分重音型统一底鼓/太鼓/低音/弦乐，节奏更鲜明",
+    "底鼓侧链压低和声层，混响减少以突出节拍",
+    "熔岩色彩：braam 低铜轰鸣、次低频冲击、岩浆气泡与上升嘶声、铁砧锻打"
+  ],
+  "synthesis": "Original deterministic additive/modal oscillators and filtered noise; no external samples",
+  "bars": 16.0
+}

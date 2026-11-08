@@ -1,0 +1,36 @@
+{
+  "id": "bgm-phase-transition",
+  "title": "熔壳剥落 · 转阶段精修",
+  "category": "music",
+  "loop": false,
+  "usage": "MatchPhaseChanged.phase=transition 单次；10秒先压后扬，阶段提前结束需淡出。",
+  "events": [
+    "MatchPhaseChanged"
+  ],
+  "bpm": 144,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 10.0,
+  "version": 2,
+  "key": "D minor / modal colour",
+  "arrangement": [
+    {
+      "seconds": "0–3",
+      "role": "岩壳冲击与留白"
+    },
+    {
+      "seconds": "3–8",
+      "role": "上行弦乐与军鼓渐密"
+    },
+    {
+      "seconds": "8–10",
+      "role": "铜管和弦释放"
+    }
+  ],
+  "revision_notes": [
+    "8秒扩为10秒完整转场",
+    "新增中段留白、渐密滚奏与落点和声"
+  ],
+  "synthesis": "Original deterministic additive/modal oscillators and filtered noise; no external samples",
+  "bars": null
+}

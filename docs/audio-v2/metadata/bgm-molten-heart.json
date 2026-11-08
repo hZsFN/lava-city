@@ -1,0 +1,41 @@
+{
+  "id": "bgm-molten-heart",
+  "title": "渊火回声 · 苏醒精修",
+  "category": "music",
+  "loop": true,
+  "usage": "MatchPhaseChanged.phase=wake；独立循环，阶段切换淡化；原wake/prep共享逻辑可选拆分。",
+  "events": [
+    "MatchPhaseChanged"
+  ],
+  "bpm": 96,
+  "sample_rate": 44100,
+  "channels": 2,
+  "duration_seconds": 40.0,
+  "version": 2,
+  "key": "D minor / modal colour",
+  "arrangement": [
+    {
+      "bars": "1–4",
+      "role": "提出主题"
+    },
+    {
+      "bars": "5–8",
+      "role": "温暖和声回应"
+    },
+    {
+      "bars": "9–12",
+      "role": "空间展开"
+    },
+    {
+      "bars": "13–16",
+      "role": "悬念回环"
+    }
+  ],
+  "revision_notes": [
+    "慢起音和声与稀疏主题重新配平",
+    "空间尾音按循环回卷",
+    "避免与战斗相同的持续高密度节奏"
+  ],
+  "synthesis": "Original deterministic additive/modal oscillators and filtered noise; no external samples",
+  "bars": 16.0
+}

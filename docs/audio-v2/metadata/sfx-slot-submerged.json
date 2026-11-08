@@ -1,0 +1,20 @@
+{
+  "id": "sfx-slot-submerged",
+  "title": "塔位被熔岩吞没",
+  "category": "sfx",
+  "loop": false,
+  "usage": "TowerSlotStateChanged open/occupied→submerged时单次；同帧TowerDestroyed.reason=drowned只保留优先声，避免双播。",
+  "events": [
+    "TowerSlotStateChanged"
+  ],
+  "bpm": null,
+  "sample_rate": 44100,
+  "channels": 1,
+  "duration_seconds": 1.4,
+  "introduced_version": "v2",
+  "implementation_status": "observed_event",
+  "evidence": "src/towers/TowerSystem.ts: LavaLevelChanged / submerged slots",
+  "suggested_mix_gain_db": -2,
+  "source_method": "Deterministic procedural synthesis; no third-party samples",
+  "integration_tested": false
+}
