@@ -93,6 +93,23 @@ export class Atmosphere {
     scene.add(key);
     scene.add(key.target);
 
+    // 四盏低角度熔岩补光：只擦亮竖直石面，仰角在水平线以下，
+    // 因此向上表面仍然拿不到任何光（光照铁律），但矮墙/塔身不会糊成纯黑。
+    for (const [x, z] of [
+      [40, 40],
+      [40, -40],
+      [-40, 40],
+      [-40, -40],
+    ]) {
+      const fill = new THREE.DirectionalLight(new THREE.Color(0xff5a12), 5.5);
+      fill.position.set(x, -22, z);
+      fill.target.position.set(0, 0, 0);
+      fill.castShadow = false;
+      fill.name = 'lava-fill';
+      scene.add(fill);
+      scene.add(fill.target);
+    }
+
     const core = new THREE.PointLight(new THREE.Color(l.core.color), l.core.intensity, l.core.distance, 2);
     core.position.set(0, this.cfg.spire.core.y, 0);
     core.name = 'molten-core-light';

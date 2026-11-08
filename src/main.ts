@@ -2,6 +2,7 @@ import { App } from './render/App';
 import { DebugOverlay } from './ui/DebugOverlay';
 import { createGame } from './game/GameLoop';
 import { createGameView } from './game/GameView';
+import { IgnisBoss } from './boss/IgnisBoss';
 import { createInput } from './game/Input';
 import type { TowerKind } from './towers/types';
 
@@ -80,7 +81,27 @@ async function boot(): Promise<void> {
   });
 
   // ── 4. 接线：渲染帧 → 逻辑推进 → 表现同步 ──────────────────────────────
-  app.onTick = (dt) => { game.tick(dt); };
+  // ── Boss：进阶段 I 时登场，之后每逻辑帧更新 ───────────────────────────────
+  const boss = new IgnisBoss(game.bus);
+  let bossAttached = false;
+  const attachBoss = (): void => {
+    if (bossAttached) return;
+    bossAttached = true;
+    boss.attachTo(app.scene);
+  };
+  game.bus.on('MatchPhaseChanged', (p) => {
+    if (p.phase === 'boss1' || p.phase === 'transition' || p.phase === 'boss2' || p.phase === 'rage') {
+      attachBoss();
+    }
+  });
+  attachBoss();
+  boss.root.position.set(0, 0, -34);
+  (window as unknown as Record<string, unknown>).__boss = boss;
+
+  app.onTick = (dt) => {
+    game.tick(dt);
+    boss.update(dt * 1000);
+  };
   app.onSync = () => { view.sync(); };
 
   // ── 5. 调试浮层 ──────────────────────────────────────────────────────────

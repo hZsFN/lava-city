@@ -1,4 +1,5 @@
 import * as THREE from 'three/webgpu';
+import { createIgnisRig } from './IgnisRig';
 import type { Vec3 } from '../core/events';
 import { createRng, hashSeed } from '../core/rng';
 import { BOSS_CONFIG } from './config';
@@ -55,11 +56,15 @@ export class BossEntity implements BossDebugApi, VfxSink {
   private readonly cfg: BossConfig = BOSS_CONFIG;
   private readonly rng = createRng(hashSeed('ignis-shards'));
   private readonly fxRoot = new THREE.Group();
-  private readonly rig = new THREE.Group();
-  private readonly hips = new THREE.Group();
-  private readonly torso = new THREE.Group();
-  private readonly head = new THREE.Group();
-  private readonly chest = new THREE.Group();
+  private readonly rig: THREE.Group;
+  private readonly hips: THREE.Group;
+  private readonly torso: THREE.Group;
+  private readonly head: THREE.Group;
+  private readonly chest: THREE.Group;
+  /** IgnisRig（票 M3-03）交付的三组网格，用于阶段 II 换材质与显隐 */
+  private readonly ignisStone: THREE.Mesh[];
+  private readonly ignisGlow: THREE.Mesh[];
+  private readonly ignisPhase2: THREE.Mesh[];
   private readonly legL: LegRig;
   private readonly legR: LegRig;
   private readonly armL: ArmRig;
@@ -114,18 +119,22 @@ export class BossEntity implements BossDebugApi, VfxSink {
     this.lavaMat.emissiveMap = crack;
     this.eyeMat = new THREE.MeshBasicMaterial({ color: 0xff7a1e });
 
+    // 骨架与几何整体来自 Opus 交付的 IgnisRig（票 M3-03）：
+    // 一座"自走式冶炼炉"——八角窑身、坩埚头、砧锤与钳夹、活塞炉脚。
+    const build = createIgnisRig();
+    this.rig = build.rig.root;
+    this.hips = build.rig.hips;
+    this.torso = build.rig.torso;
+    this.chest = build.rig.chest;
+    this.head = build.rig.head;
+    this.legL = { root: build.rig.legL, knee: build.rig.kneeL, foot: build.rig.footL };
+    this.legR = { root: build.rig.legR, knee: build.rig.kneeR, foot: build.rig.footR };
+    this.armL = { shoulder: build.rig.shoulderL, elbow: build.rig.elbowL };
+    this.armR = { shoulder: build.rig.shoulderR, elbow: build.rig.elbowR };
+    this.ignisStone = build.stoneMeshes;
+    this.ignisGlow = build.glowMeshes;
+    this.ignisPhase2 = build.phase2Meshes;
     this.root.add(this.rig);
-    this.rig.add(this.hips);
-    this.hips.position.y = HIPS_Y;
-    this.hips.add(this.torso);
-    this.torso.position.y = TORSO_Y;
-    this.torso.add(this.chest);
-
-    this.buildBody();
-    this.legL = this.buildLeg(-1);
-    this.legR = this.buildLeg(1);
-    this.armL = this.buildArm(-1);
-    this.armR = this.buildArm(1);
 
     const coreGeo = new THREE.SphereGeometry(0.95, 16, 12);
     const coreMat = new THREE.MeshBasicMaterial({ color: 0x4aa8ff });

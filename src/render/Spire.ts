@@ -231,6 +231,21 @@ export class Spire {
       const length = arc * 0.78;
 
       rock.push(place(new THREE.BoxGeometry(length, p.parapetHeight, p.parapetWidth), [cx, y + p.parapetHeight / 2, cz], rotY));
+
+      // 内底 45° 倒角：朝下的斜面接住熔岩底光，让矮墙读成有厚度的石块
+      const chamfer = new THREE.BoxGeometry(length, 0.2, 0.2);
+      chamfer.rotateX(-Math.PI / 4);
+      rock.push(
+        place(
+          chamfer,
+          [
+            Math.cos(a) * (p.parapetRadius - p.parapetWidth / 2 - 0.05),
+            y + 0.075,
+            Math.sin(a) * (p.parapetRadius - p.parapetWidth / 2 - 0.05),
+          ],
+          rotY,
+        ),
+      );
       obsidian.push(
         place(
           new THREE.BoxGeometry(length + 0.04, 0.12, p.parapetWidth + 0.1),
@@ -970,6 +985,13 @@ function ringSlab(
     new THREE.CylinderGeometry(inner, inner, thickness, segments, 1, true)
       .scale(-1, 1, 1)
       .translate(0, topY - thickness / 2, 0)
+      .toNonIndexed(),
+  );
+  // 内沿 45° 倒角：朝内下的斜面接底光，俯视时勾出平台内边
+  list.push(
+    new THREE.CylinderGeometry(inner, inner + 0.2, 0.16, segments, 1, true)
+      .scale(-1, 1, 1)
+      .translate(0, topY - 0.08, 0)
       .toNonIndexed(),
   );
 }
