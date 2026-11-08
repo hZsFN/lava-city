@@ -183,3 +183,11 @@ node kit/tools/check.mjs out/
 ## 【本票明确不做】
 
 玩家的伤害输入（打到 Boss 身上不掉血）、塔的实体、UI 血条。这些属于 M2 系列。本票结束时 Boss 能自己动、自己打、自己开弱点，但玩家还打不动它 —— 这是故意的，为了把两张票彻底解耦。
+
+## 【修复记录 · 2026-11-08】Boss 不会打人
+
+- 根因一：`LeapSlam` 只在原地做 y 抛物线，没有按行为表「抛物线跳到玩家位置」落地。玩家离到 12 m 外时 Boss 够不到，只能反复原地起跳。
+- 根因二：命中判定只覆盖 `rockSweep` / `leapSlam` / `lavaCharge` 且一律 ≤10 m；`stonePillars` / `magmaBreath` 整段跳过，阶段 II 大半时间在放「没有伤害」的技能。
+- 修法：`IgnisBoss.startSkill` 记录起跳点/落点（夹 50 m），前摇内按 `easeInOut` 水平平移、y 仍走抛物线；`main.ts` 改成按技能判定——rockSweep ≤12 m、leapSlam ≤8 m、lavaCharge ≤10 m、stonePillars 距施法落点 ≤4 m、magmaBreath 正前方 18 m / 半角 35°。
+- 实测（headless CDP）：把 Boss 拖到 22.8 m 后 `leapSlam` 落地距离 22.8→0，玩家 `hp 3→2`；阶段 II 石柱、吐息各扣 1 点。
+- 校验：typecheck / build / check 全过，vitest 25 文件 293 用例全绿。
