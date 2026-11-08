@@ -42,6 +42,9 @@ const WEAKNESS_ATTR: Record<BodyPart, Attr> = {
 
 type SkillId = 'rockSweep' | 'leapSlam' | 'coreDrain' | 'stonePillars' | 'magmaBreath' | 'lavaCharge';
 
+/** 演出态：M4-01 的登场/转场/胜利都由这里接管，不改模型本身 */
+type ShowMode = 'hidden' | 'spawning' | 'active' | 'sinking' | 'rising' | 'frozen' | 'dead';
+
 interface SkillDef {
   windupMs: number;
   activeMs: number;
@@ -86,9 +89,16 @@ export class IgnisBoss {
   private phase: 1 | 2 = 1;
 
   private tMs = 0;
-  private riseMs = 3000;        // 登场动画进度（先直接站好，便于调试）
-  private sink = 0;             // 0 = 完全升起，1 = 沉在熔岩下
-  private scaleNow = 1;
+  private showMode: ShowMode = 'hidden';
+  private showT = 0;
+  private showDur = 1;
+  private showFromY = -9;
+  private showToY = -9;
+  private showFromScale = 0.85;
+  private showToScale = 0.85;
+  private brainOn = false;
+  private dead = false;
+  private scaleNow = 0.85;
 
   private skill: SkillId | null = null;
   private skillStage: 'windup' | 'active' | 'recovery' = 'windup';
@@ -104,7 +114,6 @@ export class IgnisBoss {
   private weaknessLeftMs = 0;
   private markers = new Map<BodyPart, THREE.Mesh>();
   private coreLight: THREE.PointLight;
-  private readonly stoneMat: THREE.MeshStandardMaterial;
 
   private targetPos: Vec3 = [0, 0, 18];
   private attackDir = new THREE.Vector3(0, 0, 1);
@@ -119,33 +128,14 @@ export class IgnisBoss {
 
     // 阶段 II 专属网格先藏起来
     for (const m of this.build.phase2Meshes) m.visible = false;
+    for (const m of this.build.phase1Meshes) m.visible = true;
 
-    // 覆盖 IgnisRig 自带的岩石材质：它启用了 vertexColors，在这个场景的强橙光下
-    // 会被染成粉红。这里统一换成近黑的玄武岩，让所有亮度都来自裂缝与熔岩反光。
-    this.stoneMat = new THREE.MeshStandardMaterial({
-      color: 0x060504,
-      roughness: 1.0,
-      metalness: 0.0,
-      flatShading: true,
-      vertexColors: false,
-    });
-    for (const m of this.build.stoneMeshes) m.material = this.stoneMat;
-
-    // 自发光网格：IgnisRig 给的是纯 Basic 材质（不吃光、恒定满亮），
-    // 在 Bloom 下会整片炸成粉色。压到 0.32 倍并改成受光的 Standard，
-    // 只保留"裂缝里透出来的一线光"。
-    for (const m of this.build.glowMeshes) {
-      const old = m.material as THREE.MeshBasicMaterial;
-      const c = old.color ? old.color.clone() : new THREE.Color(0xff5a12);
-      m.material = new THREE.MeshStandardMaterial({
-        color: c.clone().multiplyScalar(0.22),
-        emissive: c,
-        emissiveIntensity: 2.6,
-        roughness: 0.7,
-        metalness: 0,
-        flatShading: true,
-      });
-    }
+    // 打磨版 IgnisRig 自带 7 种材质（stone/iron/ember/emberHot/core/vent/slag），
+    // 已经按"暗色岩石 + 锻铁 + 冷蓝核心"调好，不再整体覆盖——只把自发光略压，
+    // 免得在当前场景的强橙光里炸开。
+    const mats = this.build.materials;
+    mats.ember.emissiveIntensity = Math.min(mats.ember.emissiveIntensity ?? 1, 1.6);
+    mats.emberHot.emissiveIntensity = Math.min(mats.emberHot.emissiveIntensity ?? 1, 2.0);
 
     // 弱点指示器：四颗自发光球，默认不可见
     for (const part of Object.keys(WEAKNESS_POS) as BodyPart[]) {
@@ -172,8 +162,11 @@ export class IgnisBoss {
     underLight.position.set(0, 1.5, 2);
     this.root.add(underLight);
 
-    // 登场：从熔岩里升起
-    this.sink = 1.0;
+    // 登场前：整体沉在熔岩口下面，等 M4-01 的登场节拍把它拉起来
+    this.showMode = 'hidden';
+    this.root.position.set(0, -9, 11);
+    this.root.visible = false;
+    this.build.rig.root.scale.setScalar(this.scaleNow);
 
     bus.on('PlayerMoved', (p) => {
       this.targetPos = p.pos;
@@ -199,6 +192,8 @@ export class IgnisBoss {
 
   /** 供玩家攻击调用；返回是否命中弱点 */
   takeDamage(amount: number, attr: Attr, worldPoint?: Vec3): boolean {
+    // 演出态/已死：不吃伤害（transitions/victory 里防止误杀）
+    if (this.dead || this.showMode !== 'active') return false;
     let hitPart: BodyPart | null = null;
     if (worldPoint) {
       for (const part of Object.keys(WEAKNESS_POS) as BodyPart[]) {
@@ -232,8 +227,8 @@ export class IgnisBoss {
     return isWeak;
   }
 
-  /** 外部直接推进阶段（调试用） */
-  forcePhase2(): void {
+  /** 外部直接推进阶段（调试/转场用）。expose=false 时不在沉入熔岩期间亮弱点。 */
+  forcePhase2(expose = true): void {
     if (this.phase === 2) return;
     this.phase = 2;
     this.maxHp = PHASE2_HP;
@@ -241,39 +236,163 @@ export class IgnisBoss {
     this.bus.emit('BossPhaseChanged', { from: 1, to: 2 });
     this.bus.emit('BossHpChanged', { hp: this.hp, maxHp: this.maxHp, phase: 2 });
     this.applyPhaseVisual();
-    this.expose('back', 6000);
+    if (expose) this.expose('back', 6000);
+  }
+
+  // ── 演出控制（M4-01）──────────────────────────────────────────────────────
+
+  /** 隐藏：还没到 0:50，不参与任何判定 */
+  hideForShow(): void {
+    this.showMode = 'hidden';
+    this.brainOn = false;
+    this.root.visible = false;
+    this.closeWeakness();
+  }
+
+  /** 登场：从熔岩口升到地面，同时 scale 从 0.85 涨到 1（ease-out） */
+  beginSpawn(opts: { durMs: number; fromY: number; toY: number; fromScale: number; toScale: number }): void {
+    this.showMode = 'spawning';
+    this.showT = 0;
+    this.showDur = Math.max(1, opts.durMs);
+    this.showFromY = opts.fromY;
+    this.showToY = opts.toY;
+    this.showFromScale = opts.fromScale;
+    this.showToScale = opts.toScale;
+    this.root.position.set(this.root.position.x, opts.fromY, this.root.position.z);
+    this.root.visible = true;
+    this.brainOn = false;
+    this.bus.emit('BossSpawned', { hp: this.hp, maxHp: this.maxHp, phase: this.phase });
+  }
+
+  /** 转阶段：沉进熔岩（停止攻击、双臂垂下） */
+  beginSink(durMs: number, depthM: number): void {
+    this.showMode = 'sinking';
+    this.showT = 0;
+    this.showDur = Math.max(1, durMs);
+    this.showFromY = this.root.position.y;
+    this.showToY = -depthM;
+    this.showFromScale = this.scaleNow;
+    this.showToScale = this.scaleNow;
+    this.brainOn = false;
+    this.skill = null;
+    this.closeWeakness();
+  }
+
+  /** 转阶段：从熔岩里站起来并拔高到阶段 II 体型 */
+  beginRise(durMs: number, toScale: number): void {
+    this.showMode = 'rising';
+    this.showT = 0;
+    this.showDur = Math.max(1, durMs);
+    this.showFromY = this.root.position.y;
+    this.showToY = 0;
+    this.showFromScale = this.scaleNow;
+    this.showToScale = toScale;
+    this.brainOn = false;
+  }
+
+  /** 过场/胜利：冻结行为但保留模型 */
+  freezeBrain(): void {
+    this.brainOn = false;
+    this.skill = null;
+    this.closeWeakness();
+    if (this.showMode === 'active') this.showMode = 'frozen';
+  }
+
+  setBrainEnabled(on: boolean): void {
+    this.brainOn = on && !this.dead;
+    if (on && this.showMode === 'frozen') this.showMode = 'active';
+    if (!on) {
+      this.skill = null;
+      this.closeWeakness();
+    }
+  }
+
+  isDead(): boolean {
+    return this.dead;
+  }
+
+  /** 死亡位置/体型，供胜利碎块演出取用 */
+  deathPose(): { pos: Vec3; scale: number } {
+    return {
+      pos: [this.root.position.x, this.root.position.y, this.root.position.z],
+      scale: this.scaleNow,
+    };
+  }
+
+  /** 弱点在世界坐标里的位置（UI 方向脉冲用） */
+  weaknessWorld(part: BodyPart): Vec3 {
+    const local = new THREE.Vector3(...WEAKNESS_POS[part]);
+    this.root.updateMatrixWorld(true);
+    this.root.localToWorld(local);
+    return [local.x, local.y, local.z];
+  }
+
+  /** 弱点对应属性（阶段 I 核心=法术，背部/膝=物理） */
+  weaknessAttr(part: BodyPart): Attr {
+    return WEAKNESS_ATTR[part];
   }
 
   // ── 每帧 ──────────────────────────────────────────────────────────────────
 
   update(dtMs: number): void {
     this.tMs += dtMs;
+    this.updateShow(dtMs);
 
-    // 登场：3 秒从熔岩里升起
-    if (this.riseMs < 3000) {
-      this.riseMs += dtMs;
-      const k = clamp(this.riseMs / 3000, 0, 1);
-      this.sink = 1.0 - easeInOut(k);
+    if (this.dead) return;
+
+    // 冷却只在可行动时走
+    if (this.showMode === 'active' && this.brainOn) {
+      for (const k of Object.keys(this.cooldowns) as SkillId[]) {
+        if (this.cooldowns[k] > 0) this.cooldowns[k] = Math.max(0, this.cooldowns[k] - dtMs);
+      }
+
+      this.updateWeakness(dtMs);
+      this.updateSkill(dtMs);
+
+      // Director：25 秒没有弱点就强制补一个
+      if (this.skill === null && this.tMs - this.lastExposeMs > 25000 && this.weakness === null) {
+        this.expose('core', 2500);
+      }
+    } else if (this.weakness !== null) {
+      this.updateWeakness(dtMs);
     }
 
-    // 缩放（阶段切换时拔高）
-    const targetScale = this.phase === 2 ? HEIGHT_2 / HEIGHT_1 : 1;
-    this.scaleNow += (targetScale - this.scaleNow) * Math.min(1, dtMs / 600);
-    this.build.rig.root.scale.setScalar(this.scaleNow);
-    this.root.position.y = -this.sink * 3.2;
-
-    // 冷却
-    for (const k of Object.keys(this.cooldowns) as SkillId[]) {
-      if (this.cooldowns[k] > 0) this.cooldowns[k] = Math.max(0, this.cooldowns[k] - dtMs);
-    }
-
-    this.updateWeakness(dtMs);
-    this.updateSkill(dtMs);
     this.updateIdleAnim();
+  }
 
-    // Director：25 秒没有弱点就强制补一个
-    if (this.skill === null && this.tMs - this.lastExposeMs > 25000 && this.weakness === null) {
-      this.expose('core', 2500);
+  /** 登场/下沉/升起：只改 root 的 y 与 rig 的 scale，不碰模型 */
+  private updateShow(dtMs: number): void {
+    if (this.showMode === 'hidden' || this.showMode === 'dead') return;
+
+    if (this.showMode === 'active' || this.showMode === 'frozen') {
+      if (this.showMode === 'active') {
+        const target = this.phase === 2 ? HEIGHT_2 / HEIGHT_1 : 1;
+        this.scaleNow += (target - this.scaleNow) * Math.min(1, dtMs / 600);
+      }
+      this.root.position.y = 0;
+      this.build.rig.root.scale.setScalar(this.scaleNow);
+      return;
+    }
+
+    this.showT += dtMs;
+    const k = clamp(this.showT / this.showDur, 0, 1);
+    // 登场用 ease-out；下沉/升起用 ease-in-out
+    const e = this.showMode === 'spawning' ? 1 - Math.pow(1 - k, 3) : easeInOut(k);
+
+    this.root.position.y = this.showFromY + (this.showToY - this.showFromY) * e;
+    this.scaleNow = this.showFromScale + (this.showToScale - this.showFromScale) * e;
+    this.build.rig.root.scale.setScalar(this.scaleNow);
+
+    if (k >= 1) {
+      if (this.showMode === 'spawning') {
+        this.showMode = 'active';
+        this.brainOn = true;
+      } else if (this.showMode === 'rising') {
+        this.showMode = 'active';
+        this.brainOn = false;
+      } else if (this.showMode === 'sinking') {
+        this.showMode = 'frozen';
+      }
     }
   }
 
@@ -407,15 +526,19 @@ export class IgnisBoss {
     if (id === 'rockSweep') {
       // 收招硬直 1 秒的内嵌小破绽
       window.setTimeout(() => {
+        if (!this.brainOn || this.dead) return;
         if (this.skill === null || this.skill === 'rockSweep') this.expose('core', 1000);
       }, def.activeMs + def.recoveryMs - 200);
     } else if (id === 'leapSlam') {
-      window.setTimeout(() => this.expose('core', 3000), 260);
+      window.setTimeout(() => {
+        if (this.brainOn && !this.dead) this.expose('core', 3000);
+      }, 260);
     } else if (id === 'coreDrain') {
       // 汲取：每 250ms 回 1%
       const ticks = Math.floor(def.activeMs / 250);
       for (let i = 0; i < ticks; i++) {
         window.setTimeout(() => {
+          if (!this.brainOn || this.dead) return;
           if (this.skill !== 'coreDrain') return;
           const heal = Math.round(this.maxHp * 0.01);
           this.hp = Math.min(this.maxHp, this.hp + heal);
@@ -429,6 +552,7 @@ export class IgnisBoss {
       const dur = def.activeMs;
       const t0 = performance.now();
       const step = (): void => {
+        if (this.dead || this.showMode !== 'active' || !this.brainOn) return;
         const k = clamp((performance.now() - t0) / dur, 0, 1);
         this.root.position.x = start.x + dir.x * 18 * k;
         this.root.position.z = start.z + dir.z * 18 * k;
@@ -451,7 +575,7 @@ export class IgnisBoss {
       rig.elbowR.rotation.x = -Math.abs(swing) * 0.25;
     } else if (this.skill === 'leapSlam') {
       const up = Math.sin(clamp(k * 1.4, 0, 1) * Math.PI);
-      this.root.position.y = -this.sink * 3.2 + up * 6;
+      this.root.position.y = up * 6;
       rig.shoulderL.rotation.x = -up * 0.9;
       rig.shoulderR.rotation.x = -up * 0.9;
     } else if (this.skill === 'coreDrain') {
@@ -477,8 +601,11 @@ export class IgnisBoss {
   }
 
   private die(): void {
-    this.bus.emit('BossPhaseChanged', { from: this.phase, to: 2 });
+    this.dead = true;
+    this.brainOn = false;
+    this.showMode = 'dead';
     this.closeWeakness();
     this.skill = null;
+    this.root.visible = false;
   }
 }

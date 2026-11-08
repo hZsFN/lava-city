@@ -35,6 +35,8 @@ export interface PlayerConfig {
     dashIFramesSec: number;
     dashCooldownSec: number;
     jumpHeight: number;
+    /** 眼高（第一人称镜头与演出镜头共用；config/player.json 已提供） */
+    eyeHeight: number;
     radius: number;
     height: number;
   };
@@ -53,12 +55,16 @@ export interface PlayerInput {
   /** 前为正 */
   moveZ: number;
   yaw: number;
+  /** 俯仰（弧度），正为抬头 */
+  pitch?: number;
   jump: boolean;
   dash: boolean;
 }
 
 const IDLE_INPUT: PlayerInput = { moveX: 0, moveZ: 0, yaw: 0, jump: false, dash: false };
 const EPS = 1e-4;
+/** 站在平台顶面上时允许的下陷量（米）；超过它才算卡进侧壁 */
+const GROUND_SNAP_TOLERANCE = 0.35;
 
 interface Vec2 {
   x: number;
@@ -88,6 +94,7 @@ export class PlayerController {
   private y = 0;
   private z = 0;
   private yaw = 0;
+  private pitch = 0;
   private vy = 0;
   private readonly maxHp: number;
   private hp: number;
@@ -123,6 +130,14 @@ export class PlayerController {
     [this.x, this.y, this.z] = opts.spawn;
     this.bus.emit('PlayerSpawned', { pos: this.pos });
     this.syncSnapshot();
+  }
+
+  get yawAngle(): number {
+    return this.yaw;
+  }
+
+  get pitchAngle(): number {
+    return this.pitch;
   }
 
   get pos(): Vec3 {
@@ -166,6 +181,7 @@ export class PlayerController {
     if (dt <= 0) return;
 
     this.yaw = input.yaw;
+    this.pitch = input.pitch ?? 0;
     this.tickTimers(dt);
     this.handleDash(input);
     this.handleJump(input);
@@ -284,6 +300,8 @@ export class PlayerController {
 
     const r = this.cfg.movement.radius;
     for (const b of this.world.colliders) {
+      // overlapsBody 已经用 GROUND_SNAP_TOLERANCE 排除了"站在顶面上"的情况，
+      // 所以能走到这里就说明是真的卡进侧壁了，吸附到边界是正确解。
       if (!this.overlapsBody(b)) continue;
       if (axis === 'x') {
         this.x = delta > 0 ? b.minX - r : b.maxX + r;
@@ -352,7 +370,13 @@ export class PlayerController {
 
   private overlapsBody(b: Aabb): boolean {
     if (!this.overlapsHorizontally(b)) return false;
-    return this.y < b.maxY - EPS && this.y + this.cfg.movement.height > b.minY + EPS;
+    // 站在平台顶面上不算"卡进体内"。
+    // 原来用 EPS(1e-4) 做容差，重力会让 y 略微小于 b.maxY，于是每一帧都
+    // 被判定成撞墙 —— 而撞墙处理是"吸附到盒子边界"，直接把玩家瞬移到
+    // 平台边缘（23.55 米外）。容差放宽到 0.35 米：脚底低于顶面 35 厘米以上
+    // 才算真的卡进侧壁里。
+    return this.y < b.maxY - GROUND_SNAP_TOLERANCE
+      && this.y + this.cfg.movement.height > b.minY + EPS;
   }
 
   private syncSnapshot(): void {

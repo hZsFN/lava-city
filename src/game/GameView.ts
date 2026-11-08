@@ -42,8 +42,10 @@ export function createGameView(deps: {
   camera: THREE.PerspectiveCamera;
   bus: Bus;
   game: Game;
+  /** 只读视角源：相机直接读它，不经固定步长的逻辑帧 */
+  aim: () => { yaw: number; pitch: number };
 }): GameView {
-  const { scene, camera, bus, game } = deps;
+  const { scene, camera, bus, game, aim } = deps;
 
   // 第一人称武器外观：长剑 / 法伤枪，跟随相机
   const viewModel = createViewModel({ camera, scene, bus });
@@ -115,16 +117,20 @@ export function createGameView(deps: {
   function sync(): void {
     viewModel.update();
 
-    // 1. 塔位状态色
+    // 1. 塔位状态色 + 准备期高亮脉冲（0:40–0:50「塔位亮起」）
+    const snap = game.snapshot();
+    const prepPulse =
+      snap.phase === 'prep' ? 0.55 + Math.sin(performance.now() * 0.006) * 0.4 : 0;
     for (const slot of game.towers.slots()) {
       const mesh = slotMeshes.get(slot.slotId);
       if (!mesh) continue;
       const mat = mesh.material as THREE.MeshStandardNodeMaterial;
       mat.color = new THREE.Color(SLOT_COLOR[slot.state]);
+      mat.emissive = new THREE.Color(SLOT_COLOR[slot.state]);
+      mat.emissiveIntensity = slot.state === 'open' ? prepPulse : 0;
     }
 
     // 2. 已建塔（快照是唯一数据源）
-    const snap = game.snapshot();
     const alive = new Set<string>();
     for (const t of snap.towers) {
       alive.add(t.id);
@@ -137,14 +143,20 @@ export function createGameView(deps: {
       if (!alive.has(id)) removeTowerMesh(id);
     }
 
-    // 3. 第一人称相机
+    // 3. 第一人称相机（含俯仰）
     const pos = game.playerPos();
-    const yaw = game.playerYaw();
+    const view = aim();
+    // 位置做一阶平滑：逻辑帧 60Hz、渲染帧率浮动，直接贴会让画面抖
     camera.position.set(pos[0], pos[1] + eyeHeight, pos[2]);
-    camDir.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const cp = Math.cos(view.pitch);
+    camDir.set(
+      -Math.sin(view.yaw) * cp,
+      Math.sin(view.pitch),
+      -Math.cos(view.yaw) * cp,
+    );
     camera.lookAt(
       camera.position.x + camDir.x,
-      camera.position.y,
+      camera.position.y + camDir.y,
       camera.position.z + camDir.z,
     );
   }
