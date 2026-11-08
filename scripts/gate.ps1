@@ -1,11 +1,19 @@
 ﻿param(
+  [switch]$SkipTest,
   [switch]$SkipBuild,
   [switch]$SkipPack
 )
 
 # ============================================================================
-# 全量门禁：一条命令跑完「提交前必须通过」的全部检查。
-# 用法： npm run gate
+# 门禁脚本。两种用法：
+#
+#   npm run gate:fast   只跑 contract + typecheck（约 8 秒，不启动子进程，不弹沙箱）
+#                       —— 日常每改完一个文件跑这个
+#
+#   npm run gate        全量（contract → typecheck → test → build → pack）
+#                       —— 提交前跑一次；test/build 阶段会启动 esbuild 子进程，
+#                          受限沙箱下可能弹「允许一次」，这是已知边界不是错误
+#
 # 任何一步非零退出，整条门禁失败（fail-fast）。
 # ============================================================================
 
@@ -45,8 +53,10 @@ if (-not (Invoke-Step 'contract' "& powershell -NoProfile -ExecutionPolicy Bypas
 # 1. 类型
 if (-not (Invoke-Step 'typecheck' 'npx tsc --noEmit')) { exit 1 }
 
-# 2. 单测
-if (-not (Invoke-Step 'test' 'npx vitest run')) { exit 1 }
+# 2. 单测（会启动 esbuild 子进程，受限沙箱下可能弹提权）
+if (-not $SkipTest) {
+  if (-not (Invoke-Step 'test' 'npx vitest run')) { exit 1 }
+}
 
 # 3. 构建
 if (-not $SkipBuild) {
@@ -59,6 +69,11 @@ if (-not $SkipPack -and -not $SkipBuild) {
 }
 
 Write-Host ""
-Write-Host "[gate] ===== 全部通过 =====" -ForegroundColor Green
-Write-Host "[gate] 可以 commit。推送前请再确认 handoff/<你的会话>.md 已更新。" -ForegroundColor Green
+if ($SkipTest -or $SkipBuild) {
+  Write-Host "[gate] ===== 快速检查通过（未含 test/build/pack）=====" -ForegroundColor Yellow
+  Write-Host "[gate] 提交前请跑完整 npm run gate。" -ForegroundColor Yellow
+} else {
+  Write-Host "[gate] ===== 全部通过 =====" -ForegroundColor Green
+  Write-Host "[gate] 可以 commit。推送前请再确认 handoff/<你的会话>.md 已更新。" -ForegroundColor Green
+}
 exit 0

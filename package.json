@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "pack": "npm run build && powershell -NoProfile -ExecutionPolicy Bypass -File tools/pack-level.ps1",
     "gate": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gate.ps1",
+    "gate:fast": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/gate.ps1 -SkipTest -SkipBuild",
     "contract": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/check-contract.ps1"
   },
   "dependencies": {
