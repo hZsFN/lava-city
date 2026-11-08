@@ -1,5 +1,5 @@
 import type { Bus, Events, EventName } from '../core/events';
-import { formatDamage, hurtFlashStrength } from '../game/feelRules';
+import { formatDamage, hurtFlashStrength, skillTell } from '../game/feelRules';
 
 /**
  * 手感层：受击红闪、低血心跳、命中标记、伤害飘字、暂停菜单。
@@ -28,6 +28,19 @@ const CSS = `
 .gf-num.weak{font-size:26px;color:#ffd36b}.gf-num.crit{font-size:24px}
 @keyframes gf-num{0%{opacity:0;transform:translate(var(--dx),0) scale(.6)}15%{opacity:1;transform:translate(var(--dx),-14px) scale(1.15)}
   100%{opacity:0;transform:translate(calc(var(--dx) * 1.6),-64px) scale(.9)}}
+.gf-tell{position:absolute;left:50%;top:22%;transform:translateX(-50%);display:none;min-width:220px;padding:8px 18px 10px;border-radius:8px;
+  text-align:center;background:rgba(60,8,0,.72);border:1px solid rgba(255,90,40,.8);box-shadow:0 0 24px rgba(255,60,20,.45);color:#ffe0cc}
+.gf-tell.on{display:block;animation:gf-tell-in .16s ease-out}
+.gf-tell b{display:block;font-size:20px;letter-spacing:.12em;color:#ffb07a}.gf-tell span{font-size:12px;color:#ffd0b0;letter-spacing:.08em}
+.gf-tell i{display:block;height:3px;margin-top:6px;border-radius:2px;background:#ff6a2a;transform-origin:left}
+.gf-tell.on i{animation:gf-drain var(--dur,1s) linear forwards}
+@keyframes gf-tell-in{from{opacity:0;transform:translate(-50%,-8px) scale(1.08)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes gf-drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.gf-toasts{position:absolute;left:50%;top:14%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px}
+.gf-toast{padding:6px 14px;border-radius:6px;background:rgba(20,10,6,.86);border:1px solid rgba(255,138,76,.5);color:#ffe0c8;
+  font-size:13px;white-space:nowrap;animation:gf-toast 2.4s ease forwards}
+.gf-toast.good{border-color:#ffd36b;color:#ffe9a8;font-weight:700;font-size:15px}
+@keyframes gf-toast{0%{opacity:0;transform:translateY(-6px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
 .gf-pause{position:fixed;inset:0;z-index:10000;display:none;align-items:center;justify-content:center;pointer-events:auto;
   background:radial-gradient(circle at 50% 45%,rgba(40,12,4,.72),rgba(5,3,6,.9));backdrop-filter:blur(3px)}
 .gf-pause.on{display:flex;animation:gf-fade .18s ease-out}
@@ -63,6 +76,8 @@ export class GameFeel {
   private readonly mark = document.createElement('div');
   private readonly pool: HTMLDivElement[] = [];
   private readonly pauseEl = document.createElement('div');
+  private readonly tell = document.createElement('div');
+  private readonly toasts = document.createElement('div');
   private readonly unsubs: Array<() => void> = [];
   private poolIdx = 0;
   private hurtTimer = 0;
@@ -79,7 +94,9 @@ export class GameFeel {
     this.hurt.className = 'gf-hurt';
     this.low.className = 'gf-low';
     this.mark.className = 'gf-mark';
-    this.root.append(this.low, this.hurt, this.mark);
+    this.tell.className = 'gf-tell';
+    this.toasts.className = 'gf-toasts';
+    this.root.append(this.low, this.hurt, this.mark, this.tell, this.toasts);
     for (let i = 0; i < POOL_SIZE; i += 1) {
       const n = document.createElement('div');
       n.className = 'gf-num';
@@ -99,6 +116,16 @@ export class GameFeel {
     if (this.paused === on) return;
     this.paused = on;
     this.pauseEl.classList.toggle('on', on);
+  }
+
+  /** 玩家可见的短提示（最多同时 3 条，2.4 s 自动淡出） */
+  toast(text: string, good = false): void {
+    const el = document.createElement('div');
+    el.className = good ? 'gf-toast good' : 'gf-toast';
+    el.textContent = text;
+    el.addEventListener('animationend', () => el.remove());
+    this.toasts.appendChild(el);
+    while (this.toasts.childElementCount > 3) this.toasts.firstElementChild?.remove();
   }
 
   dispose(): void {
@@ -151,6 +178,26 @@ export class GameFeel {
     });
     on('PlayerDied', () => this.low.classList.remove('on'));
     on('PlayerRespawned', () => this.low.classList.remove('on'));
+    on('BossSkillStart', (p) => {
+      if (p.stage !== 'windup') { this.tell.classList.remove('on'); return; }
+      const t = skillTell(p.skill);
+      if (!t) return;
+      this.tell.innerHTML = '';
+      const b = document.createElement('b');
+      b.textContent = `⚠ ${t.name}`;
+      const s = document.createElement('span');
+      s.textContent = t.hint;
+      this.tell.append(b, s, document.createElement('i'));
+      this.tell.style.setProperty('--dur', `${Math.max(100, p.durationMs)}ms`);
+      this.restart(this.tell, 'on');
+    });
+    on('BossSkillEnd', () => this.tell.classList.remove('on'));
+    on('BossSkillInterrupted', (p) => {
+      this.tell.classList.remove('on');
+      this.toast(p.by === 'freeze' ? '冻结打断！' : '打断！', true);
+    });
+    on('FreezeFull', () => this.toast('Boss 被冻住了', true));
+    on('KneeBroken', (p) => this.toast(`${p.side === 'L' ? '左' : '右'}膝甲破碎！`, true));
     on('DamageDealt', (p) => {
       if (p.target !== 'boss') return;
       this.popNumber(p.amount, Boolean(p.part), p.isCrit, p.attr === 'arcane' ? '#9fd4ff' : '#fff2e0');

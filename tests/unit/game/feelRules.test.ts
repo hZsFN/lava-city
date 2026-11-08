@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { canPause, formatDamage, hurtFlashStrength, shouldAutoPause } from '../../../src/game/feelRules';
+import { canPause, formatDamage, hurtFlashStrength, shouldAutoPause, skillTell } from '../../../src/game/feelRules';
+
+describe('skillTell', () => {
+  it('六个技能都有预警文案', () => {
+    for (const s of ['rockSweep', 'leapSlam', 'coreDrain', 'stonePillars', 'magmaBreath', 'lavaCharge']) {
+      expect(skillTell(s)?.name).toBeTruthy();
+    }
+  });
+  it('未知技能返回 null', () => expect(skillTell('nope')).toBeNull());
+});
 
 describe('canPause', () => {
   it('战斗与开场阶段可暂停', () => {

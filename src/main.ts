@@ -416,7 +416,7 @@ async function boot(): Promise<void> {
     // 硬锁：连结算层的 lose 分支一起挡住（狂暴吞噬/塔心爆/血尽都算），否则血量锁了照样会弹失败页
     game.timeline.setInvincible(locked);
     hpLockBadge.style.display = locked ? 'flex' : 'none';
-    overlay.setMessage(locked ? '锁血：开 · 不死（K 关闭）' : '锁血：关');
+    notify(locked ? '锁血：开 · 不死（K 关闭）' : '锁血：关');
   };
 
   // ── 4.9 剧情层：表里双世界 + 五幕（迷惘·成长·舍弃·决绝·新生）─────────────
@@ -603,6 +603,11 @@ async function boot(): Promise<void> {
     requestLock();
   };
   const feel = new GameFeel({ bus: game.bus, onResume: resume });
+  // 玩家可见的反馈：DebugOverlay 只在 ?debug=1 显示，建塔/换塔/跳过等结果必须另走 toast
+  const notify = (msg: string): void => {
+    overlay.setMessage(msg);
+    feel.toast(msg);
+  };
 
   let hadLock = false;
   const onLockChange = (): void => {
@@ -739,7 +744,7 @@ async function boot(): Promise<void> {
     input.setLockAllowed(!on);
     app.canvas.style.cursor = on ? 'crosshair' : '';
     if (on && document.pointerLockElement) document.exitPointerLock();
-    overlay.setMessage(
+    notify(
       on
         ? `俯视：点塔位建塔/换塔（旧塔折返 ${Math.round((towersCfgJson.build?.sellRefundRatio ?? 0) * 100)}%）· 1–5 换塔型 · B 返回`
         : '回到第一人称',
@@ -845,7 +850,7 @@ async function boot(): Promise<void> {
   const doSkip = (): void => {
     game.timeline.jumpToBoss1();
     skipBtn.remove();
-    overlay.setMessage('开场跳过 · 伊格纳斯正在上来');
+    notify('开场跳过 · 伊格纳斯正在上来');
   };
   skipBtn.addEventListener('click', doSkip);
   document.body.appendChild(skipBtn);
@@ -858,7 +863,7 @@ async function boot(): Promise<void> {
     if (!slotId) return;
     const slot = game.towers.slots().find((s2) => s2.slotId === slotId);
     if (!slot || (slot.state !== 'open' && slot.state !== 'occupied')) {
-      overlay.setMessage(`${slotId} 不可建（${slot?.state ?? '未知'}）`);
+      notify(`${slotId} 不可建（${slot?.state ?? '未知'}）`);
       return;
     }
     const label = TOWER_LABEL[buildKind];
@@ -866,14 +871,14 @@ async function boot(): Promise<void> {
     if (slot.state === 'occupied') {
       const cur = game.towers.list().find((t) => t.id === slot.towerId);
       if (cur && cur.kind === buildKind) {
-        overlay.setMessage(`${slotId} 已经是${label}了`);
+        notify(`${slotId} 已经是${label}了`);
         return;
       }
       const refund = cur
         ? Math.floor(cur.investedCost * (towersCfgJson.build?.sellRefundRatio ?? 0))
         : 0;
       const ok = game.replaceTower(slotId, buildKind);
-      overlay.setMessage(
+      notify(
         ok
           ? `${slotId} 换塔：${cur ? TOWER_LABEL[cur.kind] : '旧塔'} → ${label}（折返 ${refund}，熔核 ${game.towers.motes()}）`
           : `换塔失败：折返 ${refund} 后仍买不起${label}（造价 ${kindCfg(buildKind).cost ?? '?'}）`,
@@ -882,7 +887,7 @@ async function boot(): Promise<void> {
     }
 
     const ok = game.placeTower(slotId, buildKind);
-    overlay.setMessage(
+    notify(
       ok ? `在 ${slotId} 建了 ${label}（熔核 ${game.towers.motes()}）` : '建塔失败：熔核不足',
     );
   });
@@ -904,7 +909,7 @@ async function boot(): Promise<void> {
     if (event.code === 'KeyE') {
       if (show.interact()) {
         const view = show.flowSnapshot();
-        overlay.setMessage(`教程书 · 第 ${(Number(view.bookPage) || 0) + 1} 页`);
+        notify(`教程书 · 第 ${(Number(view.bookPage) || 0) + 1} 页`);
       }
       return;
     }
@@ -917,7 +922,7 @@ async function boot(): Promise<void> {
         event.preventDefault();
         game.timeline.jumpToBoss1();
         skipBtn.remove();
-        overlay.setMessage('开场跳过 · 伊格纳斯正在上来');
+        notify('开场跳过 · 伊格纳斯正在上来');
         return;
       }
     }
@@ -941,7 +946,7 @@ async function boot(): Promise<void> {
       if (view.isTactical()) {
         buildKind = kind;
         refreshBuildPanel();
-        overlay.setMessage(
+        notify(
           `已选塔型：${TOWER_LABEL[kind]} · ${statLine(kind)} · 点击青色塔位放置/替换`,
         );
         return;
@@ -949,12 +954,12 @@ async function boot(): Promise<void> {
       // 第一人称：保留原来的"一键建到第一个空位"快捷方式
       const openSlot = game.towers.slots().find((s) => s.state === 'open');
       if (!openSlot) {
-        overlay.setMessage('没有可用的开放塔位');
+        notify('没有可用的开放塔位');
         return;
       }
       const ok = game.placeTower(openSlot.slotId, kind);
-      overlay.setMessage(
-        ok ? `在 ${openSlot.slotId} 建了 ${kind}（熔核 ${game.towers.motes()}）`
+      notify(
+        ok ? `在 ${openSlot.slotId} 建了 ${TOWER_LABEL[kind]}（熔核 ${game.towers.motes()}）`
            : `建塔失败：熔核不足或塔位不可用`,
       );
       return;
