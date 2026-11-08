@@ -116,6 +116,7 @@
   },
   "escape": {
     "orbitRadiusM": 8,
+    "orbitEndRadiusM": 14,
     "orbitHeightM": 4,
     "orbitTurns": 1,
     "avatarRiseToM": 34,

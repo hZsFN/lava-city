@@ -575,6 +575,21 @@ async function boot(): Promise<void> {
   });
   document.body.appendChild(tacBtn);
 
+  // 当前塔型常驻标签（俯视时也看得见自己在建哪种）
+  const kindTag = document.createElement('div');
+  Object.assign(kindTag.style, {
+    position: 'fixed', right: '18px', top: '58px', zIndex: '30',
+    padding: '8px 14px', borderRadius: '8px',
+    border: '1px solid rgba(255,138,76,0.5)', background: 'rgba(20,10,6,0.72)',
+    color: '#ffd0a8', font: '600 13px/1 system-ui, sans-serif',
+    pointerEvents: 'none',
+  });
+  const refreshKindTag = (): void => {
+    kindTag.textContent = `当前塔型：${TOWER_LABEL[buildKind]}`;
+  };
+  refreshKindTag();
+  document.body.appendChild(kindTag);
+
   // 俯视时鼠标点击塔位 → 建塔
   app.canvas.addEventListener('mousedown', (event) => {
     if (!view.isTactical() || event.button !== 0) return;
@@ -631,6 +646,7 @@ async function boot(): Promise<void> {
       // 俯视：只切换"手上拿的塔型"，真正建造靠点击塔位
       if (view.isTactical()) {
         buildKind = kind;
+        refreshKindTag();
         overlay.setMessage(`已选塔型：${TOWER_LABEL[kind]} · 点击青色塔位放置`);
         return;
       }

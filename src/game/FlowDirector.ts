@@ -120,7 +120,7 @@ export class FlowDirector {
   private weakness: { part: string; attr: Attr; untilT: number } | null = null;
 
   private failStart = -1;
-  private failT = 0;
+  private failRealStart = 0;
   private failFired = false;
   private readonly failReason: string;
 
@@ -318,7 +318,7 @@ export class FlowDirector {
   startFail(reason = this.failReason): void {
     if (this.failStart >= 0) return;
     this.failStart = 0;
-    this.failT = 0;
+    this.failRealStart = typeof performance !== 'undefined' ? performance.now() : 0;
     this.failFired = false;
     this.overlay.setBlack(0);
     this.overlay.setBlur(0);
@@ -615,7 +615,8 @@ export class FlowDirector {
     if (this.phase === 'escape') {
       this.beam.visible = true;
       this.beam.scale.y = this.cfg.victoryShow.beamToM;
-      this.beamMaterial.opacity = this.cfg.victoryShow.beamOpacity;
+      // 第三人称镜头会穿过光柱：压低不透明度，保证人形与塔身仍可读
+      this.beamMaterial.opacity = 0.09;
       this.beamLight.intensity = 660;
       this.coreLight.intensity = 400;
       this.wash.intensity = this.cfg.victoryShow.washIntensity;
@@ -755,11 +756,12 @@ export class FlowDirector {
         avatarOpacity(k, esc.avatarFadeStartSec, esc.avatarFadeEndSec),
       );
       target = avatarPos.clone().add(new THREE.Vector3(0, 1.2, 0));
+      const radius = esc.orbitRadiusM + (esc.orbitEndRadiusM - esc.orbitRadiusM) * rise;
       pos = target.clone().add(
         new THREE.Vector3(
-          Math.sin(angle) * esc.orbitRadiusM,
+          Math.sin(angle) * radius,
           esc.orbitHeightM,
-          Math.cos(angle) * esc.orbitRadiusM,
+          Math.cos(angle) * radius,
         ),
       );
       fov = this.baseFov;
@@ -1005,19 +1007,22 @@ export class FlowDirector {
 
   private updateFail(dtSec: number): void {
     if (this.failStart < 0) return;
-    this.failT += dtSec;
+    void dtSec;
+    // 失败演出的 0.6 s / 3 s 是真实时间，不随逻辑帧率或 ?speed 缩放
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    const elapsed = Math.max(0, (now - this.failRealStart) / 1000);
     const cfg = this.cfg.fail;
-    const black = clamp01(this.failT / Math.max(1e-6, cfg.blackSec));
+    const black = clamp01(elapsed / Math.max(1e-6, cfg.blackSec));
     const textK =
-      this.failT <= cfg.blackSec
+      elapsed <= cfg.blackSec
         ? 0
-        : clamp01((this.failT - cfg.blackSec) / Math.max(1e-6, cfg.textFadeSec));
+        : clamp01((elapsed - cfg.blackSec) / Math.max(1e-6, cfg.textFadeSec));
     this.overlay.setFail(black, textK, cfg.text);
     this.overlay.setNarration(null);
     this.overlay.setPrompt(null);
     this.overlay.setPages(null);
 
-    if (!this.failFired && this.failT >= cfg.blackSec + cfg.handoffDelaySec) {
+    if (!this.failFired && elapsed >= cfg.blackSec + cfg.handoffDelaySec) {
       this.failFired = true;
       this.onFail(this.failReason);
     }

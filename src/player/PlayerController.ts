@@ -218,7 +218,9 @@ export class PlayerController {
 
   /** Boss 直接命中：固定扣 1 点（血量接力规则 §3.2） */
   takeHit(source: string): number {
-    return this.takeDamage(1, source);
+    // 塔心抗性：Boss 一次攻击只削 0.1 点血。整条血看起来"几乎不掉"，
+    // 但连挨十几下确实会掉一格 —— HUD 显示时取整，所以视觉上是稳的。
+    return this.takeDamage(0.1, source);
   }
 
   /** 就地死亡（熔岩 / 脚本），hp 归零 */

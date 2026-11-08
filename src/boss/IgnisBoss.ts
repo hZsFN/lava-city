@@ -53,6 +53,8 @@ interface SkillDef {
   damage: number;
 }
 
+const APPROACH_SPEED = 1.35;   // 米/秒，Boss 常态逼近塔心的速度
+
 const SKILLS: Record<SkillId, SkillDef> = {
   rockSweep: { windupMs: 900, activeMs: 350, recoveryMs: 1000, cooldownMs: 6000, damage: 35 },
   leapSlam: { windupMs: 1600, activeMs: 250, recoveryMs: 800, cooldownMs: 9000, damage: 50 },
@@ -117,6 +119,15 @@ export class IgnisBoss {
 
   private targetPos: Vec3 = [0, 0, 18];
   private attackDir = new THREE.Vector3(0, 0, 1);
+  /** 最近一次施法瞬间锁定的玩家位置（石柱/吐息判定用） */
+  private castPos: Vec3 = [0, 0, 18];
+
+  // LeapSlam：前摇期间从起跳点抛物线落到玩家当时的位置（M3-01 行为表）
+  private leapFrom = new THREE.Vector3();
+  private leapTo = new THREE.Vector3();
+  private leapStartMs = 0;
+  private leapDurMs = 1;
+  private leapActive = false;
 
   constructor(bus: Bus) {
     this.bus = bus;
@@ -275,6 +286,7 @@ export class IgnisBoss {
     this.showToScale = this.scaleNow;
     this.brainOn = false;
     this.skill = null;
+    this.leapActive = false;
     this.closeWeakness();
   }
 
@@ -294,6 +306,7 @@ export class IgnisBoss {
   freezeBrain(): void {
     this.brainOn = false;
     this.skill = null;
+    this.leapActive = false;
     this.closeWeakness();
     if (this.showMode === 'active') this.showMode = 'frozen';
   }
@@ -309,6 +322,11 @@ export class IgnisBoss {
 
   isDead(): boolean {
     return this.dead;
+  }
+
+  /** 施法瞬间锁定的玩家位置（石柱/吐息命中判定用） */
+  lastCastPos(): Vec3 {
+    return this.castPos;
   }
 
   /** 死亡位置/体型，供胜利碎块演出取用 */
@@ -348,6 +366,7 @@ export class IgnisBoss {
 
       this.updateWeakness(dtMs);
       this.updateSkill(dtMs);
+      this.updateApproach(dtMs);
 
       // Director：25 秒没有弱点就强制补一个
       if (this.skill === null && this.tMs - this.lastExposeMs > 25000 && this.weakness === null) {
@@ -394,6 +413,27 @@ export class IgnisBoss {
         this.showMode = 'frozen';
       }
     }
+  }
+
+  /**
+   * 常态逼近：Boss 朝塔心慢慢走。
+   * 塔防的核心张力来自"它一直在靠近、你必须用塔拦住它"，
+   * 所以移动目标永远是原点（塔心），不是玩家。
+   */
+  private updateApproach(dtMs: number): void {
+    if (this.skill !== null) return;          // 施法中站定
+    if (this.showMode !== 'active') return;
+
+    const dx = 0 - this.root.position.x;
+    const dz = 0 - this.root.position.z;
+    const dist = Math.hypot(dx, dz);
+    const STOP = 6.5;                          // 到塔身外缘就贴着打
+    if (dist <= STOP) return;
+
+    const step = Math.min((APPROACH_SPEED * dtMs) / 1000, dist - STOP);
+    this.root.position.x += (dx / dist) * step;
+    this.root.position.z += (dz / dist) * step;
+    this.root.rotation.y = Math.atan2(dx, dz);
   }
 
   private updateIdleAnim(): void {
@@ -514,9 +554,25 @@ export class IgnisBoss {
     // 面向玩家
     const dx = this.targetPos[0] - this.root.position.x;
     const dz = this.targetPos[2] - this.root.position.z;
+    this.castPos = [this.targetPos[0], 0, this.targetPos[2]];
     if (dx * dx + dz * dz > 0.01) {
       this.root.rotation.y = Math.atan2(dx, dz);
       this.attackDir.set(dx, 0, dz).normalize();
+    }
+
+    // 跃击：落地目标就是施放瞬间的玩家位置（只夹 50 m，防止数值异常飞出场地）
+    if (id === 'leapSlam') {
+      const dist = Math.hypot(dx, dz);
+      const k = dist > 50 ? 50 / dist : 1;
+      this.leapFrom.copy(this.root.position);
+      this.leapTo.set(
+        this.root.position.x + dx * k,
+        0,
+        this.root.position.z + dz * k,
+      );
+      this.leapStartMs = performance.now();
+      this.leapDurMs = Math.max(1, def.windupMs);
+      this.leapActive = true;
     }
   }
 
@@ -574,6 +630,14 @@ export class IgnisBoss {
       rig.shoulderR.rotation.y = -swing;
       rig.elbowR.rotation.x = -Math.abs(swing) * 0.25;
     } else if (this.skill === 'leapSlam') {
+      // 前摇内水平滑到落点；y 的抛物线仍由下面这条算
+      if (this.leapActive) {
+        const lt = clamp((performance.now() - this.leapStartMs) / this.leapDurMs, 0, 1);
+        const e = easeInOut(lt);
+        this.root.position.x = this.leapFrom.x + (this.leapTo.x - this.leapFrom.x) * e;
+        this.root.position.z = this.leapFrom.z + (this.leapTo.z - this.leapFrom.z) * e;
+        if (lt >= 1) this.leapActive = false;
+      }
       const up = Math.sin(clamp(k * 1.4, 0, 1) * Math.PI);
       this.root.position.y = up * 6;
       rig.shoulderL.rotation.x = -up * 0.9;

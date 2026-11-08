@@ -124,6 +124,8 @@ export interface VictoryShowConfig {
 
 export interface EscapeShowConfig {
   orbitRadiusM: number;
+  /** 玩家被吸到塔心后镜头拉远到的半径，避免穿进塔身 */
+  orbitEndRadiusM: number;
   orbitHeightM: number;
   orbitTurns: number;
   avatarRiseToM: number;
