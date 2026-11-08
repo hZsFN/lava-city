@@ -20,7 +20,7 @@ export class App {
   onStats: ((calls: number, triangles: number) => void) | null = null;
   /** 每渲染帧回调，参数是真实 dt（秒）。整合层在这里驱动逻辑。 */
   onTick: ((dtSec: number) => void) | null = null;
-  /** 每帧结束后回调，用于把逻辑状态同步到渲染对象 */
+  /** 每帧渲染前回调，用于把逻辑状态同步到渲染对象 */
   onSync: (() => void) | null = null;
 
   get scene(): THREE.Scene { return this.sceneRef; }
@@ -201,6 +201,7 @@ export class App {
 
     this.spire?.update(dt);
     this.atmosphere?.update(dt);
+    this.onSync?.();
 
     renderer.info.reset();
     if (this.rawMode) {
@@ -209,7 +210,6 @@ export class App {
       postFX.render();
     }
 
-    this.onSync?.();
     this.autoQuality(time, rawDt);
     this.onStats?.(renderer.info.render.drawCalls, renderer.info.render.triangles);
 
