@@ -1,4 +1,12 @@
 {
   "schema": "iw-global-items-v1",
-  "items": []
+  "items": [
+    {
+      "id": "molten_ember_core",
+      "name": "熔心余烬",
+      "type": "weapon",
+      "desc": "从熔心孤塔护罩里取出的晶核，握在手里还是烫的。它记得那场火，愿意在下一次战斗里替你多烧一刀。",
+      "effect": { "stat": "attack", "value": 1, "trigger": "on_enter" }
+    }
+  ]
 }
