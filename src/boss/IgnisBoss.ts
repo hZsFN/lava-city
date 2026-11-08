@@ -43,7 +43,7 @@ const WEAKNESS_ATTR: Record<BodyPart, Attr> = {
 type SkillId = 'rockSweep' | 'leapSlam' | 'coreDrain' | 'stonePillars' | 'magmaBreath' | 'lavaCharge';
 
 /** 演出态：M4-01 的登场/转场/胜利都由这里接管，不改模型本身 */
-type ShowMode = 'hidden' | 'spawning' | 'active' | 'sinking' | 'rising' | 'frozen' | 'dead';
+type ShowMode = 'hidden' | 'spawning' | 'active' | 'sinking' | 'rising' | 'frozen' | 'downed' | 'dead';
 
 interface SkillDef {
   windupMs: number;
@@ -238,7 +238,18 @@ export class IgnisBoss {
     });
     this.bus.emit('BossHpChanged', { hp: this.hp, maxHp: this.maxHp, phase: this.phase });
 
-    if (this.hp === 0) this.die();
+    if (this.hp === 0) {
+      // 阶段 I 血打空不是死，是"岩甲被打碎"——留给转阶段过场把熔火形态顶上来。
+      // 这里只把状态切到 downed（仍可见、不吃伤害），真正的 die 只在阶段 II 发生。
+      if (this.phase === 1) {
+        this.showMode = 'downed';
+        this.skill = null;
+        this.closeWeakness();
+        this.bus.emit('BossHpChanged', { hp: 0, maxHp: this.maxHp, phase: 1 });
+      } else {
+        this.die();
+      }
+    }
     return isWeak;
   }
 
@@ -297,6 +308,9 @@ export class IgnisBoss {
   /** 转阶段：从熔岩里站起来并拔高到阶段 II 体型 */
   beginRise(durMs: number, toScale: number): void {
     this.showMode = 'rising';
+    // 关键：hideForShow/die 会把 root 关掉，起身必须自己打开，
+    // 否则"转完阶段 boss 不见了"——它就是不可见而已。
+    this.root.visible = true;
     this.showT = 0;
     this.showDur = Math.max(1, durMs);
     this.showFromY = this.root.position.y;
@@ -387,6 +401,13 @@ export class IgnisBoss {
   /** 登场/下沉/升起：只改 root 的 y 与 rig 的 scale，不碰模型 */
   private updateShow(dtMs: number): void {
     if (this.showMode === 'hidden' || this.showMode === 'dead') return;
+
+    // 被打倒但没死：停在原地不动，等转阶段过场把它顶起来
+    if (this.showMode === 'downed') {
+      this.root.position.y = this.showToY;
+      this.build.rig.root.scale.setScalar(this.scaleNow);
+      return;
+    }
 
     if (this.showMode === 'active' || this.showMode === 'frozen') {
       if (this.showMode === 'active') {
