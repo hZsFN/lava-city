@@ -280,17 +280,23 @@ export function createViewModel(deps: {
       if (slot.anim > 0) slot.anim = Math.max(0, slot.anim - dt);
     }
 
-    // 挥砍：从右下方向前、向左横扫；不再绕视线轴自转。
-    const swingK = autoEase(physical.anim, SWING_SEC);
-    const swing = Math.sin(swingK * Math.PI);
+    // 挥砍：自上向下劈砍。起手把刀从头顶前方高举过头，随挥砍大幅劈落、
+    // 穿过准星落到前下方——比之前的侧向横扫幅度和角度都大很多。
+    // swing = autoEase 给的是 0→1（动画剩余时间从满到 0），0 是起手、1 是收尾。
+    const chopK = autoEase(physical.anim, SWING_SEC);
+    const CHOP_RAISE = 1.2; // 起手高举幅度（rad），刀尖从水平抬到偏上
+    const CHOP_SWING = 1.05; // 落刀下劈幅度（rad），从高举一路劈到水平线下
+    const chop = chopK * (2 - chopK); // 轻微 ease-in：抬手快、劈落带加速
     physical.group.rotation.set(
-      physical.baseRot.x - swing * 0.38,
-      physical.baseRot.y + swing * 1.05,
+      physical.baseRot.x + CHOP_RAISE - (CHOP_RAISE + CHOP_SWING) * chop,
+      physical.baseRot.y + chop * 0.22,
       physical.baseRot.z,
     );
+    // 劈砍带动身体：先略微后收再前压，刀往下沉、向前刺，幅度明显。
     physical.group.position.copy(physical.basePos);
-    physical.group.position.x -= swing * 0.12;
-    physical.group.position.z -= swing * 0.16;
+    physical.group.position.x -= chop * 0.08;
+    physical.group.position.y -= chop * 0.26;
+    physical.group.position.z -= chop * 0.2;
 
     // 后坐：小幅抬头 + 后退，幅度比之前小很多。
     const recoilK = autoEase(arcane.anim, RECOIL_SEC);

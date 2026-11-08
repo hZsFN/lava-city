@@ -43,6 +43,9 @@ interface SkillDef {
 
 const ORBIT_RADIUS = 28;        // 米，Boss 巡游所在的熔岩环带（中环 24 与外环 32 之间）
 const ORBIT_SPEED = 0.16;       // 弧度/秒，绕塔心一圈约 39 秒
+// 技能（如 LeapSlam）把 Boss 拽离巡游轨道后，回到轨道点的补位速度（米/秒）。
+// leapSlam 之后原本是瞬间闪回，这里改成有速度的后撤/滑回，视觉更自然。
+const RETREAT_SPEED = 16;       // 米/秒，后撤补位速度
 
 const SKILLS: Record<SkillId, SkillDef> = {
   rockSweep: { windupMs: 900, activeMs: 350, recoveryMs: 1000, cooldownMs: 6000, damage: 35 },
@@ -125,6 +128,8 @@ export class IgnisBoss {
   private leapStartMs = 0;
   private leapDurMs = 1;
   private leapActive = false;
+  /** 技能结束后平滑退回巡游轨道点（true 期间 updateApproach 只滑行补位，不瞬移） */
+  private retreating = false;
 
   constructor(bus: Bus) {
     this.bus = bus;
@@ -457,10 +462,31 @@ export class IgnisBoss {
     if (this.skill !== null) return;
     if (this.showMode !== 'active') return;
 
+    // 动态巡游目标：环绕点不落地，所谓“返航”是回看朝向，不带位移
     this.patrolAngle += (ORBIT_SPEED * dtMs) / 1000;
     const r = ORBIT_RADIUS;
     const x = Math.cos(this.patrolAngle) * r;
     const z = Math.sin(this.patrolAngle) * r;
+
+    // 技能（如 LeapSlam/岩锚拉拽）把 Boss 拽离轨道后，平滑滑回环带，
+    // 而不是在技能结束时瞬间闪回原点。滑行期间保持环带朝向。
+    if (this.retreating) {
+      const dx = x - this.root.position.x;
+      const dz = z - this.root.position.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist <= 0.5) {
+        this.retreating = false;
+        this.root.position.x = x;
+        this.root.position.z = z;
+      } else {
+        const step = Math.min(dist, (RETREAT_SPEED * dtMs) / 1000);
+        this.root.position.x += (dx / dist) * step;
+        this.root.position.z += (dz / dist) * step;
+      }
+      this.root.rotation.y = Math.atan2(-this.root.position.x, -this.root.position.z);
+      return;
+    }
+
     this.root.position.x = x;
     this.root.position.z = z;
     // 始终面朝塔心
@@ -548,6 +574,9 @@ export class IgnisBoss {
       this.bus.emit('BossSkillStart', { skill: this.skill, stage: 'recovery', durationMs: def.recoveryMs });
     } else if (this.skillT >= total) {
       this.bus.emit('BossSkillEnd', { skill: this.skill });
+      // 位移类技能（跃击落地在玩家身边、冲撞冲出去 18 米）结束时会把 Boss 放到
+      // 环带轨道之外；标记 retreating，让 updateApproach 平滑滑回而不是瞬间闪回。
+      if (this.skill === 'leapSlam' || this.skill === 'lavaCharge') this.retreating = true;
       this.skill = null;
       this.skillT = 0;
       this.skillStage = 'windup';
