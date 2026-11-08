@@ -77,12 +77,14 @@ export function createGameView(deps: {
 
   // ── 已建塔：五种独立轮廓 + 深色岩石 PBR，不再使用统一纯色方块 ─────────────
   const towerMeshes = new Map<string, TowerVisual>();
-  const stoneTextures = loadStoneTextures();
+  // 贴图按需加载：没建过塔就不去 load 三张 JPG（无 DOM 的单测环境也不会在这里炸）
+  let stoneTextures: StoneTextures | null = null;
+  const getStoneTextures = (): StoneTextures => (stoneTextures ??= loadStoneTextures());
 
   function ensureTowerMesh(id: string, kind: TowerKind, pos: Vec3): TowerVisual {
     let visual = towerMeshes.get(id);
     if (visual) return visual;
-    visual = createTowerVisual(kind, pos, stoneTextures);
+    visual = createTowerVisual(kind, pos, getStoneTextures());
     scene.add(visual.root);
     towerMeshes.set(id, visual);
     return visual;
@@ -133,6 +135,9 @@ export function createGameView(deps: {
   // ── 每帧同步 ─────────────────────────────────────────────────────────────
   const camDir = new THREE.Vector3();
   const eyeHeight = 1.7;
+  // perf(#13)：alive 提到 sync 外复用，避免每帧新建 Set
+  const alive = new Set<string>();
+  // 塔动画计时（#11 的模型状态动画要按帧推进）
   let lastTowerFrame = performance.now() / 1000;
 
   function sync(): void {
@@ -142,12 +147,12 @@ export function createGameView(deps: {
     const snap = game.snapshot();
     const prepPulse =
       snap.phase === 'prep' ? 0.55 + Math.sin(performance.now() * 0.006) * 0.4 : 0;
-    for (const slot of game.towers.slots()) {
+    for (const slot of snap.towerSlots) {
       const mesh = slotMeshes.get(slot.slotId);
       if (!mesh) continue;
       const mat = mesh.material as THREE.MeshStandardNodeMaterial;
-      mat.color = new THREE.Color(SLOT_COLOR[slot.state]);
-      mat.emissive = new THREE.Color(SLOT_COLOR[slot.state]);
+      mat.color.setHex(SLOT_COLOR[slot.state]);
+      mat.emissive.setHex(SLOT_COLOR[slot.state]);
       mat.emissiveIntensity = slot.state === 'open' ? prepPulse : 0;
     }
 
@@ -155,13 +160,13 @@ export function createGameView(deps: {
     const now = performance.now() / 1000;
     const dt = Math.min(0.1, Math.max(0, now - lastTowerFrame));
     lastTowerFrame = now;
-    const alive = new Set<string>();
+    alive.clear();
     for (const t of snap.towers) {
       alive.add(t.id);
       const visual = ensureTowerMesh(t.id, t.kind as TowerKind, t.pos);
       updateTowerVisual(visual, t.level, t.hp, now, dt);
     }
-    for (const id of [...towerMeshes.keys()]) {
+    for (const id of towerMeshes.keys()) {
       if (!alive.has(id)) removeTowerMesh(id);
     }
 
@@ -172,12 +177,12 @@ export function createGameView(deps: {
       camera.lookAt(tacticalTarget.x, 0, tacticalTarget.z);
       // 塔位做成发光环，俯视时一眼看清哪个能建
       const pulse = 0.6 + Math.sin(performance.now() * 0.004) * 0.35;
-      for (const slot of game.towers.slots()) {
+      for (const slot of snap.towerSlots) {
         const mesh = slotMeshes.get(slot.slotId);
         if (!mesh) continue;
         const mat = mesh.material as THREE.MeshStandardNodeMaterial;
         const open = slot.state === 'open';
-        mat.emissive = new THREE.Color(open ? 0x66ffcc : 0x442222);
+        mat.emissive.setHex(open ? 0x66ffcc : 0x442222);
         mat.emissiveIntensity = open ? pulse : 0.1;
       }
     } else {
@@ -230,7 +235,7 @@ export function createGameView(deps: {
       viewModel.dispose();
       for (const unsub of unsubs) unsub();
       for (const id of [...towerMeshes.keys()]) removeTowerMesh(id);
-      for (const texture of Object.values(stoneTextures)) texture.dispose();
+      for (const texture of Object.values(stoneTextures ?? {})) texture.dispose();
       for (const mesh of slotMeshes.values()) {
         scene.remove(mesh);
         (mesh.material as THREE.Material).dispose();

@@ -5,6 +5,7 @@ import { Lava } from './Lava';
 import { Spire } from './Spire';
 import { Atmosphere } from './Atmosphere';
 import { PostFX } from './PostFX';
+import { AdaptiveQuality } from './AdaptiveQuality';
 import { createArenaPropsView } from './ArenaProps';
 import type { ArenaPropsView } from './ArenaProps';
 import type { ArenaPropsConfig } from '../game/ArenaProps';
@@ -81,6 +82,7 @@ export class App {
   private disposed = false;
 
   private qualityLocked: QualityTier | null = null;
+  private readonly adaptiveQuality = new AdaptiveQuality();
   /** 自动选档探测：窗口按真实墙钟开合，样本是未钳制的真实帧间隔 */
   private qualityProbe: { start: number; skip: number; done: boolean; samples: number[] } = {
     start: 0,
@@ -188,7 +190,9 @@ export class App {
     postFX.onQualityChanged = (tier) => {
       this.lava?.setOctaves(VISUAL.qualityPresets[tier].lavaOctaves);
       this.applyPixelRatio(tier);
+      this.adaptiveQuality.reset();
     };
+    postFX.onManualQualityChanged = (tier) => { this.qualityLocked = tier; };
     this.postFX = postFX;
 
     const quality = this.qualityLocked ?? VISUAL.quality.default;
@@ -216,7 +220,7 @@ export class App {
   private readonly tick = (time: number): void => {
     const renderer = this.renderer;
     const postFX = this.postFX;
-    if (!renderer || !postFX || this.disposed) return;
+    if (!renderer || !postFX || this.disposed || document.hidden) return;
 
     // 首帧只记录时间戳，避免把页面加载耗时算进 dt
     const rawDt = this.lastFrameTime === 0 ? 0 : (time - this.lastFrameTime) / 1000;
@@ -258,7 +262,14 @@ export class App {
    */
   private autoQuality(now: number, rawDt: number): void {
     const probe = this.qualityProbe;
-    if (probe.done || this.qualityLocked || !VISUAL.quality.auto || !this.postFX) return;
+    if (this.qualityLocked || !VISUAL.quality.auto || !this.postFX || this.rawMode || this.postFX.isProfiling()) return;
+    if (probe.done) {
+      const tier = this.adaptiveQuality.sample(
+        rawDt, this.postFX.getQuality(), VISUAL.quality.mediumAboveMs, VISUAL.quality.lowAboveMs,
+      );
+      if (tier) this.postFX.setQuality(tier);
+      return;
+    }
 
     // 开头这一秒是着色器编译与贴图上传，不计入
     if (now - this.firstFrameTime < 1000) return;
@@ -300,6 +311,12 @@ export class App {
 
   /** 后台标签页的帧间隔不代表设备性能：回前台重新采样，而不是过滤所有长帧。 */
   private readonly handleVisibility = (): void => {
+    this.lastFrameTime = 0;
+    this.firstFrameTime = 0;
+    this.frames = 0;
+    this.fpsAccum = 0;
+    this.adaptiveQuality.reset();
+    this.postFX?.resetFrameTime();
     this.resetQualityProbe();
   };
 }

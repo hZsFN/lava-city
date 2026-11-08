@@ -6,6 +6,9 @@ export class DebugOverlay {
   private readonly fpsEl: HTMLSpanElement;
   private readonly hpEl: HTMLSpanElement;
   private readonly messageEl: HTMLDivElement;
+  private lastFps = '';
+  private lastHp = '';
+  private lastMessage = '';
 
   constructor(backend: BackendName) {
     const root = document.createElement('div');
@@ -66,15 +69,23 @@ export class DebugOverlay {
   }
 
   setFps(fps: number): void {
-    this.fpsEl.textContent = fps.toFixed(1);
+    const text = fps.toFixed(1);
+    if (text === this.lastFps) return;
+    this.lastFps = text;
+    this.fpsEl.textContent = text;
   }
 
   setHp(hp: number | null): void {
     // 血量内部是浮点（每次受击 -0.1），显示一律取整，别让 2.5999999 这种东西露出来
-    this.hpEl.textContent = hp === null ? '--（无存档）' : String(Math.max(0, Math.round(hp)));
+    const text = hp === null ? '--（无存档）' : String(Math.max(0, Math.round(hp)));
+    if (text === this.lastHp) return;
+    this.lastHp = text;
+    this.hpEl.textContent = text;
   }
 
   setMessage(text: string): void {
+    if (text === this.lastMessage) return;
+    this.lastMessage = text;
     this.messageEl.textContent = text;
   }
 }

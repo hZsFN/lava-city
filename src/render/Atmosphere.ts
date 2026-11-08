@@ -156,6 +156,7 @@ export class Atmosphere {
     material.fog = false;
 
     const mesh = new THREE.InstancedMesh(geometry, material, cfg.count);
+    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     mesh.name = 'embers';
     mesh.frustumCulled = false;
     mesh.renderOrder = 4;
