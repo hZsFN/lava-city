@@ -1,16 +1,57 @@
 {
-  "maxHp": 100,
-  "eyeHeight": 1.7,
-  "moveSpeed": 6.5,
-  "dashSpeed": 11,
-  "dashInvulnerableSec": 0.25,
-  "jumpHeight": 1.2,
-  "regenDelaySec": 4,
-  "respawnSec": 3,
-  "maxDeaths": 2,
+  "physics": {
+    "logicHz": 60,
+    "gravity": -14.0,
+    "snapToGround": 0.45
+  },
+  "movement": {
+    "moveSpeed": 6.5,
+    "sprintSpeed": 11.0,
+    "sprintAccel": 1.2,
+    "dashIFramesSec": 0.25,
+    "dashCooldownSec": 0.8,
+    "jumpHeight": 1.2,
+    "eyeHeight": 1.7,
+    "radius": 0.35,
+    "height": 1.8
+  },
+  "hp": {
+    "maxHp": 100,
+    "regenDelaySec": 4.0,
+    "regenPerSec": 12.0,
+    "respawnSec": 3,
+    "maxDeaths": 2
+  },
+  "weaponPhysical": {
+    "melee": {
+      "combo": [30, 30, 60],
+      "range": 3.0,
+      "thirdKnockback": 6.0,
+      "swingIntervalSec": 0.45
+    },
+    "anchor": {
+      "chargeSec": 1.0,
+      "damage": 80,
+      "pullToWeakness": true
+    }
+  },
+  "weaponMagic": {
+    "spark": {
+      "damage": 12,
+      "ratePerSec": 5.0
+    },
+    "pierce": {
+      "chargeSec": 1.2,
+      "damage": 90,
+      "passThroughArmor": true
+    }
+  },
   "overheat": {
-    "capacitySec": 4,
-    "cooldownSec": 2
+    "fillSec": 4.0,
+    "cooldownSec": 2.0
+  },
+  "motes": {
+    "start": 6
   },
   "forms": {
     "physical": { "label": "熔岩重锤", "color": "#e9e3d2" },

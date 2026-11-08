@@ -95,6 +95,15 @@ export interface Bus {
   emit<K extends EventName>(k: K, p: Events[K]): void;
   /** 只读快照，供渲染层与 UI 拉取，避免持有逻辑对象引用。 */
   snapshot: () => Snapshot;
+  /**
+   * **内部 API：只有拥有该状态的逻辑模块与单测可以调用。渲染层与 UI 严禁使用。**
+   *
+   * 用途：某些状态每帧都变（如玩家精确 pos/yaw），全靠 emit 太吵。
+   * 由 owner 模块直接写入快照对应字段，保证 snapshot() 始终是最新值。
+   *
+   * v1.1 起固化为正式接口：P2-A 的 PlayerController 依赖它。
+   */
+  __setSnapshot(next: Snapshot): void;
 }
 
 type Handler = (payload: unknown) => void;
@@ -268,6 +277,9 @@ export function createBus(): Bus {
       for (const handler of set) handler(p);
     },
     snapshot: () => state,
+    __setSnapshot(next: Snapshot): void {
+      Object.assign(state, next);
+    },
   };
 }
 
