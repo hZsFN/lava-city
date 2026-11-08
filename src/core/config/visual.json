@@ -4,8 +4,8 @@
     "default": "high",
     "auto": true,
     "sampleSeconds": 3,
-    "lowAboveMs": 22,
-    "mediumAboveMs": 17
+    "lowAboveMs": 30,
+    "mediumAboveMs": 18
   },
   "scene": {
     "background": "#07050a",
@@ -16,11 +16,57 @@
     "fov": 62,
     "near": 0.05,
     "far": 420,
-    "spawn": { "position": [4.6, 25.75, 4.6], "target": [-1.4, 25.1, -6.6] },
+    "spawn": {
+      "position": [
+        4.6,
+        25.75,
+        4.6
+      ],
+      "target": [
+        -1.4,
+        25.1,
+        -6.6
+      ]
+    },
     "shots": {
-      "1": { "position": [6.3, 25.75, 2.2], "target": [-3.0, 25.35, -6.5] },
-      "2": { "position": [0.0, 25.9, 7.55], "target": [0.0, -14, 32], "fov": 74 },
-      "3": { "position": [-4.4, 1.75, 2.6], "target": [0.0, 2.2, 0.0], "fov": 74 }
+      "1": {
+        "position": [
+          6.3,
+          25.75,
+          2.2
+        ],
+        "target": [
+          -3.0,
+          24.6,
+          -6.5
+        ]
+      },
+      "2": {
+        "position": [
+          0.0,
+          25.9,
+          7.55
+        ],
+        "target": [
+          0.0,
+          -4,
+          35
+        ],
+        "fov": 74
+      },
+      "3": {
+        "position": [
+          -4.4,
+          1.75,
+          2.6
+        ],
+        "target": [
+          0.0,
+          3.6,
+          0.0
+        ],
+        "fov": 74
+      }
     }
   },
   "lava": {
@@ -80,11 +126,16 @@
       "pillarWidth": 0.2
     },
     "midRing": {
-      "inner": 13.5,
-      "outer": 20,
+      "inner": 8.0,
+      "outer": 24.0,
       "y": 0,
       "thickness": 1.3,
-      "slotAngles": [45, 135, 225, 315],
+      "slotAngles": [
+        45,
+        135,
+        225,
+        315
+      ],
       "slotRadius": 16.75,
       "slotRadiusSize": 1.9,
       "undersideSpikes": 10
@@ -94,12 +145,22 @@
       "outer": 36,
       "y": 0,
       "thickness": 1.5,
-      "slotAngles": [0, 90, 180, 270],
+      "slotAngles": [
+        0,
+        90,
+        180,
+        270
+      ],
       "slotRadius": 34,
       "slotRadiusSize": 1.9
     },
     "bridges": {
-      "angles": [0, 90, 180, 270],
+      "angles": [
+        0,
+        90,
+        180,
+        270
+      ],
       "inner": 20,
       "outer": 32,
       "width": 2.4,
@@ -107,7 +168,11 @@
     },
     "cantilevers": {
       "y": 8,
-      "angles": [90, 210, 330],
+      "angles": [
+        90,
+        210,
+        330
+      ],
       "inner": 9.6,
       "outer": 11,
       "thickness": 0.4
@@ -142,14 +207,41 @@
     }
   },
   "lights": {
-    "hemisphere": { "sky": "#1a0d08", "ground": "#ff4a0a", "intensity": 0.5 },
+    "hemisphere": {
+      "sky": "#4a3326",
+      "ground": "#ff4a0a",
+      "intensity": 0.85
+    },
+    "skyFill": {
+      "color": "#8a6a58",
+      "intensity": 24,
+      "position": [
+        0,
+        80,
+        0
+      ]
+    },
     "key": {
       "color": "#ff7a2a",
       "intensity": 1.6,
-      "position": [0, -30, -20],
-      "shadow": { "cascades": 3, "maxFar": 40, "mapSize": 2048, "bias": -0.0008, "normalBias": 0.06 }
+      "position": [
+        0,
+        -30,
+        -20
+      ],
+      "shadow": {
+        "cascades": 3,
+        "maxFar": 40,
+        "mapSize": 2048,
+        "bias": -0.0008,
+        "normalBias": 0.06
+      }
     },
-    "core": { "color": "#ff5a12", "intensity": 800, "distance": 120 },
+    "core": {
+      "color": "#ff5a12",
+      "intensity": 800,
+      "distance": 120
+    },
     "edge": {
       "color": "#ff5a12",
       "intensity": 120,
@@ -170,21 +262,118 @@
     "color": "#ff8a3a"
   },
   "post": {
-    "gtao": { "enabled": true, "radius": 0.4, "thickness": 1.4, "samples": 16, "resolutionScale": 0.75, "intensity": 0.7 },
-    "ssr": { "enabled": true, "quality": 0.5, "maxDistance": 9, "thickness": 0.35, "intensity": 0.9 },
-    "traa": { "enabled": true },
-    "volumetric": { "enabled": true, "taps": 24, "maxDistance": 95, "warmIntensity": 0.07, "beamIntensity": 0.4 },
-    "bloom": { "enabled": true, "threshold": 0.86, "strength": 0.42, "radius": 0.6, "resolutionScale": 1 },
-    "motionBlur": { "enabled": true, "samples": 12, "intensity": 0.15 },
-    "dof": { "enabled": false, "focusDistance": 16, "focalLength": 28, "bokehScale": 1.4 },
-    "grade": { "enabled": true, "chromatic": 0.12, "vignette": 0.58, "grain": 0.055 },
-    "lut": { "enabled": true, "size": 16, "intensity": 0.85 },
-    "heatHaze": { "enabled": true, "amplitude": 0.0015, "speed": 2.1 }
+    "gtao": {
+      "enabled": true,
+      "radius": 0.4,
+      "thickness": 1.4,
+      "samples": 16,
+      "resolutionScale": 0.75,
+      "intensity": 0.35
+    },
+    "ssr": {
+      "enabled": true,
+      "quality": 0.5,
+      "maxDistance": 9,
+      "thickness": 0.35,
+      "intensity": 0.9
+    },
+    "traa": {
+      "enabled": true
+    },
+    "volumetric": {
+      "enabled": true,
+      "taps": 24,
+      "maxDistance": 95,
+      "warmIntensity": 0.015,
+      "beamIntensity": 0.3
+    },
+    "bloom": {
+      "enabled": true,
+      "threshold": 0.86,
+      "strength": 0.42,
+      "radius": 0.6,
+      "resolutionScale": 1
+    },
+    "motionBlur": {
+      "enabled": true,
+      "samples": 12,
+      "intensity": 0.15
+    },
+    "dof": {
+      "enabled": false,
+      "focusDistance": 16,
+      "focalLength": 28,
+      "bokehScale": 1.4
+    },
+    "grade": {
+      "enabled": true,
+      "chromatic": 0.12,
+      "vignette": 0.32,
+      "grain": 0.055
+    },
+    "lut": {
+      "enabled": true,
+      "size": 16,
+      "intensity": 0.85
+    },
+    "heatHaze": {
+      "enabled": true,
+      "amplitude": 0.0015,
+      "speed": 2.1
+    }
   },
   "qualityPresets": {
-    "ultra": { "pixelRatio": 2, "gtaoScale": 1, "gtaoSamples": 24, "ssrQuality": 0.7, "volumetricTaps": 32, "bloomScale": 1, "motionSamples": 16, "lavaOctaves": 4 },
-    "high": { "pixelRatio": 1.5, "gtaoScale": 0.75, "gtaoSamples": 16, "ssrQuality": 0.5, "volumetricTaps": 24, "bloomScale": 0.75, "motionSamples": 12, "lavaOctaves": 4 },
-    "medium": { "pixelRatio": 1, "gtaoScale": 0.5, "gtaoSamples": 12, "ssrQuality": 0.35, "volumetricTaps": 12, "bloomScale": 0.5, "motionSamples": 8, "lavaOctaves": 3 },
-    "low": { "pixelRatio": 1, "gtaoScale": 0.4, "gtaoSamples": 8, "ssrQuality": 0.2, "volumetricTaps": 8, "bloomScale": 0.35, "motionSamples": 6, "lavaOctaves": 2 }
+    "ultra": {
+      "pixelRatio": 2,
+      "gtao": true,
+      "ssr": true,
+      "motionBlur": true,
+      "gtaoScale": 1,
+      "gtaoSamples": 24,
+      "ssrQuality": 0.7,
+      "volumetricTaps": 32,
+      "bloomScale": 1,
+      "motionSamples": 16,
+      "lavaOctaves": 4
+    },
+    "high": {
+      "pixelRatio": 1.5,
+      "gtao": true,
+      "ssr": true,
+      "motionBlur": true,
+      "gtaoScale": 0.5,
+      "gtaoSamples": 12,
+      "ssrQuality": 0.35,
+      "volumetricTaps": 24,
+      "bloomScale": 0.5,
+      "motionSamples": 8,
+      "lavaOctaves": 4
+    },
+    "medium": {
+      "pixelRatio": 1,
+      "gtao": false,
+      "ssr": false,
+      "motionBlur": false,
+      "gtaoScale": 0.5,
+      "gtaoSamples": 12,
+      "ssrQuality": 0.35,
+      "volumetricTaps": 12,
+      "bloomScale": 0.5,
+      "motionSamples": 8,
+      "lavaOctaves": 3
+    },
+    "low": {
+      "pixelRatio": 1,
+      "gtao": false,
+      "ssr": false,
+      "motionBlur": false,
+      "gtaoScale": 0.4,
+      "gtaoSamples": 8,
+      "ssrQuality": 0.2,
+      "volumetricTaps": 8,
+      "bloomScale": 0.35,
+      "motionSamples": 6,
+      "lavaOctaves": 2
+    }
   }
 }

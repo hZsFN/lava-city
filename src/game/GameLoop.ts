@@ -49,7 +49,9 @@ function toPlayerConfig(raw: unknown): PlayerConfig {
 
 /** 玩家活动世界：塔顶平台（用 arena.json 的尺寸算一个圆形平台的 AABB 包围） */
 function buildPlayerWorld(): PlayerWorld {
-  const ring = arenaCfg.rings.outerRadius;
+  // 玩家活动范围跟中环石台对齐（visual.json 的 spire.midRing.outer），
+  // 否则会走出石台边缘、悬空站在虚空上。
+  const ring = 23.2;
   return {
     colliders: [
       // 塔顶主平台：一个方形包围盒，玩家站在上面
