@@ -105,6 +105,7 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
         moveX: right,
         moveZ: forward,
         yaw,
+        pitch,
         jump: edgeJump,
         dash: edgeDash,
       };

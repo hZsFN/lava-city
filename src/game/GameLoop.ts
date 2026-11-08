@@ -14,7 +14,7 @@
 // ============================================================================
 
 import { createBus } from '../core/events';
-import type { Bus, MatchPhase, Snapshot, Vec3 } from '../core/events';
+import type { Attr, BodyPart, Bus, MatchPhase, Snapshot, Vec3 } from '../core/events';
 import { createRng } from '../core/rng';
 import { createMatchTimeline } from '../flow/MatchTimeline';
 import type { FlowConfig, MatchTimeline } from '../flow/types';
@@ -64,6 +64,15 @@ export interface InputSource {
   sample(): PlayerInput;
 }
 
+/** Boss 的运行时只读视图（由 main.ts 从渲染实体投影出来，逻辑层不 import three） */
+export interface BossRuntimeState {
+  pos: Vec3;
+  weakness: BodyPart | null;
+  weaknessAttr: Attr | null;
+  skill: string | null;
+  taunted: boolean;
+}
+
 export interface Game {
   readonly bus: Bus;
   readonly timeline: MatchTimeline;
@@ -74,6 +83,7 @@ export interface Game {
   snapshot(): Snapshot;
   playerPos(): Vec3;
   playerYaw(): number;
+  playerPitch(): number;
   isOver(): boolean;
   seed(): number;
   /** 调试用：手动建塔 */
@@ -91,6 +101,8 @@ export interface GameDeps {
    * 不传时才退回 config/player.json 的兜底值。
    */
   playerHp?: { hp: number; maxHp: number };
+  /** Boss 的实时位置/弱点（未登场时返回 null） */
+  bossState?: () => BossRuntimeState | null;
 }
 
 export function createGame(deps: GameDeps): Game {
@@ -124,7 +136,7 @@ export function createGame(deps: GameDeps): Game {
     bus,
     config: toPlayerConfig(playerCfgJson),
     world: buildPlayerWorld(),
-    spawn: [0, 0, 22],
+    spawn: flowCfg.playerSpawn,
     hp: deps.playerHp
       ? { current: deps.playerHp.hp, max: deps.playerHp.maxHp }
       : undefined,
@@ -141,9 +153,9 @@ export function createGame(deps: GameDeps): Game {
   let over = false;
   bus.on('MatchEnded', () => { over = true; });
 
-  /** wake / prep / ended 阶段塔不开火 */
+  /** 只有两段战斗阶段塔才开火；演出段（含转阶段）全部停火 */
   function canFireNow(phase: MatchPhase): boolean {
-    return phase === 'boss1' || phase === 'transition' || phase === 'boss2' || phase === 'rage';
+    return phase === 'boss1' || phase === 'boss2' || phase === 'rage';
   }
 
   function stepOnce(input: PlayerInput): void {
@@ -153,17 +165,26 @@ export function createGame(deps: GameDeps): Game {
     // 2. 时间轴（可能切阶段 → 触发 MatchPhaseChanged / LavaLevelChanged）
     timeline.update(LOGIC_DT);
 
-    // 3. 塔（Boss 未接入前，用塔心原点当占位目标，保证射程/冷却链路可跑）
+    // 3. 塔：目标是 Boss 的真实位置与弱点（由 main 注入只读视图）
     const snap = bus.snapshot();
+    const boss = deps.bossState
+      ? deps.bossState()
+      : {
+          pos: [0, 0, 0] as Vec3,
+          weakness: snap.boss.weakness,
+          weaknessAttr: weaknessAttr,
+          skill: snap.boss.skill,
+          taunted: false,
+        };
     towers.update(LOGIC_DT, {
       dtSec: LOGIC_DT,
-      canFire: canFireNow(timeline.phase()),
+      canFire: canFireNow(timeline.phase()) && boss !== null,
       boss: {
-        pos: [0, 0, 0],
-        weakness: snap.boss.weakness,
-        weaknessAttr: snap.boss.weakness ? weaknessAttr : null,
-        castingSkill: snap.boss.skill,
-        taunted: false,
+        pos: boss?.pos ?? [0, 0, 0],
+        weakness: boss?.weakness ?? snap.boss.weakness,
+        weaknessAttr: boss?.weaknessAttr ?? weaknessAttr,
+        castingSkill: boss?.skill ?? snap.boss.skill,
+        taunted: boss?.taunted ?? false,
       },
       playerPos: player.pos,
       corePos: [0, 0, 0],
@@ -196,7 +217,9 @@ export function createGame(deps: GameDeps): Game {
     snapshot: () => bus.snapshot(),
     playerPos: () => player.pos,
     // yaw 在 P2-A 里是 private，从只读快照取（快照是唯一对外通道）
-    playerYaw: () => bus.snapshot().player.yaw,
+    // 实时取，不走快照：快照是事件驱动的，转向会滞后一帧到几帧，表现为视角"跳"
+    playerYaw: () => player.yawAngle,
+    playerPitch: () => player.pitchAngle,
     isOver: () => over,
     seed: () => seed,
     placeTower: (slotId, kind) => {

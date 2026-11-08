@@ -109,16 +109,20 @@ export function createGameView(deps: {
   const eyeHeight = 1.7;
 
   function sync(): void {
-    // 1. 塔位状态色
+    // 1. 塔位状态色 + 准备期高亮脉冲（0:40–0:50「塔位亮起」）
+    const snap = game.snapshot();
+    const prepPulse =
+      snap.phase === 'prep' ? 0.55 + Math.sin(performance.now() * 0.006) * 0.4 : 0;
     for (const slot of game.towers.slots()) {
       const mesh = slotMeshes.get(slot.slotId);
       if (!mesh) continue;
       const mat = mesh.material as THREE.MeshStandardNodeMaterial;
       mat.color = new THREE.Color(SLOT_COLOR[slot.state]);
+      mat.emissive = new THREE.Color(SLOT_COLOR[slot.state]);
+      mat.emissiveIntensity = slot.state === 'open' ? prepPulse : 0;
     }
 
     // 2. 已建塔（快照是唯一数据源）
-    const snap = game.snapshot();
     const alive = new Set<string>();
     for (const t of snap.towers) {
       alive.add(t.id);
@@ -131,14 +135,17 @@ export function createGameView(deps: {
       if (!alive.has(id)) removeTowerMesh(id);
     }
 
-    // 3. 第一人称相机
+    // 3. 第一人称相机（含俯仰）
     const pos = game.playerPos();
     const yaw = game.playerYaw();
+    const pitch = game.playerPitch();
+    // 位置做一阶平滑：逻辑帧 60Hz、渲染帧率浮动，直接贴会让画面抖
     camera.position.set(pos[0], pos[1] + eyeHeight, pos[2]);
-    camDir.set(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const cp = Math.cos(pitch);
+    camDir.set(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
     camera.lookAt(
       camera.position.x + camDir.x,
-      camera.position.y,
+      camera.position.y + camDir.y,
       camera.position.z + camDir.z,
     );
   }

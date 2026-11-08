@@ -35,6 +35,8 @@ export interface PlayerConfig {
     dashIFramesSec: number;
     dashCooldownSec: number;
     jumpHeight: number;
+    /** 眼高（第一人称镜头与演出镜头共用；config/player.json 已提供） */
+    eyeHeight: number;
     radius: number;
     height: number;
   };
@@ -53,6 +55,8 @@ export interface PlayerInput {
   /** 前为正 */
   moveZ: number;
   yaw: number;
+  /** 俯仰（弧度），正为抬头 */
+  pitch?: number;
   jump: boolean;
   dash: boolean;
 }
@@ -88,6 +92,7 @@ export class PlayerController {
   private y = 0;
   private z = 0;
   private yaw = 0;
+  private pitch = 0;
   private vy = 0;
   private readonly maxHp: number;
   private hp: number;
@@ -123,6 +128,14 @@ export class PlayerController {
     [this.x, this.y, this.z] = opts.spawn;
     this.bus.emit('PlayerSpawned', { pos: this.pos });
     this.syncSnapshot();
+  }
+
+  get yawAngle(): number {
+    return this.yaw;
+  }
+
+  get pitchAngle(): number {
+    return this.pitch;
   }
 
   get pos(): Vec3 {
@@ -166,6 +179,7 @@ export class PlayerController {
     if (dt <= 0) return;
 
     this.yaw = input.yaw;
+    this.pitch = input.pitch ?? 0;
     this.tickTimers(dt);
     this.handleDash(input);
     this.handleJump(input);
