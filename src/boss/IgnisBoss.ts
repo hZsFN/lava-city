@@ -233,23 +233,25 @@ export class IgnisBoss {
     const dealt = Math.max(1, Math.round(amount * factor * (1 - resist)));
 
     this.hp = Math.max(0, this.hp - dealt);
-    this.bus.emit('DamageDealt', {
-      target: 'boss', amount: dealt, attr, part: hitPart ?? undefined, isCrit: isWeak,
-    });
-    this.bus.emit('BossHpChanged', { hp: this.hp, maxHp: this.maxHp, phase: this.phase });
 
+    // 先把状态定下来再发事件：BossHpChanged 会同步把时间轴推进到 transition，
+    // FlowDirector 随即 beginSink() 把 showMode 改成 'sinking'。如果先发事件、
+    // 后判态，这里就会把刚设好的 sinking 覆盖掉，缓动下沉整段不播。
     if (this.hp === 0) {
-      // 阶段 I 血打空不是死，是"岩甲被打碎"——留给转阶段过场把熔火形态顶上来。
-      // 这里只把状态切到 downed（仍可见、不吃伤害），真正的 die 只在阶段 II 发生。
       if (this.phase === 1) {
+        // 阶段 I 血打空不是死，是"岩甲被打碎"，留给转阶段过场把熔火形态顶上来
         this.showMode = 'downed';
         this.skill = null;
         this.closeWeakness();
-        this.bus.emit('BossHpChanged', { hp: 0, maxHp: this.maxHp, phase: 1 });
       } else {
         this.die();
       }
     }
+
+    this.bus.emit('DamageDealt', {
+      target: 'boss', amount: dealt, attr, part: hitPart ?? undefined, isCrit: isWeak,
+    });
+    this.bus.emit('BossHpChanged', { hp: this.hp, maxHp: this.maxHp, phase: this.phase });
     return isWeak;
   }
 
@@ -402,12 +404,10 @@ export class IgnisBoss {
   private updateShow(dtMs: number): void {
     if (this.showMode === 'hidden' || this.showMode === 'dead') return;
 
-    // 被打倒但没死：停在原地不动，等转阶段过场把它顶起来
-    if (this.showMode === 'downed') {
-      this.root.position.y = this.showToY;
-      this.build.rig.root.scale.setScalar(this.scaleNow);
-      return;
-    }
+    // 被打倒但没死：停在原地不动，等转阶段过场把它顶起来。
+    // 注意不要在这里写 position.y —— showToY 可能已经被 beginSink 改过，
+    // 一写就是瞬移，下沉缓动整段丢失。
+    if (this.showMode === 'downed') return;
 
     if (this.showMode === 'active' || this.showMode === 'frozen') {
       if (this.showMode === 'active') {
