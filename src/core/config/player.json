@@ -62,5 +62,18 @@
   "formSwitch": {
     "durationSec": 0.5,
     "initial": "physical"
+  },
+  "projectiles": {
+    "maxActive": 64,
+    "spark": {
+      "speedMps": 40.0,
+      "lifetimeSec": 1.2,
+      "radiusM": 0.15
+    },
+    "anchor": {
+      "speedMps": 25.0,
+      "lifetimeSec": 2.0,
+      "radiusM": 0.3
+    }
   }
 }
