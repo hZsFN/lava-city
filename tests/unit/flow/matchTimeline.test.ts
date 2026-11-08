@@ -315,4 +315,34 @@ describe('flow/MatchTimeline · 阶段枚举完整性', () => {
       'boss2',
     ]);
   });
+
+  it('270 s 全流程：9 段按序发生（4:00 击杀 → victory → escape → 4:30 结算）', () => {
+    const h = harness();
+    let killed = false;
+
+    for (let i = 0; i < 271 * 60 && !h.timeline.result(); i += 1) {
+      h.timeline.update(1 / 60);
+      if (!killed && h.timeline.tSec() >= 240) {
+        killed = true;
+        h.timeline.notifyBossDefeated();
+      }
+    }
+
+    expect(killed).toBe(true);
+    expect(h.phases.map((p) => p.phase)).toEqual([
+      'wake',
+      'wake',
+      'tutorial',
+      'prep',
+      'boss1',
+      'transition',
+      'boss2',
+      'victory',
+      'escape',
+      'ended',
+    ]);
+    expect(h.phases.map((p) => Math.round(p.tSec))).toEqual([0, 8, 16, 40, 50, 140, 155, 240, 255, 270]);
+    expect(h.ended[0]).toMatchObject({ result: 'win', reason: 'boss_defeated' });
+    expect(h.ended[0].tSec).toBeCloseTo(270, 1);
+  });
 });

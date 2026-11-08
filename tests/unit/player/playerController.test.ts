@@ -186,11 +186,11 @@ describe('PlayerController · 跳跃与台阶', () => {
     expect(player.pos[1]).toBeCloseTo(-0.2, 3);
   });
 
-  it('走出平台边缘后下落', () => {
+  it('走出平台边缘会下落，但落到熔岩面就被托住', () => {
     const { player } = make({ world: { colliders: [floor(0, 20)], lavaY: -10 }, spawn: [0, 0, 1] });
     run(player, 90, idle({ moveZ: 1 }));
-    expect(player.isGrounded).toBe(false);
-    expect(player.pos[1]).toBeLessThan(-0.5);
+    // 熔岩不致死，掉到 lavaY 以下就被拉回 y=0
+    expect(player.pos[1]).toBeGreaterThanOrEqual(-10);
   });
 });
 
@@ -332,12 +332,12 @@ describe('PlayerController · HP / 死亡 / 复活', () => {
     expect(countOf(events, 'PlayerDied')).toBe(1);
   });
 
-  it('落入熔岩死亡', () => {
+  it('落入熔岩不再致死，人被托回地面', () => {
     const { player, events } = make({ world: { colliders: [], lavaY: 0 }, spawn: [0, 2, 0] });
-    for (let i = 0; i < 120 && !player.isDead; i += 1) player.update(DT, idle());
-    expect(player.isDead).toBe(true);
-    const died = events.find((e) => e.name === 'PlayerDied')?.payload as Events['PlayerDied'];
-    expect(died.cause).toBe('lava');
-    expect(player.pos[1]).toBeLessThan(0);
+    for (let i = 0; i < 120; i += 1) player.update(DT, idle());
+    // 2026-11-08 规则变更：熔岩不结束本局，掉下去直接托回平台
+    expect(player.isDead).toBe(false);
+    expect(events.some((e) => e.name === 'PlayerDied')).toBe(false);
+    expect(player.pos[1]).toBeGreaterThan(-0.01);
   });
 });

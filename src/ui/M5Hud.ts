@@ -785,7 +785,11 @@ export class M5Hud {
 
   private setClock(elapsedSec: number, frozen: boolean): void {
     const total = FLOW.matchLengthSec;
-    const remain = Math.max(0, total - Math.min(elapsedSec, total));
+    // 开场（醒来 16s + 读教程 24s + 准备 10s）不占倒计时：
+    // 玩家读完剧情抬头，钟应该还是 4:30，而不是剩 3:2x。
+    const INTRO_SEC = 50;
+    const combatElapsed = Math.max(0, elapsedSec - INTRO_SEC);
+    const remain = Math.max(0, total - Math.min(combatElapsed, total));
     const seconds = frozen ? Math.max(0, Math.floor(remain)) : Math.ceil(remain);
     const text = formatClock(seconds);
     this.setText('clock', this.clockEl, text);
