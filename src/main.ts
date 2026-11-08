@@ -662,7 +662,7 @@ async function boot(): Promise<void> {
   const tacBtn = document.createElement('button');
   tacBtn.textContent = '俯视建塔 (B)';
   Object.assign(tacBtn.style, {
-    position: 'fixed', right: '18px', top: '16px', zIndex: '30',
+    position: 'fixed', right: '18px', top: '16px', zIndex: '9999',
     padding: '10px 16px', borderRadius: '8px', cursor: 'pointer',
     border: '1px solid #ff8a4c', background: 'rgba(20,10,6,0.82)',
     color: '#ffb27a', font: '600 14px/1 system-ui, sans-serif',
@@ -749,7 +749,7 @@ async function boot(): Promise<void> {
   const skipBtn = document.createElement('button');
   skipBtn.textContent = '跳过开场 ▶ 直接开打';
   Object.assign(skipBtn.style, {
-    position: 'fixed', right: '18px', top: '62px', zIndex: '30',
+    position: 'fixed', right: '18px', top: '62px', zIndex: '9999',
     padding: '10px 16px', borderRadius: '8px', cursor: 'pointer',
     border: '1px solid #ffb27a', background: 'rgba(40,16,8,0.88)',
     color: '#ffd0a0', font: '600 14px/1 system-ui, sans-serif',

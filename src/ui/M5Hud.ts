@@ -736,7 +736,8 @@ export class M5Hud {
   private renderPlayer(snap: Snapshot): void {
     const { hp, maxHp, form } = snap.player;
     this.currentForm = form;
-    this.setText('hp', this.hpValueEl, `${Math.max(0, hp)} / ${Math.max(0, maxHp)}`);
+    // 血量内部是浮点（每次受击 -0.1），显示取整，别让 2.9 这种露出来
+    this.setText('hp', this.hpValueEl, `${Math.max(0, Math.round(hp))} / ${Math.max(0, Math.round(maxHp))}`);
 
     const pct = maxHp > 0 ? Math.min(100, Math.max(0, (hp / maxHp) * 100)) : 0;
     this.setWidth('hp', this.hpFillEl, pct);

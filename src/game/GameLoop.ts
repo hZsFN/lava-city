@@ -64,10 +64,17 @@ function buildPlayerWorld(): PlayerWorld {
   // 玩家活动范围跟中环石台对齐（visual.json 的 spire.midRing.outer），
   // 否则会走出石台边缘、悬空站在虚空上。
   const ring = 23.2;
+  // 四道隐形边界墙：平台边缘再往里一点就挡住，别让人一步踩空掉进熔岩。
+  // 墙从 y=-2 立到 y=3，玩家撞上去只会被推开、不会被推出去。
+  const WALL_H = 3;
   return {
     colliders: [
       // 塔顶主平台：一个方形包围盒，玩家站在上面
       { minX: -ring, maxX: ring, minY: -2, maxY: 0, minZ: -ring, maxZ: ring },
+      { minX: -ring - 2, maxX: ring + 2, minY: -2, maxY: WALL_H, minZ: -ring - 2, maxZ: -ring },
+      { minX: -ring - 2, maxX: ring + 2, minY: -2, maxY: WALL_H, minZ: ring, maxZ: ring + 2 },
+      { minX: -ring - 2, maxX: -ring, minY: -2, maxY: WALL_H, minZ: -ring - 2, maxZ: ring + 2 },
+      { minX: ring, maxX: ring + 2, minY: -2, maxY: WALL_H, minZ: -ring - 2, maxZ: ring + 2 },
       // M3-04 场地道具：只追加 platform 类（12 件跳跃平台，0.8 / 1.6 / 2.4 三级链）。
       // 遮挡物（cover）与防御物（defense）故意不加：它们还没有渲染件，
       // 现在塞进世界会让玩家撞到看不见的墙。等渲染落地后再改成 collidersFromProps()。
