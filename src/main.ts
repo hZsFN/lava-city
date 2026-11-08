@@ -1,3 +1,4 @@
+import * as THREE from 'three/webgpu';
 import { App } from './render/App';
 import { DebugOverlay } from './ui/DebugOverlay';
 import { Hud } from './ui/Hud';
@@ -7,12 +8,16 @@ import { createGameView } from './game/GameView';
 import { IgnisBoss } from './boss/IgnisBoss';
 import { createInput } from './game/Input';
 import { FlowDirector } from './game/FlowDirector';
+import { CombatController } from './game/CombatController';
 import { AudioPlayer } from './audio/AudioPlayer';
 import type { AudioStats } from './audio/AudioPlayer';
 import type { TowerKind } from './towers/types';
-import type { BodyPart, MatchPhase } from './core/events';
+import type { Attr, BodyPart, MatchPhase } from './core/events';
 import type { FlowConfig } from './flow/types';
+import type { FormSwitchConfig } from './player/FormSwitch';
+import type { MagicWeaponConfig, PhysicalWeaponConfig, WeaponHit, WeaponInput } from './player/weaponTypes';
 import flowCfgJson from './core/config/flow.json';
+import playerCfgJson from './core/config/player.json';
 
 interface WlSave {
   level: number;
@@ -191,6 +196,63 @@ async function boot(): Promise<void> {
         },
       });
 
+  // ── 3.6 玩家战斗：鼠标 → 武器 → 相机射线 → Boss 结算 ──────────────────────
+  const pc = playerCfgJson as unknown as {
+    formSwitch: FormSwitchConfig;
+    weaponPhysical: PhysicalWeaponConfig;
+    weaponMagic: Omit<MagicWeaponConfig, 'overheat'>;
+    overheat: MagicWeaponConfig['overheat'];
+  };
+
+  let exposed: { part: BodyPart; attr: Attr } | null = null;
+  game.bus.on('WeaknessExposed', (p) => { exposed = { part: p.part, attr: p.attr }; });
+  game.bus.on('WeaknessClosed', (p) => {
+    if (exposed?.part === p.part) exposed = null;
+  });
+
+  const raycaster = new THREE.Raycaster();
+  const aimDir = new THREE.Vector3();
+
+  function resolveBossHit(rangeM: number): WeaponHit | null {
+    const aim = input.aim();
+    const cp = Math.cos(aim.pitch);
+    aimDir
+      .set(-Math.sin(aim.yaw) * cp, Math.sin(aim.pitch), -Math.cos(aim.yaw) * cp)
+      .normalize();
+    raycaster.set(app.camera.position, aimDir);
+    raycaster.far = Number.isFinite(rangeM) ? rangeM : 60;
+    const hit = raycaster.intersectObject(boss.root, true)[0];
+    if (!hit) return null;
+    const p = hit.point;
+    return {
+      target: 'boss',
+      point: [p.x, p.y, p.z],
+      pos: [boss.root.position.x, boss.root.position.y, boss.root.position.z],
+      weakness: exposed ? { part: exposed.part, attr: exposed.attr } : null,
+      // 抗性/减抗由 Boss 自己算，这里只占位
+      resist: { resistArcane: 0, resistPhysical: 0 },
+      debuffs: { scorch: 0, sunder: 0 },
+    };
+  }
+
+  const combat = new CombatController({
+    bus: game.bus,
+    config: {
+      formSwitch: pc.formSwitch,
+      physical: pc.weaponPhysical,
+      magic: { ...pc.weaponMagic, overheat: pc.overheat },
+    },
+    resolveHit: (q) => resolveBossHit(q.rangeM),
+    applyBoss: (o) => {
+      if (o.target !== 'boss' || !o.point) return;
+      // 弱点常量是局部坐标，先把命中点转进 boss 局部空间
+      const local = boss.root.worldToLocal(new THREE.Vector3(o.point[0], o.point[1], o.point[2]));
+      boss.takeDamage(o.baseDamage, o.attr, [local.x, local.y, local.z]);
+    },
+  });
+
+  const NO_WEAPON = { lightPressed: false, lightHeld: false, heavyPressed: false, heavyHeld: false };
+
   // ── 4. 演出 / HUD ────────────────────────────────────────────────────────
   let handoffDone = false;
   let handoffResult: 'win' | 'fail' | null = null;
@@ -353,11 +415,16 @@ async function boot(): Promise<void> {
   let fps = 60;
   let acc = 0;
 
+  // 每帧只取一次武器输入；一帧补多步时，边沿事件只喂给第一步
+  let pendingWeapon: WeaponInput | null = null;
+
   function stepLogic(dt: number): void {
     gated.locked = show.locksPlayer();
     if (!show.isFailing() && !game.isOver()) {
       game.tick(dt);
       boss.update(dt * 1000);
+      combat.update(dt, { weapon: pendingWeapon ?? NO_WEAPON, toggleForm: false });
+      pendingWeapon = null;
       demoStep(dt);
     }
     view.sync();
@@ -365,6 +432,7 @@ async function boot(): Promise<void> {
   }
 
   app.onTick = (dt) => {
+    pendingWeapon = input.weaponInput();
     const real = Math.min(0.1, dt);
     acc += real * speed;
     const budget = Math.max(3, Math.min(160, Math.ceil(real * speed * 60) + 2));

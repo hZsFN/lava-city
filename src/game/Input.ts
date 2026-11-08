@@ -12,6 +12,7 @@
 
 import type { PlayerInput } from '../player/PlayerController';
 import type { InputSource } from './GameLoop';
+import type { WeaponInput } from '../player/weaponTypes';
 
 const KEY = {
   forward: ['KeyW', 'ArrowUp'],
@@ -45,6 +46,11 @@ export interface InputHandle extends InputSource {
   consumeFormSwitch(): boolean;
   /** 本帧是否有"击破"的边沿触发 */
   consumeExecute(): boolean;
+  /**
+   * 取本帧的武器输入（左键轻击 / 右键重击）。
+   * 边沿标志读一次就清，因为一帧可能补多步逻辑，边沿只该喂给第一步。
+   */
+  weaponInput(): WeaponInput;
 }
 
 export function createInput(canvas: HTMLCanvasElement): InputHandle {
@@ -70,6 +76,10 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   let edgeJump = false;
   let edgeFormSwitch = false;
   let edgeExecute = false;
+  let lightHeld = false;
+  let heavyHeld = false;
+  let edgeLight = false;
+  let edgeHeavy = false;
 
   function has(codes: readonly string[]): boolean {
     return codes.some((c) => pressed.has(c));
@@ -132,10 +142,34 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
     edgeDash = edgeJump = edgeFormSwitch = edgeExecute = false;
   };
 
+  // 鼠标左右键：左键轻击、右键重击。只在指针锁定时生效。
+  function onMouseDown(e: MouseEvent): void {
+    if (!locked) return;
+    if (e.button === 0) {
+      lightHeld = true;
+      edgeLight = true;
+    } else if (e.button === 2) {
+      heavyHeld = true;
+      edgeHeavy = true;
+    }
+  }
+
+  function onMouseUp(e: MouseEvent): void {
+    if (e.button === 0) lightHeld = false;
+    else if (e.button === 2) heavyHeld = false;
+  }
+
+  function onContextMenu(e: Event): void {
+    e.preventDefault();
+  }
+
   canvas.addEventListener('click', onClick);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mousedown', onMouseDown);
+  window.addEventListener('mouseup', onMouseUp);
+  canvas.addEventListener('contextmenu', onContextMenu);
   window.addEventListener('blur', onBlur);
   document.addEventListener('pointerlockchange', onPointerLockChange);
 
@@ -177,11 +211,26 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
       return v;
     },
 
+    weaponInput(): WeaponInput {
+      const v: WeaponInput = {
+        lightPressed: edgeLight,
+        lightHeld,
+        heavyPressed: edgeHeavy,
+        heavyHeld,
+      };
+      edgeLight = false;
+      edgeHeavy = false;
+      return v;
+    },
+
     dispose(): void {
       canvas.removeEventListener('click', onClick);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mousedown', onMouseDown);
+    window.removeEventListener('mouseup', onMouseUp);
+    canvas.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('blur', onBlur);
       document.removeEventListener('pointerlockchange', onPointerLockChange);
       if (document.pointerLockElement === canvas) document.exitPointerLock();
