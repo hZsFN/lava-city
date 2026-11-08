@@ -251,6 +251,10 @@ async function boot(): Promise<void> {
     },
   });
 
+  // 初始形态对齐：CombatController 起手是 player.json 的 formSwitch.initial（physical），
+  // 而 events.ts 的快照默认是 arcane —— 不对齐会让 HUD 显示"法术形态"却拿着物理武器。
+  game.bus.emit('FormSwitched', { form: pc.formSwitch.initial });
+
   const NO_WEAPON = { lightPressed: false, lightHeld: false, heavyPressed: false, heavyHeld: false };
 
   // ── 4. 演出 / HUD ────────────────────────────────────────────────────────
@@ -311,6 +315,19 @@ async function boot(): Promise<void> {
   overlay.setMessage('熔心孤塔 · 点击画面锁定鼠标，WASD 移动');
 
   // ── 5. 事件接线 ──────────────────────────────────────────────────────────
+  // TEMP-BOSS-PROBE 排查「Boss 不打人」，验完删
+  window.setInterval(() => {
+    const b = bossRef;
+    if (!b) return;
+    const st = b.state;
+    const pp = game.playerPos();
+    const dist = Math.hypot(pp[0] - b.root.position.x, pp[2] - b.root.position.z);
+    const snap = game.snapshot();
+    console.info(`[probe] phase=${snap.phase} bossVis=${b.root.visible} y=${b.root.position.y.toFixed(1)} skill=${st.skill ?? '-'} hp=${snap.player.hp}/${snap.player.maxHp} dist=${dist.toFixed(1)}`);
+  }, 1000);
+  game.bus.on('BossSkillStart', (p) => {
+    console.info(`[probe] skillStart ${p.skill} ${p.stage}`);
+  });
   let lastPhase: MatchPhase = game.snapshot().phase;
   game.bus.on('MatchPhaseChanged', (p) => {
     lastPhase = p.phase;
@@ -417,14 +434,16 @@ async function boot(): Promise<void> {
 
   // 每帧只取一次武器输入；一帧补多步时，边沿事件只喂给第一步
   let pendingWeapon: WeaponInput | null = null;
+  let pendingToggle = false;
 
   function stepLogic(dt: number): void {
     gated.locked = show.locksPlayer();
     if (!show.isFailing() && !game.isOver()) {
       game.tick(dt);
       boss.update(dt * 1000);
-      combat.update(dt, { weapon: pendingWeapon ?? NO_WEAPON, toggleForm: false });
+      combat.update(dt, { weapon: pendingWeapon ?? NO_WEAPON, toggleForm: pendingToggle });
       pendingWeapon = null;
+      pendingToggle = false;
       demoStep(dt);
     }
     view.sync();
@@ -433,6 +452,7 @@ async function boot(): Promise<void> {
 
   app.onTick = (dt) => {
     pendingWeapon = input.weaponInput();
+    pendingToggle = input.consumeFormSwitch();
     const real = Math.min(0.1, dt);
     acc += real * speed;
     const budget = Math.max(3, Math.min(160, Math.ceil(real * speed * 60) + 2));
@@ -443,11 +463,6 @@ async function boot(): Promise<void> {
       steps += 1;
     }
     if (steps >= budget) acc = 0;
-
-    if (input.consumeFormSwitch()) {
-      const next = game.snapshot().player.form === 'arcane' ? 'physical' : 'arcane';
-      game.bus.emit('FormSwitched', { form: next });
-    }
 
     hud.update(show.hudView(fps));
     overlay.setHp(game.snapshot().player.hp);
