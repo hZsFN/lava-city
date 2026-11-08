@@ -70,7 +70,8 @@ export class DebugOverlay {
   }
 
   setHp(hp: number | null): void {
-    this.hpEl.textContent = hp === null ? '--（无存档）' : String(hp);
+    // 血量内部是浮点（每次受击 -0.1），显示一律取整，别让 2.5999999 这种东西露出来
+    this.hpEl.textContent = hp === null ? '--（无存档）' : String(Math.max(0, Math.round(hp)));
   }
 
   setMessage(text: string): void {
