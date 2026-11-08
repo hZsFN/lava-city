@@ -1,7 +1,7 @@
 // src/player/weaponTypes.ts
 // 武器模块共享类型。纯逻辑：禁止 import three；命中判定由整合层注入。
 
-import type { BodyPart, Vec3 } from '../core/events';
+import type { Attr, BodyPart, Vec3 } from '../core/events';
 import type { DebuffState, ResistState, WeaknessInfo } from '../combat/Damage';
 
 /** 一次攻击查询。几何/距离判定由整合层负责，武器只关心结果 */
@@ -10,7 +10,7 @@ export interface WeaponHitQuery {
   rangeM: number;
 }
 
-/** 命中结果：包含算伤害所需的全部战斗状态 */
+/** 命中结果：几何信息 + 目标坐标 */
 export interface WeaponHit {
   target: 'boss' | 'tower' | 'player';
   /** 实际命中的部位（无部位概念时缺省） */
@@ -21,6 +21,8 @@ export interface WeaponHit {
   debuffs: DebuffState;
   /** 目标世界坐标，供岩锚拉拽使用 */
   pos?: Vec3;
+  /** 射线命中点（世界坐标），交给 Boss 判定弱点 */
+  point?: Vec3;
 }
 
 export type ResolveWeaponHit = (query: WeaponHitQuery) => WeaponHit | null;
@@ -37,13 +39,16 @@ export interface WeaponInput {
   heavyHeld: boolean;
 }
 
-/** 一次成功攻击的结果，交给整合层做表现/位移 */
+/** 一次成功攻击的结果。按方案一：武器只给基础伤害，倍率/抗性由目标（Boss）计算 */
 export interface AttackOutcome {
   kind: 'melee' | 'anchor' | 'spark' | 'pierce';
-  damage: number;
-  isCrit: boolean;
+  /** 基础伤害（未乘弱点倍率/抗性） */
+  baseDamage: number;
+  attr: Attr;
   target: 'boss' | 'tower' | 'player' | null;
   part?: BodyPart;
+  /** 射线命中点（世界坐标） */
+  point?: Vec3;
   /** 岩锚命中弱点时的拉拽目标 */
   pullTo?: Vec3;
   /** 第三段近战的击退强度 */

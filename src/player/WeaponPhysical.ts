@@ -1,9 +1,8 @@
 // src/player/WeaponPhysical.ts
 // 物理形态：熔岩重锤（三段 30/30/60、第三段击退）+ 岩锚（蓄力 1.0s、80、命中弱点拉拽）。
+// 按方案一：武器只产出基础伤害与属性，弱点倍率/抗性由目标（Boss）计算。
 // 纯逻辑：不 import three；命中由整合层通过 resolveHit 注入；数值全部来自 config。
 
-import { computeDamage } from '../combat/Damage';
-import type { Bus } from '../core/events';
 import type {
   AttackOutcome,
   PhysicalWeaponConfig,
@@ -12,13 +11,11 @@ import type {
 } from './weaponTypes';
 
 export interface WeaponPhysicalDeps {
-  bus: Bus;
   config: PhysicalWeaponConfig;
   resolveHit: ResolveWeaponHit;
 }
 
 export class WeaponPhysical {
-  private readonly bus: Bus;
   private readonly cfg: PhysicalWeaponConfig;
   private readonly resolveHit: ResolveWeaponHit;
 
@@ -29,7 +26,6 @@ export class WeaponPhysical {
   private charge = 0;
 
   constructor(deps: WeaponPhysicalDeps) {
-    this.bus = deps.bus;
     this.cfg = deps.config;
     this.resolveHit = deps.resolveHit;
   }
@@ -91,30 +87,12 @@ export class WeaponPhysical {
 
     const outcome: AttackOutcome = {
       kind: 'melee',
-      damage: 0,
-      isCrit: false,
+      baseDamage: base,
+      attr: 'physical',
       target: hit?.target ?? null,
       part: hit?.part,
+      point: hit?.point,
     };
-
-    if (hit) {
-      const result = computeDamage({
-        base,
-        attr: 'physical',
-        resist: hit.resist,
-        debuffs: hit.debuffs,
-        weakness: hit.weakness,
-      });
-      outcome.damage = result.amount;
-      outcome.isCrit = result.isCrit;
-      this.bus.emit('DamageDealt', {
-        target: hit.target,
-        amount: result.amount,
-        attr: 'physical',
-        part: hit.part,
-        isCrit: result.isCrit,
-      });
-    }
 
     if (index === combo.length - 1) {
       outcome.knockback = this.cfg.melee.thirdKnockback;
@@ -128,36 +106,17 @@ export class WeaponPhysical {
 
   private fireAnchor(): AttackOutcome {
     const hit = this.resolveHit({ kind: 'projectile', rangeM: Number.POSITIVE_INFINITY });
-
     const outcome: AttackOutcome = {
       kind: 'anchor',
-      damage: 0,
-      isCrit: false,
+      baseDamage: this.cfg.anchor.damage,
+      attr: 'physical',
       target: hit?.target ?? null,
       part: hit?.part,
+      point: hit?.point,
     };
-    if (!hit) return outcome;
-
-    const result = computeDamage({
-      base: this.cfg.anchor.damage,
-      attr: 'physical',
-      resist: hit.resist,
-      debuffs: hit.debuffs,
-      weakness: hit.weakness,
-    });
-    outcome.damage = result.amount;
-    outcome.isCrit = result.isCrit;
-    if (this.cfg.anchor.pullToWeakness && hit.weakness && hit.pos) {
+    if (this.cfg.anchor.pullToWeakness && hit?.weakness && hit.pos) {
       outcome.pullTo = hit.pos;
     }
-
-    this.bus.emit('DamageDealt', {
-      target: hit.target,
-      amount: result.amount,
-      attr: 'physical',
-      part: hit.part,
-      isCrit: result.isCrit,
-    });
     return outcome;
   }
 }

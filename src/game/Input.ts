@@ -11,6 +11,7 @@
 // ============================================================================
 
 import type { PlayerInput } from '../player/PlayerController';
+import type { WeaponInput } from '../player/weaponTypes';
 import type { InputSource } from './GameLoop';
 
 const KEY = {
@@ -34,6 +35,10 @@ export interface InputHandle extends InputSource {
   consumeFormSwitch(): boolean;
   /** 本帧是否有"击破"的边沿触发 */
   consumeExecute(): boolean;
+  /** 本帧武器输入；边沿只生效一次 */
+  weaponInput(): WeaponInput;
+  /** 相机朝向（射线命中判定用） */
+  aim(): { yaw: number; pitch: number };
 }
 
 export function createInput(canvas: HTMLCanvasElement): InputHandle {
@@ -47,6 +52,12 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   let edgeJump = false;
   let edgeFormSwitch = false;
   let edgeExecute = false;
+
+  // 鼠标左右键
+  let lightHeld = false;
+  let heavyHeld = false;
+  let edgeLight = false;
+  let edgeHeavy = false;
 
   function has(codes: readonly string[]): boolean {
     return codes.some((c) => pressed.has(c));
@@ -77,6 +88,30 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
 
   const onPointerLockChange = (): void => {
     locked = document.pointerLockElement === canvas;
+    if (!locked) {
+      lightHeld = false;
+      heavyHeld = false;
+    }
+  };
+
+  const onMouseDown = (e: MouseEvent): void => {
+    if (!locked) return;
+    if (e.button === 0) {
+      lightHeld = true;
+      edgeLight = true;
+    } else if (e.button === 2) {
+      heavyHeld = true;
+      edgeHeavy = true;
+    }
+  };
+
+  const onMouseUp = (e: MouseEvent): void => {
+    if (e.button === 0) lightHeld = false;
+    else if (e.button === 2) heavyHeld = false;
+  };
+
+  const onContextMenu = (e: MouseEvent): void => {
+    e.preventDefault();
   };
 
   const onClick = (): void => {
@@ -87,12 +122,19 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
   const onBlur = (): void => {
     pressed.clear();
     edgeDash = edgeJump = edgeFormSwitch = edgeExecute = false;
+    lightHeld = false;
+    heavyHeld = false;
+    edgeLight = false;
+    edgeHeavy = false;
   };
 
   canvas.addEventListener('click', onClick);
+  canvas.addEventListener('contextmenu', onContextMenu);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mousedown', onMouseDown);
+  window.addEventListener('mouseup', onMouseUp);
   window.addEventListener('blur', onBlur);
   document.addEventListener('pointerlockchange', onPointerLockChange);
 
@@ -129,11 +171,28 @@ export function createInput(canvas: HTMLCanvasElement): InputHandle {
       return v;
     },
 
+    weaponInput(): WeaponInput {
+      const input: WeaponInput = {
+        lightPressed: edgeLight,
+        lightHeld,
+        heavyPressed: edgeHeavy,
+        heavyHeld,
+      };
+      edgeLight = false;
+      edgeHeavy = false;
+      return input;
+    },
+
+    aim: () => ({ yaw, pitch }),
+
     dispose(): void {
       canvas.removeEventListener('click', onClick);
+      canvas.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('blur', onBlur);
       document.removeEventListener('pointerlockchange', onPointerLockChange);
       if (document.pointerLockElement === canvas) document.exitPointerLock();

@@ -1,8 +1,8 @@
 // src/player/WeaponMagic.ts
 // 法术形态：地脉法杖（火花 12/发 @5 发/s + 过热 4 s / 冷却 2 s；右键引导 1.2 s 地脉穿刺 90）。
+// 按方案一：武器只产出基础伤害与属性，弱点倍率/抗性由目标（Boss）计算。
 // 纯逻辑：不 import three；命中由整合层注入；数值全部来自 config。
 
-import { computeDamage } from '../combat/Damage';
 import type { Bus } from '../core/events';
 import type {
   AttackOutcome,
@@ -125,33 +125,14 @@ export class WeaponMagic {
       rangeM: Number.POSITIVE_INFINITY,
     });
 
-    const outcome: AttackOutcome = {
+    return {
       kind,
-      damage: 0,
-      isCrit: false,
+      baseDamage: base,
+      attr: 'arcane',
       target: hit?.target ?? null,
       part: hit?.part,
+      point: hit?.point,
     };
-    if (!hit) return outcome;
-
-    const result = computeDamage({
-      base,
-      attr: 'arcane',
-      resist: hit.resist,
-      debuffs: hit.debuffs,
-      weakness: hit.weakness,
-    });
-    outcome.damage = result.amount;
-    outcome.isCrit = result.isCrit;
-
-    this.bus.emit('DamageDealt', {
-      target: hit.target,
-      amount: result.amount,
-      attr: 'arcane',
-      part: hit.part,
-      isCrit: result.isCrit,
-    });
-    return outcome;
   }
 
   private emitOverheat(): void {

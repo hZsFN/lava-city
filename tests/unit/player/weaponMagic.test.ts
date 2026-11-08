@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createBus } from '../../../src/core/events';
 import type { Events } from '../../../src/core/events';
 import { WeaponMagic } from '../../../src/player/WeaponMagic';
-import type { MagicWeaponConfig, WeaponHit } from '../../../src/player/weaponTypes';
+import type { AttackOutcome, MagicWeaponConfig, WeaponHit } from '../../../src/player/weaponTypes';
 
 const DT = 1 / 60;
 
@@ -23,12 +23,10 @@ const hit = (over: Partial<WeaponHit> = {}): WeaponHit => ({ ...miss, ...over })
 
 function make(resolve: () => WeaponHit | null = () => hit()) {
   const bus = createBus();
-  const damages: Array<Events['DamageDealt']> = [];
   const overheats: Array<Events['OverheatChanged']> = [];
-  bus.on('DamageDealt', (p) => damages.push(p));
   bus.on('OverheatChanged', (p) => overheats.push(p));
   const weapon = new WeaponMagic({ bus, config: cfg, resolveHit: resolve });
-  return { weapon, damages, overheats };
+  return { weapon, overheats };
 }
 
 const idle = (over: Partial<Parameters<WeaponMagic['update']>[1]> = {}) => ({
@@ -39,50 +37,49 @@ const idle = (over: Partial<Parameters<WeaponMagic['update']>[1]> = {}) => ({
   ...over,
 });
 
-function run(weapon: WeaponMagic, frames: number, over = {}): void {
-  for (let i = 0; i < frames; i += 1) weapon.update(DT, idle(over));
+function run(weapon: WeaponMagic, frames: number, over = {}): AttackOutcome[] {
+  const out: AttackOutcome[] = [];
+  for (let i = 0; i < frames; i += 1) {
+    const attack = weapon.update(DT, idle(over));
+    if (attack) out.push(attack);
+  }
+  return out;
 }
 
 describe('WeaponMagic · 火花', () => {
-  it('按住左键 5 发/秒，每发 12 法术伤害', () => {
-    const { weapon, damages } = make();
-    run(weapon, 60, { lightHeld: true });
-    expect(damages).toHaveLength(5);
-    expect(damages.every((d) => d.attr === 'arcane' && Math.abs(d.amount - 12) < 1e-9)).toBe(true);
+  it('按住左键 5 发/秒，每发 12 基础法术伤害', () => {
+    const { weapon } = make();
+    const shots = run(weapon, 60, { lightHeld: true });
+    expect(shots).toHaveLength(5);
+    expect(shots.every((s) => s.baseDamage === 12 && s.attr === 'arcane')).toBe(true);
   });
 
-  it('没有目标时也按射速消耗，但不产生伤害事件', () => {
-    const { weapon, damages } = make(() => null);
-    run(weapon, 60, { lightHeld: true });
-    expect(damages).toHaveLength(0);
-  });
-
-  it('命中匹配弱点时 ×2.5', () => {
-    const { weapon, damages } = make(() =>
-      hit({ weakness: { part: 'core', attr: 'arcane' }, part: 'core' }),
+  it('命中信息透传给整合层', () => {
+    const { weapon } = make(() =>
+      hit({ weakness: { part: 'core', attr: 'arcane' }, part: 'core', point: [0, 5, 2] }),
     );
-    run(weapon, 12, { lightHeld: true }); // 到首次开火（0.2 s）
-    expect(damages[0].amount).toBeCloseTo(30);
-    expect(damages[0].isCrit).toBe(true);
+    const shots = run(weapon, 12, { lightHeld: true });
+    expect(shots[0].target).toBe('boss');
+    expect(shots[0].part).toBe('core');
+    expect(shots[0].point).toEqual([0, 5, 2]);
+    expect(shots[0].baseDamage).toBe(12);
   });
 });
 
 describe('WeaponMagic · 过热', () => {
   it('连续射击 4 s 进入过热，期间无法开火', () => {
-    const { weapon, damages, overheats } = make();
-    run(weapon, 240, { lightHeld: true });
+    const { weapon, overheats } = make();
+    const shots = run(weapon, 240, { lightHeld: true });
     expect(weapon.isOverheated).toBe(true);
     expect(weapon.heatRatio).toBe(1);
-    expect(damages).toHaveLength(20);
+    expect(shots).toHaveLength(20);
     expect(overheats.at(-1)).toMatchObject({ overheated: true });
 
-    const before = damages.length;
-    run(weapon, 60, { lightHeld: true });
-    expect(damages).toHaveLength(before);
+    expect(run(weapon, 60, { lightHeld: true })).toHaveLength(0);
   });
 
   it('停火 2 s 后过热解除，可以继续开火', () => {
-    const { weapon, damages } = make();
+    const { weapon } = make();
     run(weapon, 240, { lightHeld: true });
     expect(weapon.isOverheated).toBe(true);
 
@@ -90,9 +87,7 @@ describe('WeaponMagic · 过热', () => {
     expect(weapon.isOverheated).toBe(false);
     expect(weapon.heatRatio).toBe(0);
 
-    const before = damages.length;
-    run(weapon, 12, { lightHeld: true });
-    expect(damages.length).toBe(before + 1);
+    expect(run(weapon, 12, { lightHeld: true })).toHaveLength(1);
   });
 
   it('停火时自然散热', () => {
@@ -106,29 +101,32 @@ describe('WeaponMagic · 过热', () => {
 });
 
 describe('WeaponMagic · 地脉穿刺', () => {
-  it('引导满 1.2 s 释放，造成 90 法术伤害', () => {
-    const { weapon, damages } = make();
+  it('引导满 1.2 s 释放，90 基础法术伤害', () => {
+    const { weapon } = make();
     weapon.update(DT, idle({ heavyPressed: true }));
     run(weapon, 72, { heavyHeld: true });
     expect(weapon.chargeRatio).toBe(1);
     const out = weapon.update(DT, idle({ heavyHeld: false }));
     expect(out?.kind).toBe('pierce');
-    expect(out?.damage).toBeCloseTo(90);
-    expect(damages.at(-1)?.attr).toBe('arcane');
+    expect(out?.baseDamage).toBe(90);
+    expect(out?.attr).toBe('arcane');
   });
 
   it('引导未满释放则取消', () => {
-    const { weapon, damages } = make();
+    const { weapon } = make();
     weapon.update(DT, idle({ heavyPressed: true }));
     run(weapon, 30, { heavyHeld: true });
     expect(weapon.update(DT, idle({ heavyHeld: false }))).toBeNull();
-    expect(damages).toHaveLength(0);
   });
 
-  it('穿刺命中匹配弱点时 ×2.5', () => {
-    const { weapon } = make(() => hit({ weakness: { part: 'core', attr: 'arcane' } }));
+  it('穿刺命中信息透传', () => {
+    const { weapon } = make(() =>
+      hit({ weakness: { part: 'core', attr: 'arcane' }, part: 'core' }),
+    );
     weapon.update(DT, idle({ heavyPressed: true }));
     run(weapon, 72, { heavyHeld: true });
-    expect(weapon.update(DT, idle({ heavyHeld: false }))?.damage).toBeCloseTo(225);
+    const out = weapon.update(DT, idle({ heavyHeld: false }));
+    expect(out?.target).toBe('boss');
+    expect(out?.part).toBe('core');
   });
 });
