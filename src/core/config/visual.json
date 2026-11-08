@@ -375,5 +375,9 @@
       "motionSamples": 6,
       "lavaOctaves": 2
     }
+  },
+  "attributes": {
+    "arcane": "#4aa8ff",
+    "physical": "#f0e6cf"
   }
 }

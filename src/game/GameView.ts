@@ -13,6 +13,7 @@
 
 import * as THREE from 'three/webgpu';
 import type { Bus, SlotState, Vec3 } from '../core/events';
+import type { AttackOutcome } from '../player/weaponTypes';
 import type { Game } from './GameLoop';
 import { createViewModel } from '../render/ViewModel';
 
@@ -33,6 +34,8 @@ const SLOT_COLOR: Record<SlotState, number> = {
 export interface GameView {
   /** 每帧调用：同步逻辑状态到场景对象 */
   sync(): void;
+  /** 每次武器产生攻击结果（含空挥/空枪）时调用，驱动第一人称攻击表现 */
+  onAttack(outcome: AttackOutcome): void;
   /** 释放 */
   dispose(): void;
 }
@@ -163,6 +166,7 @@ export function createGameView(deps: {
 
   return {
     sync,
+    onAttack: (outcome) => viewModel.onAttack(outcome),
     dispose(): void {
       viewModel.dispose();
       for (const unsub of unsubs) unsub();
