@@ -1,77 +1,100 @@
-# 票 M5-02 · 音频（全程序化合成，零素材）
+# 票 M5-02 · 音频接入（素材已有，缺的是把它接进游戏）
 
-> 目标：让这个关"有声音"。没有音频的游戏在路演现场会立刻掉档——观众看到画面动、听到的只有鼠标声。
-> **核心约束：一个音频文件都不许有。全部用 Web Audio API 在代码里合成。**
-> 只允许新建 `src/audio/`，不许碰渲染、逻辑、Boss。
+> **前提：音频素材已经做好了**，在 `public/audio/`，由 `tools/gen-audio.py` 程序化合成，零版权。共 5 个文件、约 300 KB：
+>
+> | 文件 | 用途 | 时长 |
+> |---|---|---|
+> | `bgm-molten-heart.ogg` | 主 BGM《渊底》，93 s 无缝循环 | 93 s |
+> | `sfx-execution.ogg` | 击破：低频冲击 + 金属炸裂 | 2.6 s |
+> | `sfx-weakness-open.ogg` | 弱点暴露：上扬金属共鸣 | 1.5 s |
+> | `sfx-hit.ogg` | 受击：短促钝响 | 0.4 s |
+> | `sfx-lava-rise.ogg` | 熔岩上涨：可循环低频涌动 | 7.4 s |
+>
+> **但代码里零引用，没有 `src/audio/` 目录——这五个文件躺在那儿没人播。本票就是把它接上。**
 
-## 【为什么不用素材】
+## 【范围】
 
-1. 交付包体积已经 5.1 MB（含武器模型），再塞 BGM 会很紧。
-2. 免费音效站的授权要逐个核对，时间不够。
-3. **程序化合成的音效和这个题材天生契合**——熔岩、岩石、金属撞击，全是噪声 + 滤波 + 包络就能做像的。
+```
+src/audio/AudioPlayer.ts     （新建，唯一入口）
+src/audio/soundMap.ts        （新建，事件 → 音效的映射表）
+src/core/config/ui.json      （新增 audio 段：各音量初值）
+tools/gen-audio.py           （只允许**追加**新音效，不许改已有五个的合成参数）
+```
 
-一条都不许找现成音频文件，也不许引任何音频库。
+禁止改：`src/render/`、`src/game/`、`src/boss/`、`src/towers/`。
 
-## 【技术底线】
+## 【技术要求】
 
-- 所有声音走一个 `AudioContext`，在**用户第一次点击/按键时**创建（浏览器自动播放策略，必须等用户手势）。
-- 声音必须在 `AudioContext` 暂停状态（`document.hidden`）时静音，避免路演切窗口时还在响。
-- 总音轨数上限 32，同时播放上限 16，超出按优先级踢掉最旧的。
-- 主音量、音效/音乐分轨音量都从 `ui.json` 的 `audio` 段读。
-- 提供 `setMuted(true)` 与 `M` 键切换。
+### 1. 加载与播放
 
-## 【必须做的音效清单】
+用 **Web Audio API + AudioBuffer**，不要 `<audio>` 标签：
 
-每个都用 `OscillatorNode` / `AudioBufferSourceNode(白噪声)` + `BiquadFilter` + `GainNode` 包络合成：
+```ts
+const ctx = new AudioContext();                       // 必须在用户手势后创建
+const buf = await fetch('audio/sfx-hit.ogg')
+  .then(r => r.arrayBuffer())
+  .then(a => ctx.decodeAudioData(a));
+```
 
-| 音效 | 合成思路 | 触发事件 |
-|---|---|---|
-| **脚步** | 白噪声 40 ms，带通 800–1200 Hz，快速衰减；每步随机微调音高 | 玩家移动且落地 |
-| **跳跃 / 落地** | 下行正弦 220→90 Hz，60 ms | 跳跃 / 落地 |
-| **冲刺** | 白噪声扫频 2000→400 Hz，150 ms | `PlayerDashed` |
-| **挥砍** | 带通噪声 300 ms 从 1800→600 Hz，配一个 90 Hz 正弦尾音 | 物理普攻 |
-| **命中（物理）** | 短促方波 140 Hz + 噪声爆点，80 ms | `DamageDealt{attr:'physical'}` |
-| **命中（法术）** | 正弦 720 Hz + 泛音，120 ms 淡出 | `DamageDealt{attr:'arcane'}` |
-| **火球发射** | 噪声 + 高通 1200 Hz，60 ms 上扫 | 法术普攻 |
-| **过热警告** | 两声短促 880 Hz 方波，间隔 90 ms | `OverheatChanged{overheated:true}` |
-| **塔开火** | 低频 thump 60 Hz + 噪声，按塔类型微调 | `TowerTargetHit` |
-| **塔建成** | 三音上行（392/523/659 Hz），各 90 ms | `TowerPlaced` |
-| **塔被毁** | 下行噪声 + 200→50 Hz 扫频，500 ms | `TowerDestroyed` |
-| **弱点暴露** | **本作最重要的音效**：一声金属"叮"（正弦 1200 Hz + 1800 Hz 泛音，300 ms 衰减）+ 低频隆隆底 | `WeaknessExposed` |
-| **击破** | 巨大低频冲击 40 Hz + 白金高频闪光 + 1.2 s 长尾 | `ExecutionStarted` |
-| **Boss 吼叫** | 45 Hz 锯齿波 + 噪声，带慢速颤音，1.5 s | 阶段切换 / 技能前摇 |
-| **Boss 脚步声** | 30 Hz 正弦 + 噪声，每步一次 | Boss 移动 |
-| **熔岩上涨** | 持续低频噪声（80–200 Hz 带通），音量随 `LavaLevelChanged` 的 `y` 升高 | 全程 |
-| **警报（阶段 II 起）** | 两音交替 440/620 Hz，每 2 s 一次，音量很低 | `MatchPhaseChanged{boss2}` |
-| **UI 点击 / 悬停** | 极短 1200 Hz 正弦，30 ms | 按钮 |
-| **胜利** | 四音上行 + 长混响尾 | `MatchEnded{result:'win'}` |
-| **失败** | 单音下行 220→55 Hz，1.2 s | `MatchEnded{result:'lose'}` |
+- 首次点击/按键时才 `new AudioContext()`（浏览器自动播放策略）。
+- 相对路径 `audio/xxx.ogg`，不要写死 `/audio/`（build 后要能相对加载）。
+- BGM 用 `AudioBufferSourceNode` + `loop = true`，循环点已经在文件里做过交叉淡化，直接 loop 即可。
+- 音效每次播放 `new AudioBufferSourceNode`（轻量），播完自动回收。
+- 同时播放上限 16，超出按优先级丢弃最旧的非关键音效。
 
-## 【背景音乐（合成的，不是素材）】
+### 2. 事件映射（`soundMap.ts`）
 
-三段，全部用振荡器 + 滤波器做**极简氛围**，不要旋律：
+| 事件 | 音效 | 增益 | 备注 |
+|---|---|---|---|
+| 页面首次交互 | `bgm-molten-heart` | 0.35 | 开始循环 |
+| `MatchPhaseChanged` → `wake`/`tutorial` | （BGM 不变） | 0.22 | 开头压低 |
+| `MatchPhaseChanged` → `boss1` | （BGM 不变） | 0.40 | 进战斗抬起来 |
+| `MatchPhaseChanged` → `boss2`/`rage` | （BGM 不变） | 0.50 | 再抬 |
+| `MatchPhaseChanged` → `victory` | 渐弱 2 s 后停 | — | 让位给音效 |
+| `WeaknessExposed` | `sfx-weakness-open` | 0.75 | **最重要，必须有** |
+| `ExecutionStarted` | `sfx-execution` | 0.85 | 压过 BGM |
+| `DamageDealt{target:'player'}` | `sfx-hit` | 0.6 | |
+| `PlayerDied` | `sfx-execution` 降调播放 | 0.7 | 用 `playbackRate = 0.6` |
+| `LavaLevelChanged`（`risePerSec > 0`） | `sfx-lava-rise` 循环 | 0.18 | 熔岩一涨就起，停涨渐弱 |
+| `MatchEnded{result:'win'}` | 补一个胜利音（见下） | 0.8 | |
+| `MatchEnded{result:'lose'}` | 补一个失败音（见下） | 0.7 | |
 
-1. **醒来 / 阅读**：一个 55 Hz 正弦持续音 + 极轻的噪声（模拟远处熔岩），音量 0.12。
-2. **战斗**：加入 110 Hz 与 165 Hz 的持续音（纯五度），叠一个每 4 秒一次的 45 Hz 脉冲，音量 0.18。
-3. **阶段 II / 狂暴**：再加一层 220 Hz 稍微失谐的音（制造不安），脉冲加密到 2 秒一次，音量 0.22。
+### 3. 需要补做的音效（用 `tools/gen-audio.py` 追加）
 
-**不许做旋律化的 BGM**——那不是这个题材该有的东西。
+现有 5 个覆盖了"大事件"，**日常操作还是哑的**。按优先级补这四个：
 
-## 【空间感（可选加分项）】
+1. **`sfx-swing.ogg`** — 挥砍：带通噪声 300 ms，1800→600 Hz 扫频，配 90 Hz 正弦尾。41 KB 以内。
+2. **`sfx-tower-build.ogg`** — 建塔：三音上行（392/523/659 Hz），各 90 ms。20 KB。
+3. **`sfx-tower-fire.ogg`** — 塔开火：60 Hz 低频 thump + 噪声，120 ms。20 KB。
+4. **`sfx-alert.ogg`** — 阶段 II 警报：两音交替 440/620 Hz，0.8 s。20 KB。
 
-给 Boss 相关音效加 `PannerNode`，按 Boss 相对玩家的方位做左右声道定位，距离衰减到 40 m 之外听不见。做不完可以跳过，但**弱点暴露**与**Boss 吼叫**这两条必须做定位——玩家需要靠声音判断它在哪。
+追加时**照抄脚本里现有的写法**（`np.sin` + `np.exp` 包络 + `norm` + `sfx()`），不要引入新依赖。生成后同样 `ffmpeg -c:a libvorbis -q:a 4` 转 ogg，并同步更新 `public/audio/README.md` 的表格。
+
+包体新增预算：**≤ 120 KB**（四个音效 + BGM 已在库里）。
+
+### 4. 控制
+
+- `M` 键静音 / 恢复（存 `localStorage`，下次进来保持）。
+- `document.hidden` 时 `ctx.suspend()`，回来 `ctx.resume()`。
+- 主音量 = BGM 音量 × 音效音量，两个滑块（可以只在调试面板里给，不一定要 UI）。
+
+### 5. 定位（可选，做不完可跳）
+
+Boss 相关的 `sfx-weakness-open` 与将来的 Boss 吼叫，用 `PannerNode` 按 Boss 相对方位做左右声道。做不完先做纯 2D 播放，但**弱点暴露那个音必须响**。
 
 ## 【验收】
 
-1. `npm run typecheck` + `npm run build` + `node kit/tools/check.mjs out/` 全过，**包体不得增加超过 20 KB**（证明零素材）。
-2. 起 `npm run dev`，点一下页面激活音频，依次触发：挥砍、命中、弱点暴露、击破、阶段切换，每个都能听到且不爆音（无削波）。
-3. 切到别的标签页 10 秒再切回来，音频不应存在大量堆积播放。
-4. `M` 键静音 / 恢复有效。
-5. 交付说明里贴出每类音效用的节点类型与参数（振荡器波形、滤波频率、包络时间）。
+1. `npm run typecheck` + `npm run build` + `node kit/tools/check.mjs out/` 全过。
+2. 检查 `out/audio/` 里五个原始 ogg 都在（打包没漏）。
+3. `npm run dev`，点一下页面 → **BGM 应当响起**（0.35 增益，能听出低频 drone 和心跳）。
+4. 手动触发 `WeaknessExposed`（调试面板），能听到上扬的金属共鸣。
+5. 触发 `ExecutionStarted`，能听到低频冲击 + 金属炸裂。
+6. 切标签页 10 秒再回来，不应有音效堆积。
+7. `M` 键静音有效，刷新后保持静音状态。
+8. 交付说明里贴出：新增音效的生成命令、`out/audio/` 的文件清单与总大小。
 
 ## 【不许做的事】
 
-- 不许找任何 .mp3/.ogg/.wav 文件。
-- 不许引 Tone.js 之类的音频库。
-- 不许做旋律化 BGM。
-- 不许在页面加载时就 `new AudioContext()`（会被浏览器挂起，还可能有控制台警告）。
+- 不许找任何外部音频素材（已有的五个和要补的四个都必须出自 `gen-audio.py`）。
+- 不许在页面加载时 `new AudioContext()`。
+- 不许把 BGM 做成立即播放（必须等用户手势，否则 Chrome 会挂起并报警告）。
