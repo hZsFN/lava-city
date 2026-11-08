@@ -95,7 +95,7 @@ async function boot(): Promise<void> {
     }
   });
   attachBoss();
-  boss.root.position.set(0, 0, -34);
+  boss.root.position.set(0, 0, 11);
   (window as unknown as Record<string, unknown>).__boss = boss;
 
   app.onTick = (dt) => {

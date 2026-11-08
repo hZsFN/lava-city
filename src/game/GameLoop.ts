@@ -118,7 +118,7 @@ export function createGame(deps: GameDeps): Game {
     bus,
     config: toPlayerConfig(playerCfgJson),
     world: buildPlayerWorld(),
-    spawn: [0, 0, 12],
+    spawn: [0, 0, 22],
     hp: deps.playerHp
       ? { current: deps.playerHp.hp, max: deps.playerHp.maxHp }
       : undefined,

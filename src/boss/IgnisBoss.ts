@@ -104,6 +104,7 @@ export class IgnisBoss {
   private weaknessLeftMs = 0;
   private markers = new Map<BodyPart, THREE.Mesh>();
   private coreLight: THREE.PointLight;
+  private readonly stoneMat: THREE.MeshStandardMaterial;
 
   private targetPos: Vec3 = [0, 0, 18];
   private attackDir = new THREE.Vector3(0, 0, 1);
@@ -118,6 +119,33 @@ export class IgnisBoss {
 
     // 阶段 II 专属网格先藏起来
     for (const m of this.build.phase2Meshes) m.visible = false;
+
+    // 覆盖 IgnisRig 自带的岩石材质：它启用了 vertexColors，在这个场景的强橙光下
+    // 会被染成粉红。这里统一换成近黑的玄武岩，让所有亮度都来自裂缝与熔岩反光。
+    this.stoneMat = new THREE.MeshStandardMaterial({
+      color: 0x060504,
+      roughness: 1.0,
+      metalness: 0.0,
+      flatShading: true,
+      vertexColors: false,
+    });
+    for (const m of this.build.stoneMeshes) m.material = this.stoneMat;
+
+    // 自发光网格：IgnisRig 给的是纯 Basic 材质（不吃光、恒定满亮），
+    // 在 Bloom 下会整片炸成粉色。压到 0.32 倍并改成受光的 Standard，
+    // 只保留"裂缝里透出来的一线光"。
+    for (const m of this.build.glowMeshes) {
+      const old = m.material as THREE.MeshBasicMaterial;
+      const c = old.color ? old.color.clone() : new THREE.Color(0xff5a12);
+      m.material = new THREE.MeshStandardMaterial({
+        color: c.clone().multiplyScalar(0.22),
+        emissive: c,
+        emissiveIntensity: 2.6,
+        roughness: 0.7,
+        metalness: 0,
+        flatShading: true,
+      });
+    }
 
     // 弱点指示器：四颗自发光球，默认不可见
     for (const part of Object.keys(WEAKNESS_POS) as BodyPart[]) {

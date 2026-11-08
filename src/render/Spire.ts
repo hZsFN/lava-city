@@ -654,7 +654,7 @@ export class Spire {
       roughness: 0.42,
       metalness: 0.08,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.35,
       depthWrite: false,
     });
     const core = new THREE.Mesh(new THREE.SphereGeometry(c.radius, 48, 32), shellMaterial);

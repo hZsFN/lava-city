@@ -101,7 +101,7 @@ export class Atmosphere {
       [-40, 40],
       [-40, -40],
     ]) {
-      const fill = new THREE.DirectionalLight(new THREE.Color(0xff5a12), 5.5);
+      const fill = new THREE.DirectionalLight(new THREE.Color(0xff5a12), 4);
       fill.position.set(x, -22, z);
       fill.target.position.set(0, 0, 0);
       fill.castShadow = false;
