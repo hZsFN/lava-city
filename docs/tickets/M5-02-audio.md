@@ -137,3 +137,13 @@ const buf = await fetch('audio/sfx-hit.ogg')          // 相对路径，别写 /
 - 不许找任何外部音频。
 - 不许在页面加载时 `new AudioContext()`。
 - 不许改成 `<audio>` 标签（延迟高、不能叠加、无法精确控制增益曲线）。
+
+## 【接线记录 · 2026-11-08】
+
+`AudioPlayer` 已接进真实游戏，不再只是测试里直连事件总线。
+
+- `src/main.ts`：Boss 创建后 `new AudioPlayer({ bus: game.bus, bossPosition })`；`bossPosition` 读 `bossRef.root.position`。`window.__game.audio()` 暴露 `stats()`（加载进度 / 声部峰值 / 当前 BGM / 静音），`pagehide` 时 `audio.dispose()`。
+- 键位：`M` 静音归 AudioPlayer；原 `M`（+10 熔核调试键）改到 `N`。
+- `src/game/FlowDirector.ts`：删掉 `FlowAudio`（`<audio>` 老链路），改为注入 `AudioPlayer`；事件表已覆盖的命中音不再重复触发，演出点映射到 `sfx-lava-rise` / `sfx-execution` / `sfx-ui-confirm` / `sfx-hit`。`src/game/FlowAudio.ts` 暂留（已无引用），待确认后删。
+- 实测（`?debug=1&t=52&hp=999`，真实 Chromium）：手势后 `context=running`，`67/67` 解码、`fail=0`；BGM 随阶段从 `bgm-boss-phase1` 切到 `bgm-boss-phase2`；一次性声部峰值 3；`M` 开关 `muted` 为 true/false。
+- 校验：`npm run typecheck`、`npm run build`、`node kit/tools/check.mjs out/` 全过（10/10）。`vitest` 另有 2 个 `PlayerController` 碰撞用例失败，与音频无关，改动前即失败。

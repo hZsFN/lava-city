@@ -74,6 +74,15 @@ export class Atmosphere {
     hemi.name = 'lava-hemisphere';
     scene.add(hemi);
 
+    // 穹顶被熔岩照亮后的极弱冷散射：只让向上的石面有 6–12% 亮度，不投影
+    const skyFill = new THREE.DirectionalLight(new THREE.Color(l.skyFill.color), l.skyFill.intensity);
+    skyFill.position.set(...l.skyFill.position);
+    skyFill.target.position.set(0, 0, 0);
+    skyFill.castShadow = false;
+    skyFill.name = 'sky-fill';
+    scene.add(skyFill);
+    scene.add(skyFill.target);
+
     // 主光：从熔岩海向上斜射
     const key = new THREE.DirectionalLight(new THREE.Color(l.key.color), l.key.intensity);
     key.position.set(...l.key.position);
@@ -101,7 +110,7 @@ export class Atmosphere {
       [-40, 40],
       [-40, -40],
     ]) {
-      const fill = new THREE.DirectionalLight(new THREE.Color(0xff5a12), 4);
+      const fill = new THREE.DirectionalLight(new THREE.Color(0xff5a12), 2);
       fill.position.set(x, -22, z);
       fill.target.position.set(0, 0, 0);
       fill.castShadow = false;
@@ -116,7 +125,7 @@ export class Atmosphere {
     scene.add(core);
 
     // 熔心底部向上打的光：照亮塔心竖井内壁，不参与阴影
-    const up = new THREE.SpotLight(new THREE.Color(0xff5a12), 620, 40, 0.85, 0.7, 1.4);
+    const up = new THREE.SpotLight(new THREE.Color(0xff5a12), 340, 40, 0.85, 0.7, 1.4);
     up.position.set(0, -0.6, 0);
     up.target.position.set(0, 16, 0);
     up.castShadow = false;

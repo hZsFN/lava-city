@@ -1,0 +1,93 @@
+[
+  {
+    "stage": "01-wake-dark",
+    "phase": "wake",
+    "tSec": 2.0999999999999974,
+    "flow": {
+      "phase": "wake",
+      "tSec": 2.0999999999999974,
+      "phaseT": 2.0999999999999974,
+      "bossVisible": false,
+      "bossHp": 1400,
+      "bossPhase": 1,
+      "bookNear": false,
+      "bookReading": false,
+      "bookPage": 0,
+      "bookVisible": false,
+      "failing": false,
+      "white": 0
+    },
+    "handoff": {
+      "done": false,
+      "result": null
+    },
+    "hp": 100,
+    "maxHp": 100,
+    "motes": 6,
+    "errors": []
+  },
+  {
+    "stage": "02-wake-line",
+    "phase": "wake",
+    "tSec": 4.499999999999989,
+    "flow": {
+      "phase": "wake",
+      "tSec": 4.499999999999989,
+      "phaseT": 4.499999999999989,
+      "bossVisible": false,
+      "bossHp": 1400,
+      "bossPhase": 1,
+      "bookNear": false,
+      "bookReading": false,
+      "bookPage": 0,
+      "bookVisible": false,
+      "failing": false,
+      "white": 0
+    },
+    "handoff": {
+      "done": false,
+      "result": null
+    },
+    "hp": 100,
+    "maxHp": 100,
+    "motes": 6,
+    "errors": []
+  },
+  {
+    "stage": "03-wake-blur",
+    "phase": "wake",
+    "tSec": 12.283333333333546,
+    "flow": {
+      "phase": "wake",
+      "tSec": 12.283333333333546,
+      "phaseT": 4.283333333333546,
+      "bossVisible": false,
+      "bossHp": 1400,
+      "bossPhase": 1,
+      "bookNear": false,
+      "bookReading": false,
+      "bookPage": 0,
+      "bookVisible": false,
+      "failing": false,
+      "white": 0
+    },
+    "handoff": {
+      "done": false,
+      "result": null
+    },
+    "hp": 100,
+    "maxHp": 100,
+    "motes": 6,
+    "errors": []
+  },
+  {
+    "stage": "04-tutorial-book",
+    "error": "ProtocolError: Page.captureScreenshot timed out. Increase the 'protocolTimeout' setting in launch/connect calls for a higher timeout if needed.",
+    "errors": []
+  },
+  {
+    "stage": "05-tutorial-no-book",
+    "error": "TimeoutError: Waiting failed: 90000ms exceeded",
+    "errors": []
+  }
+]

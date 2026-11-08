@@ -25,10 +25,17 @@ export class App {
 
   get scene(): THREE.Scene { return this.sceneRef; }
   get camera(): THREE.PerspectiveCamera { return this.cameraRef; }
+  /** 熔岩海的初始高度（M4-01 的转场/狂暴演出基于它做相对上涨） */
+  get lavaBaseY(): number { return VISUAL.lava.y; }
   get canvas(): HTMLCanvasElement {
     const el = this.renderer?.domElement;
     if (!el) throw new Error('[render] canvas 尚未创建');
     return el;
+  }
+
+  /** M4-01 演出：把熔岩海整体抬高（不重建材质/管线） */
+  setLavaY(y: number): void {
+    this.lava?.setLevel(y);
   }
 
   private readonly host: HTMLElement;
@@ -41,13 +48,19 @@ export class App {
   private atmosphere: Atmosphere | null = null;
 
   private lastFrameTime = 0;
+  private firstFrameTime = 0;
   private frames = 0;
   private fpsAccum = 0;
-  private elapsed = 0;
   private disposed = false;
 
   private qualityLocked: QualityTier | null = null;
-  private qualityProbe = { active: false, sum: 0, count: 0 };
+  /** 自动选档探测：窗口按真实墙钟开合，样本是未钳制的真实帧间隔 */
+  private qualityProbe: { start: number; skip: number; done: boolean; samples: number[] } = {
+    start: 0,
+    skip: 3,
+    done: false,
+    samples: [],
+  };
   private rawMode = false;
 
   constructor(host: HTMLElement) {
@@ -105,6 +118,7 @@ export class App {
     this.buildScene();
     this.handleResize();
     window.addEventListener('resize', this.handleResize);
+    document.addEventListener('visibilitychange', this.handleVisibility);
     (window as unknown as { __render?: unknown }).__render = {
       scene: this.sceneRef,
       renderer,
@@ -122,6 +136,7 @@ export class App {
     if (this.disposed) return;
     this.disposed = true;
     window.removeEventListener('resize', this.handleResize);
+    document.removeEventListener('visibilitychange', this.handleVisibility);
     void this.renderer?.setAnimationLoop(null);
     this.postFX?.dispose();
     void this.renderer?.dispose();
@@ -176,9 +191,11 @@ export class App {
     if (!renderer || !postFX || this.disposed) return;
 
     // 首帧只记录时间戳，避免把页面加载耗时算进 dt
-    const dt = this.lastFrameTime === 0 ? 0 : Math.min((time - this.lastFrameTime) / 1000, 0.1);
+    const rawDt = this.lastFrameTime === 0 ? 0 : (time - this.lastFrameTime) / 1000;
+    // 逻辑层要钳制（慢机器单帧 500ms 不能让物体瞬移一大截），测量层必须用 rawDt
+    const dt = Math.min(rawDt, 0.1);
     this.lastFrameTime = time;
-    this.elapsed += dt;
+    if (this.firstFrameTime === 0) this.firstFrameTime = time;
 
     this.onTick?.(dt);
 
@@ -193,11 +210,11 @@ export class App {
     }
 
     this.onSync?.();
-    this.autoQuality(dt);
+    this.autoQuality(time, rawDt);
     this.onStats?.(renderer.info.render.drawCalls, renderer.info.render.triangles);
 
     this.frames += 1;
-    this.fpsAccum += dt;
+    this.fpsAccum += rawDt;
     if (this.fpsAccum >= 0.5) {
       this.onFrame?.(this.frames / this.fpsAccum);
       this.frames = 0;
@@ -205,27 +222,58 @@ export class App {
     }
   };
 
-  /** 首 3 秒平均帧时间自动选档；跳过首帧编译卡顿与超过 100ms 的离群帧。 */
-  private autoQuality(dt: number): void {
-    if (this.qualityLocked || !VISUAL.quality.auto || !this.postFX) return;
-    if (this.elapsed < 1) return;
-
+  /**
+   * 启动 1 秒后按真实帧时间自动选一档（ultra 只能手动选）。
+   *
+   * 窗口与采样都必须走真实墙钟：慢机器单帧可能超过 1 秒，用钳制到 0.1s 的 dt
+   * 累计会把 "3 秒窗口" 拖成几十秒，判决被无限推迟，玩家永远停在默认 high 档。
+   */
+  private autoQuality(now: number, rawDt: number): void {
     const probe = this.qualityProbe;
-    probe.active = true;
+    if (probe.done || this.qualityLocked || !VISUAL.quality.auto || !this.postFX) return;
 
-    if (dt > 0.0005 && dt < 0.1) {
-      probe.sum += dt;
-      probe.count += 1;
+    // 开头这一秒是着色器编译与贴图上传，不计入
+    if (now - this.firstFrameTime < 1000) return;
+    if (probe.start === 0) probe.start = now;
+
+    // 只跳过开头几帧的编译卡顿，慢机器上 100ms+ 的稳定帧时间也要计入
+    if (probe.skip > 0) {
+      probe.skip -= 1;
+      return;
     }
 
-    if (this.elapsed >= 1 + VISUAL.quality.sampleSeconds && probe.count > 20) {
-      const avgMs = (probe.sum / probe.count) * 1000;
-      const tier: QualityTier =
-        avgMs > VISUAL.quality.lowAboveMs ? 'low' : avgMs > VISUAL.quality.mediumAboveMs ? 'medium' : 'high';
-      this.postFX.setQuality(tier);
-      this.qualityProbe = { active: false, sum: 0, count: 0 };
-    }
+    if (rawDt > 0.0005 && probe.samples.length < 512) probe.samples.push(rawDt);
+
+    const windowMs = VISUAL.quality.sampleSeconds * 1000;
+    const sampledMs = now - probe.start;
+    const count = probe.samples.length;
+    // 正常情况收满窗口且够 3 帧就判；慢机器 3 秒只够拍一两帧，窗口翻倍后有几帧就判
+    const settled = sampledMs >= windowMs && count >= 3;
+    const starved = sampledMs >= windowMs * 2 && count >= 1;
+    if (!settled && !starved) return;
+
+    // 用 P90 而不是均值：一次卡顿（切档重建、GC）不该被摊薄成"这台机器还行"
+    const sorted = probe.samples.slice().sort((a, b) => a - b);
+    const p90Ms = sorted[Math.min(count - 1, Math.floor(count * 0.9))] * 1000;
+    const tier: QualityTier =
+      p90Ms > VISUAL.quality.lowAboveMs ? 'low' : p90Ms > VISUAL.quality.mediumAboveMs ? 'medium' : 'high';
+    probe.done = true;
+    this.postFX.setQuality(tier);
   }
+
+  /** 重新开窗采样。只用于"回前台"这种采样前提被打断的时刻，判决本身只做一次。 */
+  private resetQualityProbe(): void {
+    const probe = this.qualityProbe;
+    if (probe.done) return;
+    probe.start = 0;
+    probe.skip = 3;
+    probe.samples.length = 0;
+  }
+
+  /** 后台标签页的帧间隔不代表设备性能：回前台重新采样，而不是过滤所有长帧。 */
+  private readonly handleVisibility = (): void => {
+    this.resetQualityProbe();
+  };
 }
 
 async function createRenderer(): Promise<{ renderer: THREE.WebGPURenderer; backend: BackendName }> {

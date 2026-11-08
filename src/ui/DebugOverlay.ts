@@ -2,12 +2,14 @@ import type { BackendName } from '../render/App';
 
 /** 右下角调试浮层：FPS + 当前 save.player.hp。 */
 export class DebugOverlay {
+  readonly root: HTMLDivElement;
   private readonly fpsEl: HTMLSpanElement;
   private readonly hpEl: HTMLSpanElement;
   private readonly messageEl: HTMLDivElement;
 
   constructor(backend: BackendName) {
     const root = document.createElement('div');
+    this.root = root;
     root.style.cssText = [
       'position:fixed',
       'right:14px',

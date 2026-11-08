@@ -52,7 +52,7 @@ declare global {
       /** 平台交接状态（验收证据用） */
       handoff: () => { done: boolean; result: 'win' | 'fail' | null };
       /** 音频状态（加载进度 / 声部峰值 / 静音，验收用） */
-      audio: () => AudioStats;
+      audio: () => AudioStats | null;
     };
     __boss?: IgnisBoss;
   }
@@ -180,13 +180,16 @@ async function boot(): Promise<void> {
   // ── 3.5 音频（M5-02）─────────────────────────────────────────────────────
   // 构造阶段零音频资源：首次 pointerdown / keydown 才建 AudioContext 并分批解码。
   // M 键静音由 AudioPlayer 自己接管；弱点/Boss 音效的左右定位读 bossPosition。
-  const audio = new AudioPlayer({
-    bus: game.bus,
-    bossPosition: () => {
-      const b = bossRef;
-      return b ? [b.root.position.x, b.root.position.y, b.root.position.z] : null;
-    },
-  });
+  // ?audio=0：无头截图/QA 时关闭音频，避免软件音频栈拖慢渲染。
+  const audio = params.get('audio') === '0'
+    ? null
+    : new AudioPlayer({
+        bus: game.bus,
+        bossPosition: () => {
+          const b = bossRef;
+          return b ? [b.root.position.x, b.root.position.y, b.root.position.z] : null;
+        },
+      });
 
   // ── 4. 演出 / HUD ────────────────────────────────────────────────────────
   let handoffDone = false;
@@ -467,7 +470,7 @@ async function boot(): Promise<void> {
     killBoss: () => bossRef?.takeDamage(1_000_000, 'arcane'),
     flow: () => show.flowSnapshot(),
     handoff: () => ({ done: handoffDone, result: handoffResult }),
-    audio: () => audio.stats(),
+    audio: () => audio?.stats() ?? null,
   };
 
   // ── 10. ?t= 快进（逐段截图/验收用）───────────────────────────────────────
@@ -486,7 +489,7 @@ async function boot(): Promise<void> {
   window.addEventListener('pagehide', () => {
     input.dispose();
     show.dispose();
-    audio.dispose();
+    audio?.dispose();
     view.dispose();
     app.dispose();
   }, { once: true });

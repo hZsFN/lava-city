@@ -13,7 +13,18 @@
 export type Vec3 = readonly [number, number, number];
 export type Attr = 'arcane' | 'physical';   // arcane=法术(蓝) physical=物理(白金)
 export type BodyPart = 'core' | 'back' | 'kneeL' | 'kneeR';
-export type MatchPhase = 'wake' | 'prep' | 'boss1' | 'transition' | 'boss2' | 'rage' | 'ended';
+// M4-01：演出补齐后的一局共 9 段（victory/escape 由 Boss 死亡动态接续）
+export type MatchPhase =
+  | 'wake'
+  | 'tutorial'
+  | 'prep'
+  | 'boss1'
+  | 'transition'
+  | 'boss2'
+  | 'victory'
+  | 'escape'
+  | 'rage'
+  | 'ended';
 export type SlotState = 'locked' | 'open' | 'occupied' | 'submerged';
 
 export interface Events {
