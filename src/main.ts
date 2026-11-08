@@ -64,7 +64,12 @@ async function boot(): Promise<void> {
 
   // ── 2. 逻辑（三路交付物的整合）──────────────────────────────────────────
   const input = createInput(app.canvas);
-  const game = createGame({ input });
+  // 血量接力规则：入口血量从存档读，注入逻辑层；读不到才退回 config 兜底值
+  let save = readSave();
+  const game = createGame({
+    input,
+    playerHp: save ? { hp: save.player.hp, maxHp: save.player.max_hp } : undefined,
+  });
 
   // ── 3. 表现层 ────────────────────────────────────────────────────────────
   const view = createGameView({
@@ -80,9 +85,22 @@ async function boot(): Promise<void> {
 
   // ── 5. 调试浮层 ──────────────────────────────────────────────────────────
   const overlay = new DebugOverlay(app.backendName);
-  let save = readSave();
-  overlay.setHp(save?.player.hp ?? null);
+  overlay.setHp(game.snapshot().player.hp);
   overlay.setMessage('熔心孤塔 · 点击画面锁定鼠标，WASD 移动');
+
+  // 血量归零：唯一出口是 WL.failLevel（不做复活、不回血）
+  let failed = false;
+  game.bus.on('PlayerDied', (p) => {
+    if (failed) return;
+    failed = true;
+    overlay.setHp(0);
+    overlay.setMessage(`倒下：${p.cause}`);
+    try {
+      window.__WL__?.failLevel?.('被熔渊之主击倒，倒在塔心前');
+    } catch (error) {
+      console.error('[boot] failLevel 失败', error);
+    }
+  });
 
   let lastPhase = 'wake';
   game.bus.on('MatchPhaseChanged', (p) => {
@@ -93,11 +111,12 @@ async function boot(): Promise<void> {
 
   app.onFrame = (fps) => {
     overlay.setFps(fps);
-    overlay.setHp(save?.player.hp ?? null);
+    overlay.setHp(game.snapshot().player.hp);
   };
 
   // ── 6. 局终处理：胜利/失败 → WL 交接 ────────────────────────────────────
   game.bus.on('MatchEnded', (p) => {
+    if (failed) return; // 已因血量归零判定失败，避免重复提交
     overlay.setMessage(
       p.result === 'win'
         ? `通关！${p.tSec.toFixed(1)}s · ${p.reason}`

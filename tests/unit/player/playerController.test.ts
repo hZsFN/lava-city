@@ -24,7 +24,7 @@ const cfg: PlayerConfig = {
     radius: 0.35,
     height: 1.8,
   },
-  hp: { maxHp: 100, regenDelaySec: 4, regenPerSec: 12 },
+  hp: { maxHp: 100, hitInvulnerableSec: 1.2 },
 };
 
 const floor = (minZ = -20, maxZ = 20, top = 0): Aabb => ({
@@ -47,7 +47,13 @@ const idle = (over: Partial<PlayerInput> = {}): PlayerInput => ({
   ...over,
 });
 
-function make(opts: { world?: PlayerWorld; spawn?: [number, number, number] } = {}) {
+function make(
+  opts: {
+    world?: PlayerWorld;
+    spawn?: [number, number, number];
+    hp?: { current: number; max: number };
+  } = {},
+) {
   const bus = createBus();
   const events: Array<{ name: keyof Events; payload: unknown }> = [];
   const names: Array<keyof Events> = [
@@ -69,6 +75,7 @@ function make(opts: { world?: PlayerWorld; spawn?: [number, number, number] } = 
     config: cfg,
     world: opts.world ?? world,
     spawn: opts.spawn ?? [0, 0, 0],
+    hp: opts.hp,
   });
   return { bus, player, events };
 }
@@ -273,14 +280,34 @@ describe('PlayerController · HP / 死亡 / 复活', () => {
     expect(hit).toEqual({ amount: 30, hp: 70, maxHp: 100, source: 'boss' });
   });
 
-  it('脱战 4 s 后开始回血', () => {
-    const { player } = make();
-    player.takeDamage(20, 'boss');
-    run(player, 60, idle());
-    expect(player.currentHp).toBe(80);
-    run(player, 300, idle());
-    expect(player.currentHp).toBeGreaterThan(80);
-    expect(player.currentHp).toBeLessThanOrEqual(100);
+  it('入口血量取自注入值，不写死 100', () => {
+    const { player } = make({ hp: { current: 1, max: 150 } });
+    expect(player.currentHp).toBe(1);
+    expect(player.takeHit('boss')).toBe(1);
+    expect(player.isDead).toBe(true);
+  });
+
+  it('Boss 命中固定扣 1 点，受击后 1.2 s 内不能再次受击', () => {
+    const { player, events } = make({ hp: { current: 10, max: 10 } });
+    expect(player.takeHit('boss')).toBe(1);
+    expect(player.currentHp).toBe(9);
+    expect(player.isInvulnerable).toBe(true);
+    // 无敌期内再来一次应被忽略
+    expect(player.takeHit('boss')).toBe(0);
+    expect(player.currentHp).toBe(9);
+    // 1.2 s 后恢复可受击
+    run(player, 72, idle());
+    expect(player.isInvulnerable).toBe(false);
+    expect(player.takeHit('boss')).toBe(1);
+    expect(player.currentHp).toBe(8);
+    expect(countOf(events, 'PlayerDamaged')).toBe(2);
+  });
+
+  it('入口血量为 0 时首帧判死', () => {
+    const { player, events } = make({ hp: { current: 0, max: 100 } });
+    player.update(DT, idle());
+    expect(player.isDead).toBe(true);
+    expect(countOf(events, 'PlayerDied')).toBe(1);
   });
 
   it('HP 归零发布 PlayerDied，之后不再移动、不再受击', () => {
@@ -293,16 +320,6 @@ describe('PlayerController · HP / 死亡 / 复活', () => {
     expect(player.takeDamage(10, 'boss')).toBe(0);
     player.update(DT, idle({ moveZ: 1 }));
     expect(player.pos[2]).toBe(0);
-  });
-
-  it('复活重置 HP 并发布 PlayerRespawned', () => {
-    const { player, events } = make();
-    player.kill('lava');
-    player.respawn([0, 2, 0]);
-    expect(player.isDead).toBe(false);
-    expect(player.currentHp).toBe(100);
-    expect(player.pos).toEqual([0, 2, 0]);
-    expect(countOf(events, 'PlayerRespawned')).toBe(1);
   });
 
   it('kill 幂等，不重复计死亡次数', () => {
