@@ -26,10 +26,10 @@ src/core/config/visual.json  （新建/填充）
 
 ### 1. 渲染器
 
-主路径用 `THREE.WebGPURenderer`，失败时自动回退 `WebGLRenderer`（M0 的版本保留为 fallback 分支）：
+直接用 `THREE.WebGPURenderer` + TSL（M0 已经是这条路，本票继续往下做，不要退回 WebGL）：
 
 ```ts
-import * as THREE from 'three/webgpu';        // r17x+ 的 WebGPU 入口
+import * as THREE from 'three/webgpu';        // r167+ 的 WebGPU 入口
 const renderer = new THREE.WebGPURenderer({ antialias: true, powerPreference: 'high-performance' });
 await renderer.init();                        // 必须 await，WebGPU 是异步初始化的
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -37,7 +37,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 ```
 
-`await renderer.init()` 要用 `try/catch` 包住；抛错或 `navigator.gpu` 不存在时，回落到 `WebGLRenderer` 并把画质档强制降到 `low`。**两条路都必须跑通**，交付时贴出两条路径各自的 draw call 数字。
+`await renderer.init()` 用 `try/catch` 兜一层：**仅在 init 抛错或 `navigator.gpu` 不存在时**回落到 `WebGLRenderer` 并把画质档强制降到 `low`。这是保险丝，不是要并行维护的第二条路 —— 把 WebGPU 那条路调好，别把时间平摊到两条路上。
 
 用 TSL（Three Shading Language，`three/tsl`）写所有自定义材质与后处理，不手写 GLSL 字符串。TSL 用法不确定时用 `mcp__context7__query-docs` 查 `three` 的 TSL 节点 API，不要凭记忆写。
 

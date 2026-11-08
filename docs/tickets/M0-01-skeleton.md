@@ -52,6 +52,24 @@ tools/pack-level.ps1
 6. 禁止出现任何 IP 词汇：任天堂、Nintendo、迪士尼、Disney、原神、Genshin、米哈游、宝可梦、Pokémon、Mario、马里奥、漫威、Marvel、Minecraft、我的世界。
 7. TypeScript 必须 `strict: true`，`npm run typecheck` 零错误。
 
+## 【渲染器（直接上 WebGPU，不做 WebGL 验证）】
+
+骨架就用 `THREE.WebGPURenderer` + TSL，不要先做一版 `WebGLRenderer` 再升级：
+
+```ts
+import * as THREE from 'three/webgpu';
+const renderer = new THREE.WebGPURenderer({ antialias: true, powerPreference: 'high-performance' });
+await renderer.init();          // WebGPU 异步初始化，必须 await
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+```
+
+`three` 的 npm 包从 r167 起就带 `three/webgpu` 入口，不需要装额外的包。
+
+`await renderer.init()` 外面套 `try/catch`：**只在 init 抛错且浏览器不支持 WebGPU 时**才回落到 `WebGLRenderer`，正常情况一律走 WebGPU。这个 fallback 是保险丝，不是并行开发的一条支线 —— 不要把时间花在把两条路都调到一样上。
+
+TSL 节点 API 不确定时用 `mcp__context7__query-docs` 查 `three` 文档，不要凭记忆写。
+
 ## 【依赖】
 
 ```
