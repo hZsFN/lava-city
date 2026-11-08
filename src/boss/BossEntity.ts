@@ -377,6 +377,56 @@ export class BossEntity implements BossDebugApi, VfxSink {
     this.torso.add(mound);
     this.rockMeshes.push(mound);
 
+    // 柱状节理：围绕躯干一圈的六棱岩柱，每根高度不一。
+    // 这是"整块烧过的玄武岩"的来源 —— 单个球体永远做不出这种层次。
+    const COLUMNS = 11;
+    for (let i = 0; i < COLUMNS; i++) {
+      const a = (i / COLUMNS) * Math.PI * 2;
+      const r = 2.86;
+      const h = 1.9 + ((i * 7) % 5) * 0.46;
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.64, h, 6), this.stoneMat);
+      col.position.set(
+        Math.cos(a) * r,
+        -0.45 + ((i * 3) % 4) * 0.28,
+        Math.sin(a) * r * 0.84,
+      );
+      col.rotation.set(0.05, -a, 0.04);
+      this.torso.add(col);
+      this.rockMeshes.push(col);
+
+      // 柱缝里的熔岩：柱子挡住的地方看不见，露出的一线就是光
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.075, h * 1.32, 0.075), this.lavaMat);
+      seam.position.set(
+        Math.cos(a + 0.285) * 2.92,
+        -0.45 + ((i * 3) % 4) * 0.28,
+        Math.sin(a + 0.285) * 2.92 * 0.84,
+      );
+      seam.rotation.y = -a;
+      this.torso.add(seam);
+      this.rockMeshes.push(seam);
+    }
+
+    // 胸口炉膛：一圈八块小岩片围出的洞，洞底是熔岩色发光面
+    const forgeBase = new THREE.Mesh(new THREE.BoxGeometry(2.1, 2.0, 0.18), this.lavaMat);
+    forgeBase.position.set(0, 0.35, 2.62);
+    this.torso.add(forgeBase);
+    this.rockMeshes.push(forgeBase);
+
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const lip = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.34, 0.62), this.stoneMat);
+      lip.position.set(Math.cos(a) * 0.98, 0.35 + Math.sin(a) * 0.95, 2.72);
+      lip.rotation.z = a;
+      this.torso.add(lip);
+      this.rockMeshes.push(lip);
+    }
+
+    // 颈部：一截被岩片包住的短柱，让头不是直接扣在球上
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.6, 1.5, 7), this.stoneMat);
+    neck.position.set(0, 2.35, 0.2);
+    this.torso.add(neck);
+    this.rockMeshes.push(neck);
+
     // 底部的裙岩：更宽，制造"陷进熔岩里"的重量感
     const skirt = new THREE.Mesh(new THREE.DodecahedronGeometry(2.9, 0), this.stoneMat);
     skirt.scale.set(1.35, 0.72, 1.1);
@@ -405,17 +455,17 @@ export class BossEntity implements BossDebugApi, VfxSink {
     // ── 脸：整只 Boss 的视觉中心 ──
     // 一大块裂开的岩壳，正面两个烧红的眼窝，下面一道横向裂缝当嘴。
     // 没有鼻子、没有下巴、没有表情 —— 它是一张石头长出来的脸。
-    this.head.position.set(0, HEAD_Y, 0.55);
+    this.head.position.set(0, HEAD_Y, 1.55);
     this.torso.add(this.head);
 
     const face = new THREE.Mesh(new THREE.IcosahedronGeometry(2.35, 0), this.stoneMat);
-    face.scale.set(1.38, 1.5, 0.82);
+    face.scale.set(1.38, 1.5, 0.52);
     this.head.add(face);
     this.rockMeshes.push(face);
 
     // 额头裂纹：从眉心向上劈开
     const browCrack = new THREE.Mesh(new THREE.BoxGeometry(0.13, 1.5, 0.16), this.lavaMat);
-    browCrack.position.set(0.1, 1.15, 1.02);
+    browCrack.position.set(0.1, 1.15, 1.18);
     browCrack.rotation.z = 0.12;
     this.head.add(browCrack);
     this.rockMeshes.push(browCrack);
@@ -426,19 +476,19 @@ export class BossEntity implements BossDebugApi, VfxSink {
         new THREE.IcosahedronGeometry(0.62, 0),
         new THREE.MeshStandardMaterial({ color: 0x080402, roughness: 1, flatShading: true }),
       );
-      socket.position.set(side * 1.0, 0.5, 1.42);
+      socket.position.set(side * 1.0, 0.5, 1.12);
       socket.scale.set(1.0, 1.12, 0.55);
       this.head.add(socket);
 
       // 眼窝深处烧红的煤
       const ember = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 0), this.lavaMat);
-      ember.position.set(side * 1.02, 0.46, 1.66);
+      ember.position.set(side * 1.02, 0.46, 1.32);
       this.head.add(ember);
       this.rockMeshes.push(ember);
 
       // 眉骨：向外挑出一条硬棱，让眼窝有深度
       const brow = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.22, 0.34), this.stoneMat);
-      brow.position.set(side * 1.02, 1.02, 1.4);
+      brow.position.set(side * 1.02, 1.02, 1.24);
       brow.rotation.z = side * 0.26;
       this.head.add(brow);
       this.rockMeshes.push(brow);
@@ -446,14 +496,14 @@ export class BossEntity implements BossDebugApi, VfxSink {
 
     // 嘴：一道横贯下半张脸的裂缝，里面是熔岩
     const mouth = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.24, 0.2), this.lavaMat);
-    mouth.position.set(0, -1.15, 1.28);
+    mouth.position.set(0, -1.15, 1.24);
     this.head.add(mouth);
     this.rockMeshes.push(mouth);
 
     // 嘴两侧各崩掉一块，露出参差的断面
     for (const side of [-1, 1] as const) {
       const chipped = new THREE.Mesh(new THREE.IcosahedronGeometry(0.46, 0), this.stoneMat);
-      chipped.position.set(side * 1.42, -1.05, 1.0);
+      chipped.position.set(side * 1.42, -1.05, 1.12);
       chipped.rotation.set(0.4, side * 0.6, side * 0.3);
       this.head.add(chipped);
       this.rockMeshes.push(chipped);
